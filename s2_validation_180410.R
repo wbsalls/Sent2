@@ -5,8 +5,7 @@ library(sp)
 
 # query MCI values at in situ points ------------------------------------------------------------------------------------------
 
-mu <- read.csv("O:/PRIV/NERL_ORD_CYAN/Sentinel2/Matchups/out/Matchups_S2_chla_3day_filtered_2018-03-08.csv", stringsAsFactors = FALSE)
-#mu <- read.csv("O:/PRIV/NERL_ORD_CYAN/Sentinel2/Validation/validation_S2_50imgs_MCI_Brr_2018-03-26.csv", stringsAsFactors = FALSE)
+mu <- read.csv("O:/PRIV/NERL_ORD_CYAN/Sentinel2/Matchups/out/Matchups_S2_chla_10day_filtered_2018-07-23.csv", stringsAsFactors = FALSE)
 #mu <- read.csv("/Users/wilsonsalls/Desktop/EPA/S2/Validation/xxx", stringsAsFactors = FALSE)
 
 # subset to same day (if desired)
@@ -47,9 +46,9 @@ write.csv(mu_pts_brief@data, "O:/PRIV/NERL_ORD_CYAN/Sentinel2/Validation/validat
 '
 
 # location of images
-rfolder <- "D:/mci_237imgs"
+rfolder <- "D:/s2/mci_resample20"
 #rfolder <- "/Users/wilsonsalls/Desktop/EPA/S2/Images"
-safe_folder <- "D:/s2imgs"
+safe_folder <- "D:/s2/raw"
 
 # for naming MCI output column
 process_name <- "MCI_L1C"
@@ -59,17 +58,21 @@ mci_imgs <- list.files(rfolder, pattern = "\\.data")
 #mci_img_names <- substr(mci_imgs, 16, 75)
 mci_img_names <- gsub("mci_resample20_", "", mci_imgs)
 mci_img_names <- gsub(".data", "", mci_img_names)
+length(unique(mu_pts$PRODUCT_ID))
+length(mci_img_names)
 sum(mci_img_names %in% mu_pts$PRODUCT_ID)
+sum(unique(mu_pts$PRODUCT_ID) %in% mci_img_names)
 
 # run extraction
 mu_mci <- data.frame()
 img_summary <- data.frame()
+cloudy_pts <- data.frame()
 
 print(Sys.time())
 for (i in 1:length(mci_imgs)) {
   
   # progress
-  print(sprintf("image #%s", i))
+  print(sprintf("image #%s at %s", i, Sys.time()))
   
   # initialize variable for use below
   missing_crs <- ""
@@ -117,6 +120,10 @@ for (i in 1:length(mci_imgs)) {
     
     # only include points with extracted value of NA (meaning they don't fall over a cloud)
     mu_pts_img_proj <- mu_pts_img_proj[is.na(cloud_pts_index$gml_id), ]
+    cloudy_pts <- rbind(cloudy_pts, mu_pts_img_proj@data[!is.na(cloud_pts_index$gml_id), ])
+    if (nrow(mu_pts_img_proj@data[!is.na(cloud_pts_index$gml_id), ]) > 0) {
+      print("cloud")
+    }
   }
   
   # extract mci values and add as new column
@@ -140,14 +147,15 @@ print(Sys.time())
 colnames(mu_mci)[which(colnames(mu_mci) == "mci")] <- process_name
 
 # write out
-write.csv(mu_mci, sprintf("O:/PRIV/NERL_ORD_CYAN/Sentinel2/Validation/validation_S2_237imgs_%s_%s.csv", process_name, Sys.Date()))
-write.csv(img_summary, sprintf("O:/PRIV/NERL_ORD_CYAN/Sentinel2/Validation/validation_S2_237imgs_%s_img_summary_%s.csv", process_name, Sys.Date()))
+write.csv(mu_mci, sprintf("O:/PRIV/NERL_ORD_CYAN/Sentinel2/Validation/validation_S2_682imgs_%s_%s.csv", process_name, Sys.Date()))
+write.csv(img_summary, sprintf("O:/PRIV/NERL_ORD_CYAN/Sentinel2/Validation/validation_S2_682imgs_%s_img_summary_%s.csv", process_name, Sys.Date()))
+write.csv(cloudy_pts, sprintf("O:/PRIV/NERL_ORD_CYAN/Sentinel2/Validation/validation_S2_682imgs_%s_cloudypts_%s.csv", process_name, Sys.Date()))
 
 
 
 # validation ----------------------------------------------------------------------------------
 
-source("O:/PRIV/NERL_ORD_CYAN/Sentinel2/Validation/error_metrics_1800611.R")
+source("C:/Users/WSalls/Desktop/Git/Sent2/error_metrics_1800611.R")
 #source("/Users/wilsonsalls/Desktop/EPA/Sentinel2/Validation/error_metrics_1800403.R")
 
 mu_mci_raw <- mu_mci
