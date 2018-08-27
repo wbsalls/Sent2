@@ -159,7 +159,7 @@ source("C:/Users/WSalls/Desktop/Git/Sent2/error_metrics_1800611.R")
 #source("/Users/wilsonsalls/Desktop/EPA/Sentinel2/Validation/error_metrics_1800403.R")
 
 mu_mci_raw <- mu_mci
-mu_mci_raw <- read.csv("O:/PRIV/NERL_ORD_CYAN/Sentinel2/Validation/237_imgs/validation_S2_237imgs_MCI_L1C_2018-04-10.csv", stringsAsFactors = FALSE)
+#mu_mci_raw <- read.csv("O:/PRIV/NERL_ORD_CYAN/Sentinel2/Validation/xxx.csv", stringsAsFactors = FALSE)
 #mu_mci_raw <- read.csv("/Users/wilsonsalls/Desktop/EPA/Sentinel2/Validation/validation_S2_117imgs_MCI_L1C_2018-04-05.csv", stringsAsFactors = FALSE)
 
 
@@ -175,12 +175,48 @@ mu_mci_orig <- mu_mci_raw[!duplicated(val_df), ]
 
 #
 
-# subset
-mu_mci <- mu_mci_orig[mu_mci_orig$resolvable_nonEdge == ">= 60 m from shore", ] # remove (possible) land -87
-mu_mci <- mu_mci[mu_mci$MCI_L1C != 0, ] # remove 0s (NA MCI_L1C) -216
-mu_mci <- mu_mci[!is.na(mu_mci$MCI_L1C), ] # remove NAs -3
-mu_mci <- mu_mci[mu_mci$MCI_L1C > -0.01, ] # remove extreme negative values -59
-mu_mci <- mu_mci[mu_mci$chla_corr < 200, ] # remove outliers -3 ***?
+## subset
+# remove (possible) land
+mu_mci <- mu_mci_orig[mu_mci_orig$dist_shore_m >= 30, ]
+
+# remove NAs
+sum(is.na(mu_mci$MCI_L1C))
+mu_mci <- mu_mci[!is.na(mu_mci$MCI_L1C), ]
+
+# remove 0s (NA MCI_L1C)
+sum(mu_mci$MCI_L1C == 0)
+mu_mci <- mu_mci[mu_mci$MCI_L1C != 0, ]
+
+# remove outliers
+max(mu_mci$MCI_L1C)
+mu_mci <- mu_mci[mu_mci$MCI_L1C != max(mu_mci$MCI_L1C), ]
+
+min(mu_mci$MCI_L1C)
+sum(mu_mci$MCI_L1C < -0.01)
+mu_mci <- mu_mci[mu_mci$MCI_L1C > -0.01, ]
+
+sum(mu_mci$chla_corr > 200)
+mu_mci <- mu_mci[mu_mci$chla_corr < 200, ]
+
+
+## plot
+library(colorRamps)
+library(grDevices)
+library(RColorBrewer)
+
+mu_mci$offset_days_factor <- as.factor(mu_mci$offset_days)
+length(levels(mu_mci$offset_days_factor))
+
+#plot(mu_mci$chla_corr, mu_mci$MCI_L1C, col = rainbow(mu_mci$offset_days_factor))
+#legend(10, 0.03, levels(mu_mci$offset_days_factor), col = rainbow(1:length(mu_mci$offset_days_factor)), pch=1)
+
+plot(mu_mci$chla_corr, mu_mci$MCI_L1C, col = topo.colors(n = 11, alpha = 0.5), pch = 16, xlim = c(0, 210))
+legend(195, 0.04, levels(mu_mci$offset_days_factor), col = topo.colors(11, alpha = 0.5), pch = 16)
+
+
+qplot(mu_mci$chla_corr, mu_mci$MCI_L1C, col = mu_mci$offset_days_factor)
+
+#
 
 # mci vs chl-a
 '
@@ -225,6 +261,8 @@ plot_error_metrics(x = mu_mci$chla_corr, y = mu_mci$chla_s2,
 
 
 # investigate patterns -------------------------------------------
+
+## check residuals vs offset days
 
 ## same MCI values
 mci_freq <- as.data.frame(table(mu_mci$MCI_L1C))
