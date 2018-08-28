@@ -40,7 +40,7 @@ calc_error_metrics <- function(x, y) {
   
   # select regression type: 1 for OLS (usually used for Type I?); 2 for major axis regression [MA] (usually for Type II?)
   # (standard major axis [SMA] and ranged major axis [RMA] also available - both for Type II?)
-  rtype <- 1
+  rtype <- 2
   # create model
   m1 <- lmodel2(y2 ~ x2)
   m1.slope = m1$regression.results$Slope[rtype]
@@ -70,6 +70,7 @@ plot_error_metrics <- function(x, y,
                                title = NULL, 
                                equal_axes = FALSE, 
                                log_axes = "",
+                               rsq = TRUE,
                                states = NA, 
                                lakes = NA) {
   
@@ -149,7 +150,7 @@ plot_error_metrics <- function(x, y,
   text(x = text_x, y = text_y, adj = c(0, 1), 
        paste0("y = ", signif(err_metr$slope, digits = 3), "x + ", 
               signif(err_metr$int, digits = 3), "\n",
-              "R-sq. = ", round(err_metr$r.sq, 2), "\n",
+              if (rsq == TRUE) {paste0("R-sq. = ", round(err_metr$r.sq, 2), "\n")},
               "MAE = ", signif(err_metr$MAE, digits = 3), "\n", 
               #"MAPE = ", signif(err_metr$MAPE, digits = 3), "\n", 
               "bias = ", signif(err_metr$bias, digits = 3), "\n", 

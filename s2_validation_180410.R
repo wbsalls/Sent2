@@ -159,7 +159,7 @@ source("C:/Users/WSalls/Desktop/Git/Sent2/error_metrics_1800611.R")
 #source("/Users/wilsonsalls/Desktop/EPA/Sentinel2/Validation/error_metrics_1800403.R")
 
 mu_mci_raw <- mu_mci
-#mu_mci_raw <- read.csv("O:/PRIV/NERL_ORD_CYAN/Sentinel2/Validation/xxx.csv", stringsAsFactors = FALSE)
+mu_mci_raw <- read.csv("O:/PRIV/NERL_ORD_CYAN/Sentinel2/Validation/validation_S2_682imgs_MCI_L1C_2018-08-24.csv", stringsAsFactors = FALSE)
 #mu_mci_raw <- read.csv("/Users/wilsonsalls/Desktop/EPA/Sentinel2/Validation/validation_S2_117imgs_MCI_L1C_2018-04-05.csv", stringsAsFactors = FALSE)
 
 
@@ -176,7 +176,7 @@ mu_mci_orig <- mu_mci_raw[!duplicated(val_df), ]
 #
 
 ## subset
-# remove (possible) land
+# remove land-adjacent
 mu_mci <- mu_mci_orig[mu_mci_orig$dist_shore_m >= 30, ]
 
 # remove NAs
@@ -198,25 +198,13 @@ mu_mci <- mu_mci[mu_mci$MCI_L1C > -0.01, ]
 sum(mu_mci$chla_corr > 200)
 mu_mci <- mu_mci[mu_mci$chla_corr < 200, ]
 
+# subset by offset time
+offset_threshold <- 10
+mu_mci <- mu_mci[mu_mci$offset_days <= offset_threshold, ]
+
 
 ## plot
-library(colorRamps)
-library(grDevices)
-library(RColorBrewer)
 
-mu_mci$offset_days_factor <- as.factor(mu_mci$offset_days)
-length(levels(mu_mci$offset_days_factor))
-
-#plot(mu_mci$chla_corr, mu_mci$MCI_L1C, col = rainbow(mu_mci$offset_days_factor))
-#legend(10, 0.03, levels(mu_mci$offset_days_factor), col = rainbow(1:length(mu_mci$offset_days_factor)), pch=1)
-
-plot(mu_mci$chla_corr, mu_mci$MCI_L1C, col = topo.colors(n = 11, alpha = 0.5), pch = 16, xlim = c(0, 210))
-legend(195, 0.04, levels(mu_mci$offset_days_factor), col = topo.colors(11, alpha = 0.5), pch = 16)
-
-
-qplot(mu_mci$chla_corr, mu_mci$MCI_L1C, col = mu_mci$offset_days_factor)
-
-#
 
 # mci vs chl-a
 '
@@ -251,11 +239,30 @@ l1c_chla
 plot_error_metrics(x = mu_mci$chla_corr, y = mu_mci$chla_s2, 
                    xname = "in situ chlorophyll-a (ug/l)", 
                    yname = "S2-derived chlorophyll-a (from MCI L1C)", 
-                   title = sprintf("+/- 3-day validation of Sentinel-2-derived chlorophyll-a\n(coefficients from Binding et al. [2013], Lake Erie)"), 
+                   title = sprintf("+/- %s-day validation of Sentinel-2-derived chlorophyll-a\n(coefficients from Binding et al. [2013], Lake Erie)", offset_threshold), 
                    equal_axes = TRUE, 
                    log_axes = "xy", 
+                   rsq = FALSE,
                    states = mu_mci$state,
                    lakes = mu_mci$comid)
+
+
+# messin
+library(colorRamps)
+library(grDevices)
+library(RColorBrewer)
+
+mu_mci$offset_days_factor <- as.factor(mu_mci$offset_days)
+length(levels(mu_mci$offset_days_factor))
+
+#plot(mu_mci$chla_corr, mu_mci$MCI_L1C, col = rainbow(mu_mci$offset_days_factor))
+#legend(10, 0.03, levels(mu_mci$offset_days_factor), col = rainbow(1:length(mu_mci$offset_days_factor)), pch=1)
+
+plot(mu_mci$chla_corr, mu_mci$MCI_L1C, col = topo.colors(n = 11, alpha = 0.5), pch = 16, xlim = c(0, 210))
+legend(195, 0.04, levels(mu_mci$offset_days_factor), col = topo.colors(11, alpha = 0.5), pch = 16)
+
+
+qplot(mu_mci$chla_corr, mu_mci$MCI_L1C, col = mu_mci$offset_days_factor)
 
 
 
@@ -303,6 +310,10 @@ mu_mci <- mu_mci[mu_mci$offset_days == "same day", ]
 
 # make map of in situ locations ------------------------------------------------------------------
 
+library(sp)
+library(rgdal)
+library(raster)
+
 # make spdf of matchups
 lon <- mu_mci$LongitudeMeasure # **
 lat <- mu_mci$LatitudeMeasure # **
@@ -315,6 +326,6 @@ mu_mci_pts_proj <- spTransform(mu_mci_pts, crs(us))
 
 conus <- us[-which(us$STUSPS %in% c("AK", "HI", "PR")), ]
 
-library(scales)
+library(scales) # for alpha transparency
 plot(conus, col = "cornsilk", border = "grey")
 plot(mu_mci_pts_proj, pch = 20, col = alpha("black", 0.2), add=TRUE)
