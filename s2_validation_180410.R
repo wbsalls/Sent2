@@ -152,26 +152,26 @@ write.csv(img_summary, sprintf("O:/PRIV/NERL_ORD_CYAN/Sentinel2/Validation/valid
 write.csv(cloudy_pts, sprintf("O:/PRIV/NERL_ORD_CYAN/Sentinel2/Validation/validation_S2_682imgs_%s_cloudypts_%s.csv", process_name, Sys.Date()))
 
 
+# --------------------------------------------------------------------------------------------
 
 # validation ----------------------------------------------------------------------------------
 
 source("C:/Users/WSalls/Desktop/Git/Sent2/error_metrics_1800611.R")
 #source("/Users/wilsonsalls/Desktop/EPA/Sentinel2/Validation/error_metrics_1800403.R")
 
-mu_mci_raw <- mu_mci
-mu_mci_raw <- read.csv("O:/PRIV/NERL_ORD_CYAN/Sentinel2/Validation/validation_S2_682imgs_MCI_L1C_2018-08-24.csv", stringsAsFactors = FALSE)
+#mu_mci_raw <- mu_mci
+mu_mci_raw <- read.csv("O:/PRIV/NERL_ORD_CYAN/Sentinel2/Validation/682_imgs/validation_S2_682imgs_MCI_L1C_2018-08-24.csv", stringsAsFactors = FALSE)
 #mu_mci_raw <- read.csv("/Users/wilsonsalls/Desktop/EPA/Sentinel2/Validation/validation_S2_117imgs_MCI_L1C_2018-04-05.csv", stringsAsFactors = FALSE)
 
 
 # remove duplicates: identify based on duplicated chlorophyll-a and MCI (L1C)
-val_df <- data.frame(mu_mci_raw$chla_corr, mu_mci_raw$MCI_L1C)
+val_df <- data.frame(mu_mci_raw$chla_corr, mu_mci_raw$MCI_L1C, mu_mci_raw$LatitudeMeasure, mu_mci_raw$LongitudeMeasure)
 sum(duplicated(val_df))
 val_df_dups <- val_df[duplicated(val_df), ]
 
 mu_mci_orig <- mu_mci_raw[!duplicated(val_df), ]
 
-# it appears all duplicates have 0 MCI_L1C
-# *** some points have same chla and MCI_L1C values, but diff MCI_Brr. maybe these came from different images that had (mostly?) the same values prior to Rayleigh correction?
+# most duplicates have 0 MCI_L1C
 
 #
 
