@@ -156,6 +156,10 @@ write.csv(cloudy_pts, sprintf("O:/PRIV/NERL_ORD_CYAN/Sentinel2/Validation/valida
 
 # validation ----------------------------------------------------------------------------------
 
+library(colorRamps)
+library(grDevices)
+library(RColorBrewer)
+
 source("C:/Users/WSalls/Desktop/Git/Sent2/error_metrics_1800611.R")
 #source("/Users/wilsonsalls/Desktop/EPA/Sentinel2/Validation/error_metrics_1800403.R")
 
@@ -203,21 +207,82 @@ offset_threshold <- 10
 mu_mci <- mu_mci[mu_mci$offset_days <= offset_threshold, ]
 
 
-## plot
+# calc chl a from MCI
 
+slope.mci <- 0.0004 # from Binding et al. 2013 - Erie
+intercept.mci <- -0.0021 # from Binding et al. 2013 - Erie
+
+mu_mci$chla_s2 <- (mu_mci$MCI_L1C - intercept.mci) / slope.mci
+
+mu_mci <- mu_mci[mu_mci$chla_s2 > 0, ] # remove calculated negatives -617 (depends on coefficients used)
+
+# for plotting color
+mu_mci$offset_days_factor <- as.factor(mu_mci$offset_days)
+length(levels(mu_mci$offset_days_factor))
+
+jcolors <- data.frame(day = levels(mu_mci$offset_days_factor),
+                      color = I(topo.colors(11, alpha = 0.5)))
+
+### plot
+
+for (d in 10:0) {
+  
+  offset_threshold <- d
+  mu_mci <- mu_mci[mu_mci$offset_days <= offset_threshold, ]
+  
+  
+  ## chl-a vs chl-a
+  l1c_chla <- calc_error_metrics(mu_mci$chla_corr, mu_mci$chla_s2)
+  print(l1c_chla)
+  
+  
+  # color
+  col_plot <- jcolors$color[match(mu_mci$offset_days_factor, jcolors$day)]
+  pch_plot <- 21
+  plot_error_metrics(x = mu_mci$chla_corr, y = mu_mci$chla_s2, 
+                     xname = "in situ chlorophyll-a (ug/l)", 
+                     yname = "S2-derived chlorophyll-a (from MCI L1C)", 
+                     title = sprintf("+/- %s-day validation of Sentinel-2-derived chlorophyll-a\n(coefficients from Binding et al. [2013], Lake Erie)", offset_threshold), 
+                     equal_axes = TRUE, 
+                     log_axes = "xy", 
+                     rsq = FALSE,
+                     states = mu_mci$state,
+                     lakes = mu_mci$comid,
+                     bg = col_plot, col = "black", pch = pch_plot) # col = alpha("black", 0.3), pch = 20
+  legend(0.03, 10, levels(mu_mci$offset_days_factor), pt.bg = jcolors$color, col = "black", pch = pch_plot)
+}
+
+#
+
+# b & w
+col_plot <- alpha("black", 0.3)
+pch_plot <- 20
+plot_error_metrics(x = mu_mci$chla_corr, y = mu_mci$chla_s2, 
+                   xname = "in situ chlorophyll-a (ug/l)", 
+                   yname = "S2-derived chlorophyll-a (from MCI L1C)", 
+                   title = sprintf("+/- %s-day validation of Sentinel-2-derived chlorophyll-a\n(coefficients from Binding et al. [2013], Lake Erie)", offset_threshold), 
+                   equal_axes = TRUE, 
+                   log_axes = "xy", 
+                   rsq = FALSE,
+                   states = mu_mci$state,
+                   lakes = mu_mci$comid,
+                   col = col_plot, pch = pch_plot) # col = alpha("black", 0.3), pch = 20
+legend(0.03, 10, levels(mu_mci$offset_days_factor), col = col_plot, pch = 20)
+
+#
 
 # mci vs chl-a
 '
 l1c <- calc_error_metrics(mu_mci$chla_corr, mu_mci$MCI_L1C)
 l1c
 #plot_error_metrics(x = mu_mci$chla_corr, y = mu_mci$MCI_L1C, 
-                   xname = "in situ chlorophyll-a (ug/l)", 
-                   yname = "S2 MCI (L1C)", 
-                   title = sprintf("L1C MCI (r-sq = %s)", round(l1c$r.sq, 2)), 
-                   equal_axes = FALSE, 
-                   log_axes = "", 
-                   states = mu_mci$state, 
-                   lakes = mu_mci$comid)
+xname = "in situ chlorophyll-a (ug/l)", 
+yname = "S2 MCI (L1C)", 
+title = sprintf("L1C MCI (r-sq = %s)", round(l1c$r.sq, 2)), 
+equal_axes = FALSE, 
+log_axes = "", 
+states = mu_mci$state, 
+lakes = mu_mci$comid)
 
 # convert MCI to chlorophyll-a
 slope.mci <- l1c$slope # 0.0001579346 from 237 imgs; 0.000222 from 50 imgs
@@ -227,33 +292,11 @@ slope.mci <- 0.0002 # from Binding et al. 2013 - Ontario
 intercept.mci <- -0.0012 # from Binding et al. 2013 - Ontario
 '
 
-slope.mci <- 0.0004 # from Binding et al. 2013 - Erie
-intercept.mci <- -0.0021 # from Binding et al. 2013 - Erie
-
-mu_mci$chla_s2 <- (mu_mci$MCI_L1C - intercept.mci) / slope.mci
-
-# chl-a vs chl-a
-mu_mci <- mu_mci[mu_mci$chla_s2 > 0, ] # remove calculated negatives -617 (depends on coefficients used)
-l1c_chla <- calc_error_metrics(mu_mci$chla_corr, mu_mci$chla_s2)
-l1c_chla
-plot_error_metrics(x = mu_mci$chla_corr, y = mu_mci$chla_s2, 
-                   xname = "in situ chlorophyll-a (ug/l)", 
-                   yname = "S2-derived chlorophyll-a (from MCI L1C)", 
-                   title = sprintf("+/- %s-day validation of Sentinel-2-derived chlorophyll-a\n(coefficients from Binding et al. [2013], Lake Erie)", offset_threshold), 
-                   equal_axes = TRUE, 
-                   log_axes = "xy", 
-                   rsq = FALSE,
-                   states = mu_mci$state,
-                   lakes = mu_mci$comid)
 
 
 # messin
-library(colorRamps)
-library(grDevices)
-library(RColorBrewer)
 
-mu_mci$offset_days_factor <- as.factor(mu_mci$offset_days)
-length(levels(mu_mci$offset_days_factor))
+
 
 #plot(mu_mci$chla_corr, mu_mci$MCI_L1C, col = rainbow(mu_mci$offset_days_factor))
 #legend(10, 0.03, levels(mu_mci$offset_days_factor), col = rainbow(1:length(mu_mci$offset_days_factor)), pch=1)

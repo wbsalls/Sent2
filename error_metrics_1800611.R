@@ -72,7 +72,8 @@ plot_error_metrics <- function(x, y,
                                log_axes = "",
                                rsq = TRUE,
                                states = NA, 
-                               lakes = NA) {
+                               lakes = NA,
+                               ...) {
   
   # make data frame with x, y, and states and lakes if provided
   df <- data.frame(x, y, states, lakes)
@@ -102,8 +103,8 @@ plot_error_metrics <- function(x, y,
   }
   
   if (equal_axes == FALSE) {
-    plot(df$x, df$y, log = log_axes, pch = 1, xlab = xname, ylab = yname, main = title, xlim = c(0, max(df$x)))
-    abline(line.int, line.slope) # show model line
+    plot(df$x, df$y, log = log_axes, pch = 1, xlab = xname, ylab = yname, main = title, xlim = c(0, max(df$x)), ...)
+    abline(line.int, line.slope, untf = TRUE) # show model line
     #abline(0, 0, lty = 2) # show y = 0 line
     
     legend("bottomright", y.intersp = 0.5,
@@ -114,10 +115,10 @@ plot_error_metrics <- function(x, y,
     plot(df$x, df$y, log = log_axes, xlab = xname, ylab = yname, main = title, 
          xlim = c(min(df$x, df$y), max(df$x, df$y)), 
          ylim = c(min(df$x, df$y), max(df$x, df$y)),
-         pch = 20, col = alpha("black", 0.3))
+         ...) # col = alpha("black", 0.3), pch = 20
     #abline(err_metr$int, err_metr$slope) # show model line
-    abline(line.int, line.slope)
-    abline(0, 1, lty = 3) # show y = x line
+    abline(line.int, line.slope, untf = TRUE)
+    abline(0, 1, lty = 3, untf = TRUE) # show y = x line
     #abline(0, 0, lty = 2) # show y = 0 line
     #abline(v = 0, lty = 2) # show x = 0 line
     
