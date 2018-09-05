@@ -23,7 +23,7 @@ calc_mape <- function(observed, modeled) {
 
 # ------------------
 
-calc_error_metrics <- function(x, y) {
+calc_error_metrics <- function(x, y, rtype = 2) {
   # if lengths are different, return error
   if (length(x) != length(y)) {
     print("Lengths differ! Returning -9999")
@@ -40,7 +40,7 @@ calc_error_metrics <- function(x, y) {
   
   # select regression type: 1 for OLS (usually used for Type I?); 2 for major axis regression [MA] (usually for Type II?)
   # (standard major axis [SMA] and ranged major axis [RMA] also available - both for Type II?)
-  rtype <- 2
+  rtype <- rtype
   # create model
   m1 <- lmodel2(y2 ~ x2)
   m1.slope = m1$regression.results$Slope[rtype]
@@ -67,9 +67,11 @@ calc_error_metrics <- function(x, y) {
 plot_error_metrics <- function(x, y, 
                                xname = deparse(substitute(x)), 
                                yname = deparse(substitute(y)), 
+                               rtype_plot = 2,
                                title = NULL, 
                                equal_axes = FALSE, 
                                log_axes = "",
+                               plot_abline = TRUE,
                                rsq = TRUE,
                                states = NA, 
                                lakes = NA,
@@ -83,7 +85,7 @@ plot_error_metrics <- function(x, y,
   df <- df[!is.na(df$y), ]
   
   # calculate error metrics for plot
-  err_metr <- calc_error_metrics(df$x, df$y)
+  err_metr <- calc_error_metrics(df$x, df$y, rtype = rtype_plot)
   
   # reset values for log plotting, if necessary
   if ("x" %in% strsplit(log_axes, "")[[1]]) {
@@ -95,8 +97,8 @@ plot_error_metrics <- function(x, y,
   # create log model to plot model abline properly
   if (log_axes == "xy") {
     logm <- lmodel2(log(df$y) ~ log(df$x))
-    line.int <- logm$regression.results$Intercept[1] # *** change if switching regression type
-    line.slope <- logm$regression.results$Slope[1] # *** change if switching regression type
+    line.int <- logm$regression.results$Intercept[rtype_plot] # *** change if switching regression type
+    line.slope <- logm$regression.results$Slope[rtype_plot] # *** change if switching regression type
   } else {
     line.int <- err_metr$int
     line.slope <- err_metr$slope
@@ -116,15 +118,19 @@ plot_error_metrics <- function(x, y,
          xlim = c(min(df$x, df$y), max(df$x, df$y)), 
          ylim = c(min(df$x, df$y), max(df$x, df$y)),
          ...) # col = alpha("black", 0.3), pch = 20
-    #abline(err_metr$int, err_metr$slope) # show model line
-    abline(line.int, line.slope, untf = TRUE)
+    
+    if (plot_abline == TRUE) {
+      abline(line.int, line.slope, untf = TRUE) # show model line, transformed to log space
+    }
     abline(0, 1, lty = 3, untf = TRUE) # show y = x line
     #abline(0, 0, lty = 2) # show y = 0 line
     #abline(v = 0, lty = 2) # show x = 0 line
     
-    legend("bottomright", y.intersp = 0.5,
-           c("Fit model", "y = x"), 
-           lty=c(1, 3), bty = "n")
+    if (plot_abline == TRUE) {
+      legend("bottomright", y.intersp = 0.5, c("Fit model", "y = x"), lty=c(1, 3), bty = "n")
+    } else {
+      legend("bottomright", y.intersp = 0.5, c("y = x"), lty=c(3), bty = "n")
+    }
   }
   
   ## add metrics text
@@ -147,7 +153,7 @@ plot_error_metrics <- function(x, y,
     text_x <- min(df$x)
     text_y <- max(df$y)
   }
-
+  
   text(x = text_x, y = text_y, adj = c(0, 1), 
        paste0("y = ", signif(err_metr$slope, digits = 3), "x + ", 
               signif(err_metr$int, digits = 3), "\n",

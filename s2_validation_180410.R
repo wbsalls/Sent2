@@ -202,12 +202,8 @@ mu_mci <- mu_mci[mu_mci$MCI_L1C > -0.01, ]
 sum(mu_mci$chla_corr > 200)
 mu_mci <- mu_mci[mu_mci$chla_corr < 200, ]
 
-# subset by offset time
-offset_threshold <- 10
-mu_mci <- mu_mci[mu_mci$offset_days <= offset_threshold, ]
 
-
-# calc chl a from MCI
+## calc chl a from MCI
 
 slope.mci <- 0.0004 # from Binding et al. 2013 - Erie
 intercept.mci <- -0.0021 # from Binding et al. 2013 - Erie
@@ -222,6 +218,10 @@ length(levels(mu_mci$offset_days_factor))
 
 jcolors <- data.frame(day = levels(mu_mci$offset_days_factor),
                       color = I(topo.colors(11, alpha = 0.5)))
+
+# subset by offset time
+offset_threshold <- 3
+mu_mci <- mu_mci[mu_mci$offset_days <= offset_threshold, ]
 
 ### plot
 
@@ -263,11 +263,12 @@ plot_error_metrics(x = mu_mci$chla_corr, y = mu_mci$chla_s2,
                    title = sprintf("+/- %s-day validation of Sentinel-2-derived chlorophyll-a\n(coefficients from Binding et al. [2013], Lake Erie)", offset_threshold), 
                    equal_axes = TRUE, 
                    log_axes = "xy", 
+                   plot_abline = FALSE,
                    rsq = FALSE,
                    states = mu_mci$state,
                    lakes = mu_mci$comid,
                    col = col_plot, pch = pch_plot) # col = alpha("black", 0.3), pch = 20
-legend(0.03, 10, levels(mu_mci$offset_days_factor), col = col_plot, pch = 20)
+
 
 #
 
