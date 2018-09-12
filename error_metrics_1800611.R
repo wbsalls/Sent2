@@ -6,18 +6,30 @@
 library(lmodel2)
 library(scales) # alpha
 
-calc_bias <- function(observed, modeled) {
-  mbias <- (sum((modeled) - (observed)) / length(observed))
+calc_bias <- function(observed, modeled, log_space = TRUE) {
+  if (log_space == TRUE) {
+    xxx mbias <- (sum((modeled) - (observed)) / length(observed))
+  } else {
+    mbias <- (sum((modeled) - (observed)) / length(observed))
+  }
   return(mbias)
 }
 
-calc_mae <- function(observed, modeled) {
-  mmae <- (sum(abs((modeled) - (observed))) / length(observed))
+calc_mae <- function(observed, modeled, log_space = TRUE) {
+  if (log_space == TRUE) {
+    xxx mmae <- (sum(abs((modeled) - (observed))) / length(observed))
+  } else {
+    mmae <- (sum(abs((modeled) - (observed))) / length(observed))
+  }
   return(mmae)
 }
 
-calc_mape <- function(observed, modeled) {
-  mmape <- (sum(abs(((modeled) - (observed)) / (observed))) / length(observed))
+calc_mape <- function(observed, modeled, log_space = TRUE) {
+  if (log_space == TRUE) {
+    xxx mmape <- (sum(abs(((modeled) - (observed)) / (observed))) / length(observed))
+  } else {
+    mmape <- (sum(abs(((modeled) - (observed)) / (observed))) / length(observed))
+  }
   return(mmape)
 }
 

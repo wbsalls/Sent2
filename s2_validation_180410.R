@@ -212,6 +212,9 @@ mu_mci$chla_s2 <- (mu_mci$MCI_L1C - intercept.mci) / slope.mci
 
 mu_mci <- mu_mci[mu_mci$chla_s2 > 0, ] # remove calculated negatives -617 (depends on coefficients used)
 
+# export final validation data set
+#write.csv(mu_mci, sprintf("O:/PRIV/NERL_ORD_CYAN/Sentinel2/Validation/682_imgs/validation_S2_682imgs_MCI_Chla_%s.csv", Sys.Date()))
+
 # for plotting color
 mu_mci$offset_days_factor <- as.factor(mu_mci$offset_days)
 length(levels(mu_mci$offset_days_factor))
@@ -220,7 +223,7 @@ jcolors <- data.frame(day = levels(mu_mci$offset_days_factor),
                       color = I(topo.colors(11, alpha = 0.5)))
 
 # subset by offset time
-offset_threshold <- 3
+offset_threshold <- 10
 mu_mci <- mu_mci[mu_mci$offset_days <= offset_threshold, ]
 
 ### plot
