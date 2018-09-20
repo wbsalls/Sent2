@@ -8,29 +8,41 @@ library(scales) # alpha
 
 calc_bias <- function(observed, modeled, log_space = TRUE) {
   if (log_space == TRUE) {
-    xxx mbias <- (sum((modeled) - (observed)) / length(observed))
+    mbias <- 10 ^ (sum(
+      log10(modeled) - log10(observed)
+    ) / length(observed))
   } else {
-    mbias <- (sum((modeled) - (observed)) / length(observed))
+    mbias <- (sum(
+      (modeled) - (observed)
+    ) / length(observed))
   }
   return(mbias)
 }
 
 calc_mae <- function(observed, modeled, log_space = TRUE) {
   if (log_space == TRUE) {
-    xxx mmae <- (sum(abs((modeled) - (observed))) / length(observed))
+    mmae <- 10 ^ (sum(
+      abs(log10(modeled) - log10(observed))
+    ) / length(observed))
   } else {
-    mmae <- (sum(abs((modeled) - (observed))) / length(observed))
+    mmae <- (sum(
+      abs((modeled) - (observed))
+    ) / length(observed))
   }
   return(mmae)
 }
 
 calc_mape <- function(observed, modeled, log_space = TRUE) {
   if (log_space == TRUE) {
-    xxx mmape <- (sum(abs(((modeled) - (observed)) / (observed))) / length(observed))
+    mmape <- 10 ^ (sum(
+      abs(log10(modeled) - log10(observed)) / abs(log10(observed))
+    ) / length(observed))
   } else {
-    mmape <- (sum(abs(((modeled) - (observed)) / (observed))) / length(observed))
+    mmape <- (sum(
+      abs((modeled) - (observed)) / abs((observed))
+    ) / length(observed))
   }
-  return(mmape)
+  return(mmape * 100)
 }
 
 # ------------------

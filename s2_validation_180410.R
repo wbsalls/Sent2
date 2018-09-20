@@ -160,12 +160,20 @@ library(colorRamps)
 library(grDevices)
 library(RColorBrewer)
 
-source("C:/Users/WSalls/Desktop/Git/Sent2/error_metrics_1800611.R")
-#source("/Users/wilsonsalls/Desktop/EPA/Sentinel2/Validation/error_metrics_1800403.R")
+#source("C:/Users/WSalls/Desktop/Git/Sent2/error_metrics_1800611.R")
+source("/Users/wilsonsalls/Desktop/Git/Sent2/error_metrics_1800611.R")
 
 #mu_mci_raw <- mu_mci
-mu_mci_raw <- read.csv("O:/PRIV/NERL_ORD_CYAN/Sentinel2/Validation/682_imgs/validation_S2_682imgs_MCI_L1C_2018-08-24.csv", stringsAsFactors = FALSE)
-#mu_mci_raw <- read.csv("/Users/wilsonsalls/Desktop/EPA/Sentinel2/Validation/validation_S2_117imgs_MCI_L1C_2018-04-05.csv", stringsAsFactors = FALSE)
+#mu_mci_raw <- read.csv("O:/PRIV/NERL_ORD_CYAN/Sentinel2/Validation/682_imgs/validation_S2_682imgs_MCI_L1C_2018-08-24.csv", stringsAsFactors = FALSE)
+mu_mci_raw <- read.csv("/Users/wilsonsalls/Desktop/EPA/Sentinel2/Validation/682_imgs/validation_S2_682imgs_MCI_L1C_2018-08-24.csv", stringsAsFactors = FALSE)
+
+#* fix chron
+mu_mci$samp_localTime <- chron(dates. = substr(mu_mci$samp_localTime, 2, 9), 
+                               times. = substr(mu_mci$samp_localTime, 11, 18))
+mu_mci$img_localTime <- chron(dates. = substr(mu_mci$img_localTime, 2, 9), 
+                              times. = substr(mu_mci$img_localTime, 11, 18))
+
+mu_mci$offset_hrs <- as.numeric(mu_mci$samp_localTime - mu_mci$img_localTime) * 24
 
 
 # remove duplicates: identify based on duplicated chlorophyll-a and MCI (L1C)
@@ -181,7 +189,7 @@ mu_mci_orig <- mu_mci_raw[!duplicated(val_df), ]
 
 ## subset
 # remove land-adjacent
-mu_mci <- mu_mci_orig[mu_mci_orig$dist_shore_m >= 30, ]
+#mu_mci <- mu_mci_orig[mu_mci_orig$dist_shore_m >= 30, ] # ***** this has already been done previously?!?!
 
 # remove NAs
 sum(is.na(mu_mci$MCI_L1C))
@@ -316,7 +324,20 @@ qplot(mu_mci$chla_corr, mu_mci$MCI_L1C, col = mu_mci$offset_days_factor)
 
 # investigate patterns -------------------------------------------
 
-## check residuals vs offset days
+
+## check residuals vs offset days *******
+
+mu_mci$residuals_chla <- abs(mu_mci$chla_corr - mu_mci$chla_s2)
+
+plot(mu_mci$offset_days, mu_mci$residuals_chla)
+plot(mu_mci$offset_hrs, mu_mci$residuals_chla)
+
+## check shore dist *****
+plot(mu_mci$dist_shore_m, mu_mci$residuals_chla, xlim = c(0, 200))
+
+
+#
+
 
 ## same MCI values
 mci_freq <- as.data.frame(table(mu_mci$MCI_L1C))
