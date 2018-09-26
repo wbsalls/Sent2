@@ -129,7 +129,7 @@ plot_error_metrics <- function(x, y,
   }
   
   if (equal_axes == FALSE) {
-    plot(df$x, df$y, log = log_axes, pch = 1, xlab = xname, ylab = yname, main = title, xlim = c(0, max(df$x)), ...)
+    plot(df$x, df$y, log = log_axes, pch = 1, xlab = xname, ylab = yname, main = title, ...)
     abline(line.int, line.slope, untf = TRUE) # show model line
     #abline(0, 0, lty = 2) # show y = 0 line
     
@@ -139,8 +139,8 @@ plot_error_metrics <- function(x, y,
   }
   else if (equal_axes == TRUE) {
     plot(df$x, df$y, log = log_axes, xlab = xname, ylab = yname, main = title, 
-         xlim = c(min(df$x, df$y), max(df$x, df$y)), 
-         ylim = c(min(df$x, df$y), max(df$x, df$y)),
+         #xlim = c(min(df$x, df$y), max(df$x, df$y)), 
+         #ylim = c(min(df$x, df$y), max(df$x, df$y)),
          ...) # col = alpha("black", 0.3), pch = 20
     
     if (plot_abline == TRUE) {
@@ -171,16 +171,15 @@ plot_error_metrics <- function(x, y,
   
   # add text
   if (equal_axes == TRUE) {
-    text_x <- min(df$x, df$y)
-    text_y <- max(df$x, df$y)
+    text_x <- 0.05 #min(df$x, df$y)
+    text_y <- 150 #max(df$x, df$y)
   } else if (equal_axes == FALSE) {
     text_x <- min(df$x)
     text_y <- max(df$y)
   }
   
   text(x = text_x, y = text_y, adj = c(0, 1), 
-       paste0("y = ", signif(err_metr$slope, digits = 3), "x + ", 
-              signif(err_metr$int, digits = 3), "\n",
+       paste0(#"y = ", signif(err_metr$slope, digits = 3), "x + ", signif(err_metr$int, digits = 3), "\n",
               if (rsq == TRUE) {paste0("R-sq. = ", round(err_metr$r.sq, 2), "\n")},
               "MAE = ", signif(err_metr$MAE, digits = 3), "\n", 
               #"MAPE = ", signif(err_metr$MAPE, digits = 3), "\n", 

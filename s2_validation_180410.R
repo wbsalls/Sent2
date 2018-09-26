@@ -156,16 +156,27 @@ write.csv(cloudy_pts, sprintf("O:/PRIV/NERL_ORD_CYAN/Sentinel2/Validation/valida
 
 # validation ----------------------------------------------------------------------------------
 
+library(chron)
 library(colorRamps)
 library(grDevices)
 library(RColorBrewer)
 
-#source("C:/Users/WSalls/Desktop/Git/Sent2/error_metrics_1800611.R")
-source("/Users/wilsonsalls/Desktop/Git/Sent2/error_metrics_1800611.R")
+source("C:/Users/WSalls/Desktop/Git/Sent2/error_metrics_1800611.R")
+#source("/Users/wilsonsalls/Desktop/Git/Sent2/error_metrics_1800611.R")
 
 #mu_mci_raw <- mu_mci
-#mu_mci_raw <- read.csv("O:/PRIV/NERL_ORD_CYAN/Sentinel2/Validation/682_imgs/validation_S2_682imgs_MCI_L1C_2018-08-24.csv", stringsAsFactors = FALSE)
-mu_mci_raw <- read.csv("/Users/wilsonsalls/Desktop/EPA/Sentinel2/Validation/682_imgs/validation_S2_682imgs_MCI_L1C_2018-08-24.csv", stringsAsFactors = FALSE)
+mu_mci_raw <- read.csv("O:/PRIV/NERL_ORD_CYAN/Sentinel2/Validation/682_imgs/validation_S2_682imgs_MCI_L1C_2018-08-24.csv", stringsAsFactors = FALSE)
+#mu_mci_raw <- read.csv("/Users/wilsonsalls/Desktop/EPA/Sentinel2/Validation/682_imgs/validation_S2_682imgs_MCI_L1C_2018-08-24.csv", stringsAsFactors = FALSE)
+
+
+# remove duplicates: identify based on duplicated chlorophyll-a and MCI (L1C)
+val_df <- data.frame(mu_mci_raw$chla_corr, mu_mci_raw$MCI_L1C, mu_mci_raw$LatitudeMeasure, mu_mci_raw$LongitudeMeasure)
+sum(duplicated(val_df))
+val_df_dups <- val_df[duplicated(val_df), ]
+
+mu_mci <- mu_mci_raw[!duplicated(val_df), ]
+
+# most duplicates have 0 MCI_L1C
 
 #* fix chron
 mu_mci$samp_localTime <- chron(dates. = substr(mu_mci$samp_localTime, 2, 9), 
@@ -175,21 +186,32 @@ mu_mci$img_localTime <- chron(dates. = substr(mu_mci$img_localTime, 2, 9),
 
 mu_mci$offset_hrs <- as.numeric(mu_mci$samp_localTime - mu_mci$img_localTime) * 24
 
+# for plotting color
+mu_mci$offset_days_factor <- as.factor(mu_mci$offset_days)
+length(levels(mu_mci$offset_days_factor))
 
-# remove duplicates: identify based on duplicated chlorophyll-a and MCI (L1C)
-val_df <- data.frame(mu_mci_raw$chla_corr, mu_mci_raw$MCI_L1C, mu_mci_raw$LatitudeMeasure, mu_mci_raw$LongitudeMeasure)
-sum(duplicated(val_df))
-val_df_dups <- val_df[duplicated(val_df), ]
-
-mu_mci_orig <- mu_mci_raw[!duplicated(val_df), ]
-
-# most duplicates have 0 MCI_L1C
+jcolors <- data.frame(day = levels(mu_mci$offset_days_factor),
+                      color = I(topo.colors(11, alpha = 0.5)))
 
 #
 
-## subset
+## calc chl a from MCI  ---------------
+
+slope.mci <- 0.0004 # from Binding et al. 2013 - Erie
+intercept.mci <- -0.0021 # from Binding et al. 2013 - Erie
+
+mu_mci$chla_s2 <- (mu_mci$MCI_L1C - intercept.mci) / slope.mci
+
+mu_mci <- mu_mci[mu_mci$chla_s2 > 0, ] # remove calculated negatives -617 (depends on coefficients used)
+
+mu_mci$residual_chla <- abs(mu_mci$chla_s2 - mu_mci$chla_corr) # residual
+mu_mci$pct_error_chla <- (abs(mu_mci$chla_s2 - mu_mci$chla_corr) / mu_mci$chla_corr) * 100 # % error
+
+
+
+## subset ---------------
 # remove land-adjacent
-#mu_mci <- mu_mci_orig[mu_mci_orig$dist_shore_m >= 30, ] # ***** this has already been done previously?!?!
+#mu_mci <- mu_mci[mu_mci$dist_shore_m >= 30, ]
 
 # remove NAs
 sum(is.na(mu_mci$MCI_L1C))
@@ -210,32 +232,46 @@ mu_mci <- mu_mci[mu_mci$MCI_L1C > -0.01, ]
 sum(mu_mci$chla_corr > 200)
 mu_mci <- mu_mci[mu_mci$chla_corr < 200, ]
 
-
-## calc chl a from MCI
-
-slope.mci <- 0.0004 # from Binding et al. 2013 - Erie
-intercept.mci <- -0.0021 # from Binding et al. 2013 - Erie
-
-mu_mci$chla_s2 <- (mu_mci$MCI_L1C - intercept.mci) / slope.mci
-
-mu_mci <- mu_mci[mu_mci$chla_s2 > 0, ] # remove calculated negatives -617 (depends on coefficients used)
-
 # export final validation data set
 #write.csv(mu_mci, sprintf("O:/PRIV/NERL_ORD_CYAN/Sentinel2/Validation/682_imgs/validation_S2_682imgs_MCI_Chla_%s.csv", Sys.Date()))
 
-# for plotting color
-mu_mci$offset_days_factor <- as.factor(mu_mci$offset_days)
-length(levels(mu_mci$offset_days_factor))
+mu_mci_preoffset <- mu_mci
 
-jcolors <- data.frame(day = levels(mu_mci$offset_days_factor),
-                      color = I(topo.colors(11, alpha = 0.5)))
 
 # subset by offset time
-offset_threshold <- 10
-mu_mci <- mu_mci[mu_mci$offset_days <= offset_threshold, ]
+mu_mci <- mu_mci_preoffset
+offset_min <- 0
+offset_max <- 3
+offset_threshold <- offset_min:offset_max
+mu_mci <- mu_mci[mu_mci$offset_days %in% offset_threshold, ]
 
-### plot
+### plot  ---------------
 
+# b & w
+col_plot <- alpha("black", 0.3)
+pch_plot <- 20
+plot_error_metrics(x = mu_mci$chla_corr, y = mu_mci$chla_s2, # export 800 x 860
+                   xname = "in situ chlorophyll-a (ug/l)", 
+                   yname = "S2-derived chlorophyll-a (from MCI L1C)", 
+                   #title = sprintf("+/- %sday", offset_min), 
+                   title = sprintf("+/- %s-%s days", offset_min, offset_max), 
+                   #title = sprintf("+/- %s-%s-day validation of Sentinel-2-derived chlorophyll-a\n(coefficients from Binding et al. [2013], Lake Erie)", offset_min, offset_max), 
+                   equal_axes = TRUE, 
+                   log_axes = "xy", 
+                   plot_abline = FALSE,
+                   rsq = FALSE,
+                   states = mu_mci$state,
+                   lakes = mu_mci$comid,
+                   col = col_plot, pch = pch_plot,
+                   xlim = c(0.05, 200),
+                   ylim = c(0.05, 200),
+                   xaxt="n",
+                   yaxt="n") # col = alpha("black", 0.3), pch = 20
+axis(1, at = c(10^(-1:3)), labels = c(10^(-1:3)))
+axis(2, at = c(10^(-1:3)), labels = c(10^(-1:3)))
+
+
+# each day
 for (d in 10:0) {
   
   offset_threshold <- d
@@ -265,20 +301,6 @@ for (d in 10:0) {
 
 #
 
-# b & w
-col_plot <- alpha("black", 0.3)
-pch_plot <- 20
-plot_error_metrics(x = mu_mci$chla_corr, y = mu_mci$chla_s2, 
-                   xname = "in situ chlorophyll-a (ug/l)", 
-                   yname = "S2-derived chlorophyll-a (from MCI L1C)", 
-                   title = sprintf("+/- %s-day validation of Sentinel-2-derived chlorophyll-a\n(coefficients from Binding et al. [2013], Lake Erie)", offset_threshold), 
-                   equal_axes = TRUE, 
-                   log_axes = "xy", 
-                   plot_abline = FALSE,
-                   rsq = FALSE,
-                   states = mu_mci$state,
-                   lakes = mu_mci$comid,
-                   col = col_plot, pch = pch_plot) # col = alpha("black", 0.3), pch = 20
 
 
 #
@@ -305,11 +327,6 @@ intercept.mci <- -0.0012 # from Binding et al. 2013 - Ontario
 '
 
 
-
-# messin
-
-
-
 #plot(mu_mci$chla_corr, mu_mci$MCI_L1C, col = rainbow(mu_mci$offset_days_factor))
 #legend(10, 0.03, levels(mu_mci$offset_days_factor), col = rainbow(1:length(mu_mci$offset_days_factor)), pch=1)
 
@@ -320,23 +337,75 @@ legend(195, 0.04, levels(mu_mci$offset_days_factor), col = topo.colors(11, alpha
 qplot(mu_mci$chla_corr, mu_mci$MCI_L1C, col = mu_mci$offset_days_factor)
 
 
+# plot error by factor variables
+library(vioplot)
+
+plot_error_byfactor <- function(data, var_name, plotvalue_name) {
+  var_values <- unique(data[, which(colnames(data) == var_name)])
+  
+  expr_vio <- vioplot(data[which(data[col])])
+  
+  for (v in 1:length(values)) {
+    
+  }
+  
+  
+  vioplot()  
+}
+
+eval(parse(text = "plot(1, 2)"))
+
+factor_tab <- table(mu_mci$ResultAnalyticalMethod.MethodIdentifierContext)
+factor_vals <- names(factor_tab)
+sum(is.na((mu_mci$ResultAnalyticalMethod.MethodIdentifierContext)))
+
+vioplot(mu_mci$residual_chla[which(mu_mci$ResultAnalyticalMethod.MethodIdentifierContext == factor_vals[1])],
+        mu_mci$residual_chla[which(mu_mci$ResultAnalyticalMethod.MethodIdentifierContext == factor_vals[2])],
+        mu_mci$residual_chla[which(mu_mci$ResultAnalyticalMethod.MethodIdentifierContext == factor_vals[3])],
+        mu_mci$residual_chla[which(is.na(mu_mci$ResultAnalyticalMethod.MethodIdentifierContext))],
+        names = c(
+          paste0(factor_vals[1], "\n", factor_tab[1]),
+          paste0(factor_vals[2], "\n", factor_tab[2]),
+          paste0(factor_vals[3], "\n", factor_tab[3]),
+          "NA\n10"),
+        col = "lightblue")
+
+boxplot(residual_chla ~ ResultAnalyticalMethod.MethodIdentifierContext, data = mu_mci,
+        ylab = "chl a residual",
+        xlab = "Method Identifier Context")
 
 
 # investigate patterns -------------------------------------------
 
+## check high error
+mu_mci_sort <- mu_mci[order(-mu_mci$residual_chla), ]
 
-## check residuals vs offset days *******
 
-mu_mci$residuals_chla <- abs(mu_mci$chla_corr - mu_mci$chla_s2)
+## check offset days *******
+plot(mu_mci$offset_days, mu_mci$residual_chla)
+plot(mu_mci$offset_hrs, mu_mci$residual_chla)
 
-plot(mu_mci$offset_days, mu_mci$residuals_chla)
-plot(mu_mci$offset_hrs, mu_mci$residuals_chla)
+plot(abs(mu_mci$offset_hrs), mu_mci$residual_chla, 
+     #ylim = c(0, 200),
+     xlab = "time offset (hours)",
+     ylab = "chl a error (ug/L)",
+     pch = 20,
+     col = alpha("black", alpha = 0.4))
+abline(v = 30, lty = 2)
 
 ## check shore dist *****
-plot(mu_mci$dist_shore_m, mu_mci$residuals_chla, xlim = c(0, 200))
-
-
+plot(mu_mci$dist_shore_m, mu_mci$residual_chla, 
+     xlim = c(0, 500), # try removing this too
+     #ylim = c(0, 200),
+     xlab = "distance from Shore (m)",
+     ylab = "chl a error (ug/L)",
+     pch = 20,
+     col = alpha("black", alpha = 0.4))
+abline(v = 30, lty = 2)
+#rect(0, 0, 30, 350, border = NULL, col = alpha("orange", alpha = 0.5))
 #
+
+
 
 
 ## same MCI values
@@ -395,5 +464,6 @@ mu_mci_pts_proj <- spTransform(mu_mci_pts, crs(us))
 conus <- us[-which(us$STUSPS %in% c("AK", "HI", "PR")), ]
 
 library(scales) # for alpha transparency
-plot(conus, col = "cornsilk", border = "grey")
+plot(conus, col = "cornsilk", border = "grey", main = sprintf("+/- %s-day matchups", offset_max))
+#plot(conus, col = "cornsilk", border = "grey", main = sprintf("+/- %s-%s-day matchups", offset_min, offset_max))
 plot(mu_mci_pts_proj, pch = 20, col = alpha("black", 0.2), add=TRUE)
