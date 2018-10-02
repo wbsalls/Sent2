@@ -241,9 +241,12 @@ mu_mci_preoffset <- mu_mci
 # subset by offset time
 mu_mci <- mu_mci_preoffset
 offset_min <- 0
-offset_max <- 3
+offset_max <- 10
 offset_threshold <- offset_min:offset_max
 mu_mci <- mu_mci[mu_mci$offset_days %in% offset_threshold, ]
+
+# subset by method
+#mu_mci <- mu_mci[which(mu_mci$ResultAnalyticalMethod.MethodIdentifierContext == "USEPA"), ]
 
 ### plot  ---------------
 
