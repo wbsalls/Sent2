@@ -233,7 +233,7 @@ sum(mu_mci$chla_corr > 200)
 mu_mci <- mu_mci[mu_mci$chla_corr < 200, ]
 
 # export final validation data set
-#write.csv(mu_mci, sprintf("O:/PRIV/NERL_ORD_CYAN/Sentinel2/Validation/682_imgs/validation_S2_682imgs_MCI_Chla_%s.csv", Sys.Date()))
+#write.csv(mu_mci, sprintf("O:/PRIV/NERL_ORD_CYAN/Sentinel2/Validation/682_imgs/validation_S2_682imgs_MCI_Chla_filtered_%s.csv", Sys.Date()))
 
 mu_mci_preoffset <- mu_mci
 
@@ -379,6 +379,8 @@ boxplot(residual_chla ~ ResultAnalyticalMethod.MethodIdentifierContext, data = m
 
 
 # investigate patterns -------------------------------------------
+par()$mfrow
+par(mfrow = c(2,1))
 
 ## check high error
 mu_mci_sort <- mu_mci[order(-mu_mci$residual_chla), ]
@@ -391,16 +393,41 @@ plot(mu_mci$offset_hrs, mu_mci$residual_chla)
 plot(abs(mu_mci$offset_hrs), mu_mci$residual_chla, 
      #ylim = c(0, 200),
      xlab = "time offset (hours)",
-     ylab = "chl a error (ug/L)",
+     ylab = "chl a residual (ug/L)",
      pch = 20,
      col = alpha("black", alpha = 0.4))
 abline(v = 30, lty = 2)
 
+## check hour of day
+mu_mci$offset_hrs_day <- (mu_mci$offset_hrs + 12) %% 24 - 12
+mu_mci_hrs <- mu_mci[which(abs(mu_mci$offset_hrs_day) < 10), ]
+#mu_mci_hrs <- mu_mci
+
+# quadratic model
+hrs <- mu_mci_hrs$offset_hrs_day
+hrs2 <- mu_mci_hrs$offset_hrs_day ^ 2
+qmod <- lm(mu_mci_hrs$residual_chla ~ hrs + hrs2)
+summary(qmod)
+
+timevalues <- seq(-12, 12, 0.1)
+predictedcounts <- predict(qmod, list(hrs=timevalues, hrs2=timevalues^2))
+
+plot(mu_mci_hrs$offset_hrs_day, mu_mci_hrs$residual_chla, xlim = c(-12, 12))
+lines(timevalues, predictedcounts, col = "darkgreen", lwd = 3)
+
+# boxplot
+mu_mci$offset_hrs_day_interval <- cut(mu_mci$offset_hrs_day, seq(-12, 12, 0.5))
+barplot(table(mu_mci$offset_hrs_day_interval), xlab = "offset hour of day", ylab = "frequency")
+boxplot(residual_chla ~ offset_hrs_day_interval, data = mu_mci,
+        xlab = "offset hour of day",
+        ylab = "chl a residual")
+
+
 ## check shore dist *****
 plot(mu_mci$dist_shore_m, mu_mci$residual_chla, 
-     xlim = c(0, 500), # try removing this too
+     #xlim = c(0, 500), # try removing this too
      #ylim = c(0, 200),
-     xlab = "distance from Shore (m)",
+     xlab = "distance from shore (m)",
      ylab = "chl a error (ug/L)",
      pch = 20,
      col = alpha("black", alpha = 0.4))
@@ -408,7 +435,12 @@ abline(v = 30, lty = 2)
 #rect(0, 0, 30, 350, border = NULL, col = alpha("orange", alpha = 0.5))
 #
 
-
+# boxplot
+mu_mci$dist_shore_m_interval <- cut(mu_mci$dist_shore_m, seq(0, 2000, 50))
+barplot(table(mu_mci$dist_shore_m_interval), xlab = "distance from shore (m)", ylab = "frequency")
+boxplot(residual_chla ~ dist_shore_m_interval, data = mu_mci,
+        xlab = "distance from shore (m)",
+        ylab = "chl a residual")
 
 
 ## same MCI values
