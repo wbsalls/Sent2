@@ -178,8 +178,8 @@ source("C:/Users/WSalls/Desktop/Git/Sent2/error_metrics_1800611.R")
 #source("/Users/wilsonsalls/Desktop/Git/Sent2/error_metrics_1800611.R")
 
 #mu_mci_raw <- mu_mci
-mu_mci_raw <- read.csv("O:/PRIV/NERL_ORD_CYAN/Sentinel2/Validation/682_imgs/validation_S2_682imgs_MCI_L1C_2018-08-24.csv", stringsAsFactors = FALSE)
-#mu_mci_raw <- read.csv("/Users/wilsonsalls/Desktop/EPA/Sentinel2/Validation/682_imgs/validation_S2_682imgs_MCI_L1C_2018-08-24.csv", stringsAsFactors = FALSE)
+mu_mci_raw <- read.csv("O:/PRIV/NERL_ORD_CYAN/Sentinel2/Validation/682_imgs/validation_S2_682imgs_MCI_L1C_2018-10-10.csv", stringsAsFactors = FALSE)
+#mu_mci_raw <- read.csv("/Users/wilsonsalls/Desktop/EPA/Sentinel2/Validation/682_imgs/validation_S2_682imgs_MCI_L1C_2018-10-10.csv", stringsAsFactors = FALSE)
 
 
 # remove duplicates: identify based on duplicated chlorophyll-a and MCI (L1C)
@@ -247,14 +247,13 @@ mu_mci <- mu_mci[mu_mci$chla_corr < 200, ]
 
 # export final validation data set
 #write.csv(mu_mci, sprintf("O:/PRIV/NERL_ORD_CYAN/Sentinel2/Validation/682_imgs/validation_S2_682imgs_MCI_Chla_filtered_%s.csv", Sys.Date()))
-
 mu_mci_preoffset <- mu_mci
 
 
 # subset by offset time
 mu_mci <- mu_mci_preoffset
-offset_min <- 0
-offset_max <- 10
+offset_min <- 1
+offset_max <- 1
 offset_threshold <- offset_min:offset_max
 mu_mci <- mu_mci[mu_mci$offset_days %in% offset_threshold, ]
 
@@ -266,11 +265,15 @@ mu_mci <- mu_mci[mu_mci$offset_days %in% offset_threshold, ]
 # b & w
 col_plot <- alpha("black", 0.3)
 pch_plot <- 20
+if (offset_min == offset_max) {
+  plot_title <- sprintf("+/- %s day", offset_min)
+} else {
+  plot_title <- sprintf("+/- %s-%s days", offset_min, offset_max)
+}
 plot_error_metrics(x = mu_mci$chla_corr, y = mu_mci$chla_s2, # export 800 x 860
                    xname = "in situ chlorophyll-a (ug/l)", 
                    yname = "S2-derived chlorophyll-a (from MCI L1C)", 
-                   #title = sprintf("+/- %sday", offset_min), 
-                   title = sprintf("+/- %s-%s days", offset_min, offset_max), 
+                   title = plot_title, 
                    #title = sprintf("+/- %s-%s-day validation of Sentinel-2-derived chlorophyll-a\n(coefficients from Binding et al. [2013], Lake Erie)", offset_min, offset_max), 
                    equal_axes = TRUE, 
                    log_axes = "xy", 
@@ -288,6 +291,7 @@ axis(2, at = c(10^(-1:3)), labels = c(10^(-1:3)))
 
 
 # each day
+mu_mci <- mu_mci_preoffset
 for (d in 10:0) {
   
   offset_threshold <- d
@@ -308,9 +312,12 @@ for (d in 10:0) {
                      title = sprintf("+/- %s-day validation of Sentinel-2-derived chlorophyll-a\n(coefficients from Binding et al. [2013], Lake Erie)", offset_threshold), 
                      equal_axes = TRUE, 
                      log_axes = "xy", 
+                     plot_abline = FALSE,
                      rsq = FALSE,
                      states = mu_mci$state,
                      lakes = mu_mci$comid,
+                     xlim = c(0.05, 200),
+                     ylim = c(0.05, 200),
                      bg = col_plot, col = "black", pch = pch_plot) # col = alpha("black", 0.3), pch = 20
   legend(0.03, 10, levels(mu_mci$offset_days_factor), pt.bg = jcolors$color, col = "black", pch = pch_plot)
 }
