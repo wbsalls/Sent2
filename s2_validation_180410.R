@@ -84,6 +84,7 @@ for (i in 1:length(mci_imgs)) {
   
   # if mci raster doesn't exist, note in summary file and move to next
   if (!("MCI.img" %in% list.files(file.path(rfolder, mci_imgs[i])))) {
+    print("NO MCI IMAGE!!!")
     img_summary <- rbind(img_summary, data.frame(img = mci_imgs[i], 
                                                  n_layers = 0, 
                                                  missing_crs = "***NO MCI RASTER***", 
