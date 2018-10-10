@@ -77,11 +77,23 @@ for (i in 1:length(mci_imgs)) {
   # initialize variable for use below
   missing_crs <- ""
   
-  # load raster
-  mci_i <- raster(file.path(rfolder, mci_imgs[i], "MCI.img"))
-  
   # subset points to those in this image
   mu_pts_img <- mu_pts[mu_pts$PRODUCT_ID == substr(mci_imgs[i], 16, 75), ]
+  
+  # load raster
+  
+  # if mci raster doesn't exist, note in summary file and move to next
+  if (!("MCI.img" %in% list.files(file.path(rfolder, mci_imgs[i])))) {
+    img_summary <- rbind(img_summary, data.frame(img = mci_imgs[i], 
+                                                 n_layers = 0, 
+                                                 missing_crs = "***NO MCI RASTER***", 
+                                                 n_pts_tot = nrow(mu_pts_img@data), 
+                                                 n_pts_cloudy = 0, 
+                                                 n_pts_noncloudy = 0))
+    next
+  }
+  
+  mci_i <- raster(file.path(rfolder, mci_imgs[i], "MCI.img"))
   
   # if no points, update img_summary and skip to next image
   if (length(mu_pts_img) == 0) {
