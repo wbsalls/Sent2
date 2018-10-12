@@ -78,7 +78,7 @@ for (i in 1:length(mci_imgs)) {
   missing_crs <- ""
   
   # subset points to those in this image
-  mu_pts_img <- mu_pts[mu_pts$PRODUCT_ID == substr(mci_imgs[i], 16, 75), ]
+  mu_pts_img <- mu_pts[mu_pts$PRODUCT_ID == sub(".data", "", sub("mci_resample20_", "", mci_imgs[i])), ]
   
   # load raster
   
@@ -113,13 +113,16 @@ for (i in 1:length(mci_imgs)) {
   ## remove cloudy points
   # check layers in cloud mask - should be 1, but at least one file has 0
   granule_dir <- file.path(safe_folder, paste0(mci_img_names[i], ".SAFE"), "GRANULE")
-  granule_folder <- list.files(granule_dir)
-  layers <- ogrListLayers(file.path(granule_dir, granule_folder, "QI_DATA/MSK_CLOUDS_B00.gml"))
+  granule_folder <- list.files(granule_dir)[grep(unique(mu_pts_img@data$MGRS_TILE), list.files(granule_dir))]
+  #"Warning messages: In grep(unique(mu_pts_img@data$MGRS_TILE), list.files(granule_dir)) : argument 'pattern' has length > 1 and only the first element will be used"
+  qi_data <- list.files(file.path(granule_dir, granule_folder, "QI_DATA"), pattern = ".gml")
+  cloud_file <- qi_data[grep("MSK_CLOUDS", qi_data)]
+  layers <- ogrListLayers(file.path(granule_dir, granule_folder, "QI_DATA", cloud_file))
   n_layers <- length(layers)
   
   # if the layer exists: load cloud mask; get point indices falling on cloud; remove these points
   if (length(layers) == 1) {
-    gml <- readOGR(file.path(granule_dir, granule_folder, "QI_DATA/MSK_CLOUDS_B00.gml"), "MaskFeature",
+    gml <- readOGR(file.path(granule_dir, granule_folder, "QI_DATA", cloud_file), "MaskFeature",
                    disambiguateFIDs = TRUE, verbose = FALSE)
     
     # assign crs to cloud mask if missing (which it always seems to be)
@@ -236,6 +239,7 @@ mu_mci <- mu_mci[mu_mci$MCI_L1C != 0, ]
 
 # remove outliers
 max(mu_mci$MCI_L1C)
+sum(mu_mci$MCI_L1C == max(mu_mci$MCI_L1C))
 mu_mci <- mu_mci[mu_mci$MCI_L1C != max(mu_mci$MCI_L1C), ]
 
 min(mu_mci$MCI_L1C)
@@ -243,24 +247,27 @@ sum(mu_mci$MCI_L1C < -0.01)
 mu_mci <- mu_mci[mu_mci$MCI_L1C > -0.01, ]
 
 sum(mu_mci$chla_corr > 200)
-mu_mci <- mu_mci[mu_mci$chla_corr < 200, ]
+mu_mci <- mu_mci[mu_mci$chla_corr < 200, ] # **** discuss
 
-# export final validation data set
+# export filtered validation data set
 #write.csv(mu_mci, sprintf("O:/PRIV/NERL_ORD_CYAN/Sentinel2/Validation/682_imgs/validation_S2_682imgs_MCI_Chla_filtered_%s.csv", Sys.Date()))
-mu_mci_preoffset <- mu_mci
+mu_mci_filtered <- mu_mci # for resetting data
 
 
 # subset by offset time
-mu_mci <- mu_mci_preoffset
-offset_min <- 1
-offset_max <- 1
+mu_mci <- mu_mci_filtered
+offset_min <- 0
+offset_max <- 10
 offset_threshold <- offset_min:offset_max
 mu_mci <- mu_mci[mu_mci$offset_days %in% offset_threshold, ]
 
 # subset by method
-#mu_mci <- mu_mci[which(mu_mci$ResultAnalyticalMethod.MethodIdentifierContext == "USEPA"), ]
+#mu_mci <- mu_mci_filtered
+#method_sub <- "APHA" # APHA USEPA USGS
+#mu_mci <- mu_mci[which(mu_mci$ResultAnalyticalMethod.MethodIdentifierContext == method_sub), ]
 
 ### plot  ---------------
+setwd("O:/PRIV/NERL_ORD_CYAN/Sentinel2/Validation/682_imgs")
 
 # b & w
 col_plot <- alpha("black", 0.3)
@@ -274,6 +281,7 @@ plot_error_metrics(x = mu_mci$chla_corr, y = mu_mci$chla_s2, # export 800 x 860
                    xname = "in situ chlorophyll-a (ug/l)", 
                    yname = "S2-derived chlorophyll-a (from MCI L1C)", 
                    title = plot_title, 
+                   #title = paste0(method_sub, plot_title), # if subsetting by method
                    #title = sprintf("+/- %s-%s-day validation of Sentinel-2-derived chlorophyll-a\n(coefficients from Binding et al. [2013], Lake Erie)", offset_min, offset_max), 
                    equal_axes = TRUE, 
                    log_axes = "xy", 
@@ -360,7 +368,96 @@ legend(195, 0.04, levels(mu_mci$offset_days_factor), col = topo.colors(11, alpha
 qplot(mu_mci$chla_corr, mu_mci$MCI_L1C, col = mu_mci$offset_days_factor)
 
 
-# plot error by factor variables
+
+# investigate patterns ---------------------------------------------------------------------------
+par()$mfrow
+par(mfrow = c(2,1))
+
+## check high error
+mu_mci_sort <- mu_mci[order(-mu_mci$residual_chla), ]
+mu_mci_sort <- mu_mci[order(-mu_mci$pct_error_chla), ]
+mu_mci_sort[1:20, c(185, 191:194)]
+
+
+## check shore dist *****
+plot(mu_mci$dist_shore_m, mu_mci$residual_chla, 
+     xlim = c(0, 1000), # try removing this too
+     #ylim = c(0, 200),
+     xlab = "distance from shore (m)",
+     ylab = "chl a error (ug/L)",
+     pch = 20,
+     col = alpha("black", alpha = 0.4))
+abline(v = 30, lty = 2)
+#rect(0, 0, 30, 350, border = NULL, col = alpha("orange", alpha = 0.5))
+
+# boxplot
+mu_mci$dist_shore_m_interval <- cut(mu_mci$dist_shore_m, seq(0, 2000, 50))
+barplot(table(mu_mci$dist_shore_m_interval), xlab = "distance from shore (m)", ylab = "frequency")
+boxplot(residual_chla ~ dist_shore_m_interval, data = mu_mci,
+        xlab = "distance from shore (m)",
+        ylab = "chl a residual")
+
+
+## offset days *******
+plot(mu_mci$offset_days, mu_mci$residual_chla)
+plot(mu_mci$offset_hrs, mu_mci$residual_chla)
+
+plot(abs(mu_mci$offset_hrs), mu_mci$residual_chla, 
+     #ylim = c(0, 200),
+     xlab = "time offset (hours)",
+     ylab = "chl a residual (ug/L)",
+     pch = 20,
+     col = alpha("black", alpha = 0.4))
+
+barplot(table(mu_mci$offset_days), xlab = "offset days", ylab = "frequency")
+boxplot(residual_chla ~ offset_days, data = mu_mci,
+        xlab = "offset days",
+        ylab = "chl a residual")
+
+## hour of day
+mu_mci$offset_hrs_day <- (mu_mci$offset_hrs + 12) %% 24 - 12
+mu_mci_hrs <- mu_mci[which(abs(mu_mci$offset_hrs_day) < 10), ]
+#mu_mci_hrs <- mu_mci
+
+# boxplot 1500 x 900
+mu_mci$offset_hrs_day_interval <- cut(mu_mci$offset_hrs_day, seq(-12, 12, 0.5))
+barplot(table(mu_mci$offset_hrs_day_interval), xlab = "offset hour of day", ylab = "frequency")
+boxplot(residual_chla ~ offset_hrs_day_interval, data = mu_mci,
+        xlab = "offset hour of day",
+        ylab = "chl a residual")
+
+# quadratic model
+hrs <- mu_mci_hrs$offset_hrs_day
+hrs2 <- mu_mci_hrs$offset_hrs_day ^ 2
+qmod <- lm(mu_mci_hrs$residual_chla ~ hrs + hrs2)
+summary(qmod)
+
+timevalues <- seq(-12, 12, 0.1)
+predictedcounts <- predict(qmod, list(hrs=timevalues, hrs2=timevalues^2))
+
+plot(mu_mci_hrs$offset_hrs_day, mu_mci_hrs$residual_chla, xlim = c(-12, 12))
+lines(timevalues, predictedcounts, col = "darkgreen", lwd = 3)
+
+
+## method
+boxplot(residual_chla ~ ResultAnalyticalMethod.MethodIdentifierContext, data = mu_mci,
+        ylab = "chl a residual",
+        xlab = "Method Identifier Context")
+text(0.7, 150, paste0("n = ", table(mu_mci$ResultAnalyticalMethod.MethodIdentifierContext)[1]))
+text(1.7, 150, paste0("n = ", table(mu_mci$ResultAnalyticalMethod.MethodIdentifierContext)[2]))
+text(2.7, 150, paste0("n = ", table(mu_mci$ResultAnalyticalMethod.MethodIdentifierContext)[3]))
+
+
+## satellite
+boxplot(residual_chla ~ SPACECRAFT_NAME, data = mu_mci,
+        ylab = "chl a residual",
+        xlab = "Satellite")
+text(0.7, 150, paste0("n = ", table(mu_mci$SPACECRAFT_NAME)[1]))
+text(1.7, 150, paste0("n = ", table(mu_mci$SPACECRAFT_NAME)[2]))
+
+
+## plot error by factor variables
+
 library(vioplot)
 
 plot_error_byfactor <- function(data, var_name, plotvalue_name) {
@@ -393,74 +490,10 @@ vioplot(mu_mci$residual_chla[which(mu_mci$ResultAnalyticalMethod.MethodIdentifie
           "NA\n10"),
         col = "lightblue")
 
-boxplot(residual_chla ~ ResultAnalyticalMethod.MethodIdentifierContext, data = mu_mci,
-        ylab = "chl a residual",
-        xlab = "Method Identifier Context")
+
+####
 
 
-# investigate patterns -------------------------------------------
-par()$mfrow
-par(mfrow = c(2,1))
-
-## check high error
-mu_mci_sort <- mu_mci[order(-mu_mci$residual_chla), ]
-
-
-## check offset days *******
-plot(mu_mci$offset_days, mu_mci$residual_chla)
-plot(mu_mci$offset_hrs, mu_mci$residual_chla)
-
-plot(abs(mu_mci$offset_hrs), mu_mci$residual_chla, 
-     #ylim = c(0, 200),
-     xlab = "time offset (hours)",
-     ylab = "chl a residual (ug/L)",
-     pch = 20,
-     col = alpha("black", alpha = 0.4))
-abline(v = 30, lty = 2)
-
-## check hour of day
-mu_mci$offset_hrs_day <- (mu_mci$offset_hrs + 12) %% 24 - 12
-mu_mci_hrs <- mu_mci[which(abs(mu_mci$offset_hrs_day) < 10), ]
-#mu_mci_hrs <- mu_mci
-
-# quadratic model
-hrs <- mu_mci_hrs$offset_hrs_day
-hrs2 <- mu_mci_hrs$offset_hrs_day ^ 2
-qmod <- lm(mu_mci_hrs$residual_chla ~ hrs + hrs2)
-summary(qmod)
-
-timevalues <- seq(-12, 12, 0.1)
-predictedcounts <- predict(qmod, list(hrs=timevalues, hrs2=timevalues^2))
-
-plot(mu_mci_hrs$offset_hrs_day, mu_mci_hrs$residual_chla, xlim = c(-12, 12))
-lines(timevalues, predictedcounts, col = "darkgreen", lwd = 3)
-
-# boxplot
-mu_mci$offset_hrs_day_interval <- cut(mu_mci$offset_hrs_day, seq(-12, 12, 0.5))
-barplot(table(mu_mci$offset_hrs_day_interval), xlab = "offset hour of day", ylab = "frequency")
-boxplot(residual_chla ~ offset_hrs_day_interval, data = mu_mci,
-        xlab = "offset hour of day",
-        ylab = "chl a residual")
-
-
-## check shore dist *****
-plot(mu_mci$dist_shore_m, mu_mci$residual_chla, 
-     #xlim = c(0, 500), # try removing this too
-     #ylim = c(0, 200),
-     xlab = "distance from shore (m)",
-     ylab = "chl a error (ug/L)",
-     pch = 20,
-     col = alpha("black", alpha = 0.4))
-abline(v = 30, lty = 2)
-#rect(0, 0, 30, 350, border = NULL, col = alpha("orange", alpha = 0.5))
-#
-
-# boxplot
-mu_mci$dist_shore_m_interval <- cut(mu_mci$dist_shore_m, seq(0, 2000, 50))
-barplot(table(mu_mci$dist_shore_m_interval), xlab = "distance from shore (m)", ylab = "frequency")
-boxplot(residual_chla ~ dist_shore_m_interval, data = mu_mci,
-        xlab = "distance from shore (m)",
-        ylab = "chl a residual")
 
 
 ## same MCI values
