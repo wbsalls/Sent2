@@ -474,8 +474,8 @@ boxplot(residual_chla ~ dist_shore_m_interval, data = mu_mci[which(mu_mci$Result
         xlab = "distance from shore (m)",
         ylab = "chl a residual")
 
-mu_usgs <- mu_mci[which(mu_mci$ResultAnalyticalMethod.MethodIdentifierContext == "USGS"), ]
-plot(mu_usgs$dist_shore_m, mu_usgs$residual_chla)
+mu_method <- mu_mci[which(mu_mci$ResultAnalyticalMethod.MethodIdentifierContext == "USEPA"), ]
+plot(mu_method$dist_shore_m, mu_usgs$residual_chla)
 
 m_usgs <- lm(residual_chla ~ dist_shore_m, mu_usgs)
 
