@@ -69,7 +69,8 @@ img_summary <- data.frame()
 cloudy_pts <- data.frame()
 
 print(Sys.time())
-for (i in 1:length(mci_imgs)) {
+#for (i in 1:length(mci_imgs)) {
+for (i in 367:429) {
   
   # progress
   print(sprintf("image #%s at %s", i, Sys.time()))
@@ -181,7 +182,7 @@ source("C:/Users/WSalls/Desktop/Git/Sent2/error_metrics_1800611.R")
 #source("/Users/wilsonsalls/Desktop/Git/Sent2/error_metrics_1800611.R")
 
 #mu_mci_raw <- mu_mci
-mu_mci_raw <- read.csv("O:/PRIV/NERL_ORD_CYAN/Sentinel2/Validation/682_imgs/validation_S2_682imgs_MCI_L1C_2018-10-10.csv", stringsAsFactors = FALSE)
+mu_mci_raw <- read.csv("O:/PRIV/NERL_ORD_CYAN/Sentinel2/Validation/619_imgs_error682/validation_S2_682imgs_MCI_L1C_2018-10-10.csv", stringsAsFactors = FALSE)
 #mu_mci_raw <- read.csv("/Users/wilsonsalls/Desktop/EPA/Sentinel2/Validation/682_imgs/validation_S2_682imgs_MCI_L1C_2018-10-10.csv", stringsAsFactors = FALSE)
 
 
@@ -255,7 +256,7 @@ mu_mci_filtered <- mu_mci # for resetting data
 
 
 # subset by offset time
-mu_mci <- mu_mci_filtered
+mu_mci <- mu_mci_filtered # reset
 offset_min <- 0
 offset_max <- 10
 offset_threshold <- offset_min:offset_max
@@ -372,6 +373,7 @@ qplot(mu_mci$chla_corr, mu_mci$MCI_L1C, col = mu_mci$offset_days_factor)
 # investigate patterns ---------------------------------------------------------------------------
 par()$mfrow
 par(mfrow = c(2,1))
+par(mfrow = c(1,1))
 
 ## check high error
 mu_mci_sort <- mu_mci[order(-mu_mci$residual_chla), ]
@@ -379,7 +381,7 @@ mu_mci_sort <- mu_mci[order(-mu_mci$pct_error_chla), ]
 mu_mci_sort[1:20, c(185, 191:194)]
 
 
-## check shore dist *****
+## shore dist ---------------
 plot(mu_mci$dist_shore_m, mu_mci$residual_chla, 
      xlim = c(0, 1000), # try removing this too
      #ylim = c(0, 200),
@@ -398,7 +400,7 @@ boxplot(residual_chla ~ dist_shore_m_interval, data = mu_mci,
         ylab = "chl a residual")
 
 
-## offset days *******
+## offset days ---------------
 plot(mu_mci$offset_days, mu_mci$residual_chla)
 plot(mu_mci$offset_hrs, mu_mci$residual_chla)
 
@@ -414,12 +416,13 @@ boxplot(residual_chla ~ offset_days, data = mu_mci,
         xlab = "offset days",
         ylab = "chl a residual")
 
-## hour of day
+## hour of day ---------------
 mu_mci$offset_hrs_day <- (mu_mci$offset_hrs + 12) %% 24 - 12
 mu_mci_hrs <- mu_mci[which(abs(mu_mci$offset_hrs_day) < 10), ]
 #mu_mci_hrs <- mu_mci
 
 # boxplot 1500 x 900
+par(mfrow = c(2,1))
 mu_mci$offset_hrs_day_interval <- cut(mu_mci$offset_hrs_day, seq(-12, 12, 0.5))
 barplot(table(mu_mci$offset_hrs_day_interval), xlab = "offset hour of day", ylab = "frequency")
 boxplot(residual_chla ~ offset_hrs_day_interval, data = mu_mci,
@@ -439,7 +442,7 @@ plot(mu_mci_hrs$offset_hrs_day, mu_mci_hrs$residual_chla, xlim = c(-12, 12))
 lines(timevalues, predictedcounts, col = "darkgreen", lwd = 3)
 
 
-## method
+## method ---------------
 boxplot(residual_chla ~ ResultAnalyticalMethod.MethodIdentifierContext, data = mu_mci,
         ylab = "chl a residual",
         xlab = "Method Identifier Context")
@@ -447,8 +450,36 @@ text(0.7, 150, paste0("n = ", table(mu_mci$ResultAnalyticalMethod.MethodIdentifi
 text(1.7, 150, paste0("n = ", table(mu_mci$ResultAnalyticalMethod.MethodIdentifierContext)[2]))
 text(2.7, 150, paste0("n = ", table(mu_mci$ResultAnalyticalMethod.MethodIdentifierContext)[3]))
 
+# shore dist vs method
+boxplot(dist_shore_m ~ ResultAnalyticalMethod.MethodIdentifierContext, data = mu_mci,
+        ylab = "distance from shore (m)",
+        xlab = "Method Identifier Context")
+text(0.7, 14000, paste0("n = ", table(mu_mci$ResultAnalyticalMethod.MethodIdentifierContext)[1]))
+text(1.7, 14000, paste0("n = ", table(mu_mci$ResultAnalyticalMethod.MethodIdentifierContext)[2]))
+text(2.7, 14000, paste0("n = ", table(mu_mci$ResultAnalyticalMethod.MethodIdentifierContext)[3]))
 
-## satellite
+par(mfrow = c(2,1))
+barplot(table(mu_mci[which(mu_mci$ResultAnalyticalMethod.MethodIdentifierContext == "APHA"), ]$dist_shore_m_interval), xlab = "distance from shore (m)", ylab = "frequency", main = "APHA")
+boxplot(residual_chla ~ dist_shore_m_interval, data = mu_mci[which(mu_mci$ResultAnalyticalMethod.MethodIdentifierContext == "APHA"), ],
+        xlab = "distance from shore (m)",
+        ylab = "chl a residual")
+
+barplot(table(mu_mci[which(mu_mci$ResultAnalyticalMethod.MethodIdentifierContext == "USEPA"), ]$dist_shore_m_interval), xlab = "distance from shore (m)", ylab = "frequency", main = "USEPA")
+boxplot(residual_chla ~ dist_shore_m_interval, data = mu_mci[which(mu_mci$ResultAnalyticalMethod.MethodIdentifierContext == "USEPA"), ],
+        xlab = "distance from shore (m)",
+        ylab = "chl a residual")
+
+barplot(table(mu_mci[which(mu_mci$ResultAnalyticalMethod.MethodIdentifierContext == "USGS"), ]$dist_shore_m_interval), xlab = "distance from shore (m)", ylab = "frequency", main = "USGS")
+boxplot(residual_chla ~ dist_shore_m_interval, data = mu_mci[which(mu_mci$ResultAnalyticalMethod.MethodIdentifierContext == "USGS"), ],
+        xlab = "distance from shore (m)",
+        ylab = "chl a residual")
+
+mu_usgs <- mu_mci[which(mu_mci$ResultAnalyticalMethod.MethodIdentifierContext == "USGS"), ]
+plot(mu_usgs$dist_shore_m, mu_usgs$residual_chla)
+
+m_usgs <- lm(residual_chla ~ dist_shore_m, mu_usgs)
+
+## satellite ---------------
 boxplot(residual_chla ~ SPACECRAFT_NAME, data = mu_mci,
         ylab = "chl a residual",
         xlab = "Satellite")
@@ -456,7 +487,7 @@ text(0.7, 150, paste0("n = ", table(mu_mci$SPACECRAFT_NAME)[1]))
 text(1.7, 150, paste0("n = ", table(mu_mci$SPACECRAFT_NAME)[2]))
 
 
-## plot error by factor variables
+## plot error by factor variables ---------------
 
 library(vioplot)
 
