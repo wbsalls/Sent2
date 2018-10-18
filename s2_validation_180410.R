@@ -69,14 +69,14 @@ img_summary <- data.frame()
 cloudy_pts <- data.frame()
 
 print(Sys.time())
-#for (i in 1:length(mci_imgs)) {
-for (i in 367:429) {
-  
+for (i in 1:length(mci_imgs)) {
+
   # progress
   print(sprintf("image #%s at %s", i, Sys.time()))
   
   # initialize variable for use below
-  missing_crs <- ""
+  notes <- ""
+  n_cloud_layers <- 0
   
   # subset points to those in this image
   mu_pts_img <- mu_pts[mu_pts$PRODUCT_ID == sub(".data", "", sub("mci_resample20_", "", mci_imgs[i])), ]
@@ -87,8 +87,8 @@ for (i in 367:429) {
   if (!("MCI.img" %in% list.files(file.path(rfolder, mci_imgs[i])))) {
     print("NO MCI IMAGE!!!")
     img_summary <- rbind(img_summary, data.frame(img = mci_imgs[i], 
-                                                 n_layers = 0, 
-                                                 missing_crs = "***NO MCI RASTER***", 
+                                                 n_cloud_layers = NA, 
+                                                 notes = "NO MCI RASTER; ", 
                                                  n_pts_tot = nrow(mu_pts_img@data), 
                                                  n_pts_cloudy = 0, 
                                                  n_pts_noncloudy = 0))
@@ -100,8 +100,8 @@ for (i in 367:429) {
   # if no points, update img_summary and skip to next image
   if (length(mu_pts_img) == 0) {
     img_summary <- rbind(img_summary, data.frame(img = mci_imgs[i], 
-                                                 n_layers = 0, 
-                                                 missing_crs = missing_crs, 
+                                                 n_cloud_layers = NA, 
+                                                 notes = "no points in image; ", 
                                                  n_pts_tot = nrow(mu_pts_img@data), 
                                                  n_pts_cloudy = 0, 
                                                  n_pts_noncloudy = 0))
@@ -112,36 +112,44 @@ for (i in 367:429) {
   mu_pts_img_proj <- spTransform(mu_pts_img, crs(mci_i))
   
   ## remove cloudy points
+  tiles_img <- unique(mu_pts_img_proj$tileID)
+  
   # check layers in cloud mask - should be 1, but at least one file has 0
   granule_dir <- file.path(safe_folder, paste0(mci_img_names[i], ".SAFE"), "GRANULE")
-  granule_folder <- list.files(granule_dir)[grep(unique(mu_pts_img@data$MGRS_TILE), list.files(granule_dir))]
-  #"Warning messages: In grep(unique(mu_pts_img@data$MGRS_TILE), list.files(granule_dir)) : argument 'pattern' has length > 1 and only the first element will be used"
-  qi_data <- list.files(file.path(granule_dir, granule_folder, "QI_DATA"), pattern = ".gml")
-  cloud_file <- qi_data[grep("MSK_CLOUDS", qi_data)]
-  layers <- ogrListLayers(file.path(granule_dir, granule_folder, "QI_DATA", cloud_file))
-  n_layers <- length(layers)
+  granule_folders <- list.files(granule_dir)
   
-  # if the layer exists: load cloud mask; get point indices falling on cloud; remove these points
-  if (length(layers) == 1) {
-    gml <- readOGR(file.path(granule_dir, granule_folder, "QI_DATA", cloud_file), "MaskFeature",
-                   disambiguateFIDs = TRUE, verbose = FALSE)
+  for (t in 1:length(tiles_img)) {
     
-    # assign crs to cloud mask if missing (which it always seems to be)
-    if (is.na(crs(gml))) {
-      missing_crs <- "missing crs"
-      crs(gml) <- crs(mu_pts_img_proj)
-    }
+    granule_folder <- granule_folders[which((grepl(tiles_img[t], granule_folders)))]
     
-    # query cloud mask value at locations of points
-    cloud_pts_index <- over(mu_pts_img_proj, gml)
+    qi_data <- list.files(file.path(granule_dir, granule_folder, "QI_DATA"), pattern = ".gml")
+    cloud_file <- qi_data[grep("MSK_CLOUDS", qi_data)]
+    layers <- ogrListLayers(file.path(granule_dir, granule_folder, "QI_DATA", cloud_file))
+    n_cloud_layers <- n_cloud_layers + length(layers)
     
-    # only include points with extracted value of NA (meaning they don't fall over a cloud)
-    mu_pts_img_proj <- mu_pts_img_proj[is.na(cloud_pts_index$gml_id), ]
-    cloudy_pts <- rbind(cloudy_pts, mu_pts_img_proj@data[!is.na(cloud_pts_index$gml_id), ])
-    if (nrow(mu_pts_img_proj@data[!is.na(cloud_pts_index$gml_id), ]) > 0) {
-      print("cloud")
+    # if the layer exists: load cloud mask; get point indices falling on cloud; remove these points
+    if (length(layers) == 1) {
+      gml <- readOGR(file.path(granule_dir, granule_folder, "QI_DATA", cloud_file), "MaskFeature",
+                     disambiguateFIDs = TRUE, verbose = FALSE)
+      
+      # assign crs to cloud mask if missing (which it always seems to be)
+      if (is.na(crs(gml))) {
+        crs(gml) <- crs(mu_pts_img_proj)
+      }
+      
+      # query cloud mask value at locations of points
+      cloud_pts_index <- over(mu_pts_img_proj, gml)
+      
+      # only include points with extracted value of NA (meaning they don't fall over a cloud - whether in this mask or a different one)
+      mu_pts_img_proj <- mu_pts_img_proj[is.na(cloud_pts_index$gml_id), ]
+      cloudy_pts <- rbind(cloudy_pts, mu_pts_img_proj@data[!is.na(cloud_pts_index$gml_id), ])
+      if (nrow(mu_pts_img_proj@data[!is.na(cloud_pts_index$gml_id), ]) > 0) {
+        print("cloud(s)")
+      }
     }
   }
+  
+  #
   
   # extract mci values and add as new column
   mci_vals <- extract(mci_i, mu_pts_img_proj)
@@ -152,11 +160,11 @@ for (i in 367:429) {
   
   # update img_summary dataframe
   img_summary <- rbind(img_summary, data.frame(img = mci_imgs[i], 
-                                               n_layers = n_layers, 
-                                               missing_crs = missing_crs, 
+                                               n_cloud_layers = n_cloud_layers, 
                                                n_pts_tot = nrow(mu_pts_img@data), 
                                                n_pts_cloudy = nrow(mu_pts_img@data) - nrow(mu_pts_img_proj@data), 
-                                               n_pts_noncloudy = nrow(mu_pts_img_proj@data)))
+                                               n_pts_noncloudy = nrow(mu_pts_img_proj@data),
+                                               notes = notes))
 }
 print(Sys.time())
 
