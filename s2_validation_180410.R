@@ -190,7 +190,7 @@ source("C:/Users/WSalls/Desktop/Git/Sent2/error_metrics_1800611.R")
 #source("/Users/wilsonsalls/Desktop/Git/Sent2/error_metrics_1800611.R")
 
 #mu_mci_raw <- mu_mci
-mu_mci_raw <- read.csv("O:/PRIV/NERL_ORD_CYAN/Sentinel2/Validation/619_imgs_error682/validation_S2_682imgs_MCI_L1C_2018-10-10.csv", stringsAsFactors = FALSE)
+mu_mci_raw <- read.csv("O:/PRIV/NERL_ORD_CYAN/Sentinel2/Validation/681_imgs/validation_S2_682imgs_MCI_L1C_2018-10-11.csv", stringsAsFactors = FALSE)
 #mu_mci_raw <- read.csv("/Users/wilsonsalls/Desktop/EPA/Sentinel2/Validation/682_imgs/validation_S2_682imgs_MCI_L1C_2018-10-10.csv", stringsAsFactors = FALSE)
 
 
@@ -276,10 +276,11 @@ mu_mci <- mu_mci[mu_mci$offset_days %in% offset_threshold, ]
 #mu_mci <- mu_mci[which(mu_mci$ResultAnalyticalMethod.MethodIdentifierContext == method_sub), ]
 
 ### plot  ---------------
-setwd("O:/PRIV/NERL_ORD_CYAN/Sentinel2/Validation/682_imgs")
+setwd("O:/PRIV/NERL_ORD_CYAN/Sentinel2/Validation/681_imgs")
 
 # b & w
 col_plot <- alpha("black", 0.3)
+jpeg(sprintf("val_%s_%s.png", offset_min, offset_max), width = 800, height = 860)
 pch_plot <- 20
 if (offset_min == offset_max) {
   plot_title <- sprintf("+/- %s day", offset_min)
@@ -291,7 +292,6 @@ plot_error_metrics(x = mu_mci$chla_corr, y = mu_mci$chla_s2, # export 800 x 860
                    yname = "S2-derived chlorophyll-a (from MCI L1C)", 
                    title = plot_title, 
                    #title = paste0(method_sub, plot_title), # if subsetting by method
-                   #title = sprintf("+/- %s-%s-day validation of Sentinel-2-derived chlorophyll-a\n(coefficients from Binding et al. [2013], Lake Erie)", offset_min, offset_max), 
                    equal_axes = TRUE, 
                    log_axes = "xy", 
                    plot_abline = FALSE,
@@ -305,6 +305,7 @@ plot_error_metrics(x = mu_mci$chla_corr, y = mu_mci$chla_s2, # export 800 x 860
                    yaxt="n") # col = alpha("black", 0.3), pch = 20
 axis(1, at = c(10^(-1:3)), labels = c(10^(-1:3)))
 axis(2, at = c(10^(-1:3)), labels = c(10^(-1:3)))
+dev.off()
 
 
 # each day

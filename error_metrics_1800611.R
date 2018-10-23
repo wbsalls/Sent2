@@ -33,6 +33,12 @@ calc_mae <- function(observed, modeled, log_space = TRUE) {
 }
 
 calc_mape <- function(observed, modeled, log_space = TRUE) {
+  if (sum(observed == 1) != 0) {
+    print(sprintf("Removing %s values equal to 1 for MAPE calculation", sum(observed == 1)))
+    modeled <- modeled[-which(observed == 1)]
+    observed <- observed[-which(observed == 1)]
+  }
+  
   if (log_space == TRUE) {
     mmape <- 10 ^ (sum(
       abs(log10(modeled) - log10(observed)) / abs(log10(observed))
