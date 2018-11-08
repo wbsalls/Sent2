@@ -53,7 +53,7 @@ calc_mape <- function(observed, modeled, log_space = TRUE) {
 
 # ------------------
 
-calc_error_metrics <- function(x, y, rtype = 2) {
+calc_error_metrics <- function(x, y, log_space = TRUE, rtype = 2) {
   # if lengths are different, return error
   if (length(x) != length(y)) {
     print("Lengths differ! Returning -9999")
@@ -83,10 +83,10 @@ calc_error_metrics <- function(x, y, rtype = 2) {
   metric_df <- data.frame(slope = m1.slope,
                           int = m1.int,
                           r.sq = m1$rsquare,
-                          MAE = calc_mae(x2, y2), 
-                          MAPE = calc_mape(x2, y2), 
-                          bias = calc_bias(x2, y2), 
-                          rand.err = calc_mae(x2, y2) - abs(calc_bias(x2, y2)), 
+                          MAE = calc_mae(x2, y2, log_space = log_space), 
+                          MAPE = calc_mape(x2, y2, log_space = log_space), 
+                          bias = calc_bias(x2, y2, log_space = log_space), 
+                          rand.err = calc_mae(x2, y2, log_space = log_space) - abs(calc_bias(x2, y2, log_space = log_space)), 
                           n = length(x2))
   return(metric_df)
 }
@@ -105,6 +105,7 @@ plot_error_metrics <- function(x, y,
                                rsq = TRUE,
                                states = NA, 
                                lakes = NA,
+                               log_space = TRUE,
                                ...) {
   
   # make data frame with x, y, and states and lakes if provided
@@ -115,7 +116,7 @@ plot_error_metrics <- function(x, y,
   df <- df[!is.na(df$y), ]
   
   # calculate error metrics for plot
-  err_metr <- calc_error_metrics(df$x, df$y, rtype = rtype_plot)
+  err_metr <- calc_error_metrics(df$x, df$y, rtype = rtype_plot, log_space = log_space)
   
   # reset values for log plotting, if necessary
   if ("x" %in% strsplit(log_axes, "")[[1]]) {

@@ -150,6 +150,27 @@ for (i in 1:length(mci_imgs)) {
   }
   
   #
+  cellNums <- cellFromXY(mci_i, mu_pts_img_proj@coords)
+  window_vals <- adjacent(mci_i, cells = cellNums, directions = 8, include = TRUE)
+  
+  
+  #*** buffer points
+  library(rgeos)
+  pts_buff <- gBuffer(mu_pts_img_proj, byid = TRUE, width = 15)
+  
+  #***
+  vals <- extract(mci_i, pts_buff, weights = TRUE)
+  
+  #*** value summaries
+  nPts
+  nNA
+  mean
+  median
+  min
+  max
+  var
+  
+  #
   
   # extract mci values and add as new column
   mci_vals <- extract(mci_i, mu_pts_img_proj)
@@ -294,6 +315,7 @@ plot_error_metrics(x = mu_mci$chla_corr, y = mu_mci$chla_s2, # export 800 x 860
                    #title = paste0(method_sub, plot_title), # if subsetting by method
                    equal_axes = TRUE, 
                    log_axes = "xy", 
+                   log_space = FALSE,
                    plot_abline = FALSE,
                    rsq = FALSE,
                    states = mu_mci$state,
@@ -383,6 +405,10 @@ qplot(mu_mci$chla_corr, mu_mci$MCI_L1C, col = mu_mci$offset_days_factor)
 par()$mfrow
 par(mfrow = c(2,1))
 par(mfrow = c(1,1))
+
+## residual vs. in situ value ************************
+plot(mu_mci$chla_corr, mu_mci$residual_chla)
+
 
 ## check high error
 mu_mci_sort <- mu_mci[order(-mu_mci$residual_chla), ]
