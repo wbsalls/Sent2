@@ -11,6 +11,9 @@ mu <- read.csv("O:/PRIV/NERL_ORD_CYAN/Sentinel2/Matchups/out/Matchups_S2_chla_10
 # subset to same day (if desired)
 #mu_sameday <- mu[mu$offset_days == "same day", ]
 
+# set single-pixel extraction (FALSE) or 3x3 window extraction (TRUE)
+window_extraction <- TRUE
+
 # make spdf of matchups
 lon <- mu$LongitudeMeasure # **
 lat <- mu$LatitudeMeasure # **
@@ -70,7 +73,7 @@ cloudy_pts <- data.frame()
 
 print(Sys.time())
 for (i in 1:length(mci_imgs)) {
-
+  
   # progress
   print(sprintf("image #%s at %s", i, Sys.time()))
   
@@ -150,34 +153,49 @@ for (i in 1:length(mci_imgs)) {
   }
   
   #
-  cellNums <- cellFromXY(mci_i, mu_pts_img_proj@coords)
-  window_vals <- adjacent(mci_i, cells = cellNums, directions = 8, include = TRUE)
-  
-  
-  #*** buffer points
-  library(rgeos)
-  pts_buff <- gBuffer(mu_pts_img_proj, byid = TRUE, width = 15)
-  
-  #***
-  vals <- extract(mci_i, pts_buff, weights = TRUE)
-  
-  #*** value summaries
-  nPts
-  nNA
-  mean
-  median
-  min
-  max
-  var
-  
-  #
-  
-  # extract mci values and add as new column
-  mci_vals <- extract(mci_i, mu_pts_img_proj)
-  mu_pts_img_proj$mci <- mci_vals
-  
-  # append these points to mu_mci df
-  mu_mci <- rbind(mu_mci, mu_pts_img_proj@data)
+  if (window_extraction == TRUE) {
+    for (p in 1:length(mu_pts_img_proj)) {
+      cellNum <- cellFromXY(mci_i, mu_pts_img_proj@coords[p, ])
+      
+      # skip if cellNum is NA
+      if (is.na(cellNum)) {
+        next
+      }
+      
+      # get cell indices for 3x3 window
+      window_indices <- adjacent(mci_i, cells = cellNum, directions = 8, include = TRUE)
+      
+      # get values from those indices
+      window_vals <- mci_i[window_indices[, 2]]
+      
+      # extract value summaries
+      '
+      window_df <- data.frame(
+        nPts_CIwin = length(window_vals),
+        nNA_CIwin = sum(is.na(window_vals)),
+        mean_CIwin = mean(window_vals, na.rm = TRUE),
+        median_CIwin = median(window_vals, na.rm = TRUE),
+        min_CIwin = min(window_vals, na.rm = TRUE),
+        max_CIwin = max(window_vals, na.rm = TRUE),
+        var_CIwin = var(window_vals, na.rm = TRUE)
+      )'
+      
+      # extract actual cell values
+      window_df <- data.frame(t(window_vals))
+      colnames(window_df) <- paste0("CI_val_", 1:9)
+      
+      # bind to mu_mci
+      mu_mci <- rbind(mu_mci, cbind(mu_pts_img_proj@data[p, ], window_df))
+    }
+    
+  } else {
+    # extract single-pixel mci value(s) and add as new column
+    mci_vals <- extract(mci_i, mu_pts_img_proj)
+    mu_pts_img_proj$mci <- mci_vals
+    
+    # append these points to mu_mci df
+    mu_mci <- rbind(mu_mci, mu_pts_img_proj@data)
+  }
   
   # update img_summary dataframe
   img_summary <- rbind(img_summary, data.frame(img = mci_imgs[i], 
