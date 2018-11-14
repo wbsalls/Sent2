@@ -158,9 +158,7 @@ for (i in 1:length(mci_imgs)) {
       cellNum <- cellFromXY(mci_i, mu_pts_img_proj@coords[p, ])
       
       # skip if cellNum is NA
-      if (is.na(cellNum)) {
-        next
-      }
+      
       
       # get cell indices for 3x3 window
       window_indices <- adjacent(mci_i, cells = cellNum, directions = 8, include = TRUE)
@@ -180,9 +178,13 @@ for (i in 1:length(mci_imgs)) {
         var_CIwin = var(window_vals, na.rm = TRUE)
       )'
       
+      if (is.na(cellNum)) {
+        window_vals <- rep(NA, 9)
+      }
+      
       # extract actual cell values
       window_df <- data.frame(t(window_vals))
-      colnames(window_df) <- paste0("CI_val_", 1:9)
+      colnames(window_df) <- paste0("CI_val_", 1:ncol(window_df))
       
       # bind to mu_mci
       mu_mci <- rbind(mu_mci, cbind(mu_pts_img_proj@data[p, ], window_df))
