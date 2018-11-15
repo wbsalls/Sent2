@@ -183,8 +183,9 @@ for (i in 1:length(mci_imgs)) {
       }
       
       # extract actual cell values
-      window_df <- data.frame(t(window_vals))
-      colnames(window_df) <- paste0("CI_val_", 1:ncol(window_df))
+      window_df <- data.frame(t(rep(NA, 9)))
+      window_df[1:length(window_vals)] <- data.frame(t(window_vals))
+      colnames(window_df) <- paste0("CI_val_", 1:9)
       
       # bind to mu_mci
       mu_mci <- rbind(mu_mci, cbind(mu_pts_img_proj@data[p, ], window_df))
