@@ -1,4 +1,9 @@
-vals <- runif(9, 0, 0.03)
+#vals <- runif(9, 0, 0.03)
+
+mu_mci <- read.csv("C:/Users/WSalls/Desktop/validation_S2_682imgs_MCI_L1C_2018-11-16.csv",
+                   quote = "")
+
+vals <- mu_mci[, which(substr(colnames(mu_mci), 1, 6) == "CI_val")]
 
 ## unfiltered
 # differs from SD function in that uses N instead of N - 1, since we want population SD vs. sample SD
