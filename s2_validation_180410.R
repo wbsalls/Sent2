@@ -86,7 +86,7 @@ for (i in 1:length(mci_imgs)) {
   mu_pts_img <- mu_pts[mu_pts$PRODUCT_ID == sub(".data", "", sub("mci_resample20_", "", mci_imgs[i])), ]
   
   # progress
-  print(sprintf("image #%s of %s at %s - %s pts", i, length(mci_imgs), Sys.time(), nrow(mu_pts_img)))
+  cat(sprintf("\nimage #%s of %s(%s) - %s pts\n", i, length(mci_imgs), Sys.time(), nrow(mu_pts_img)))
   
   # load raster
   
@@ -95,10 +95,10 @@ for (i in 1:length(mci_imgs)) {
     print("NO MCI IMAGE!!!")
     img_summary_i <- data.frame(img = mci_imgs[i], 
                                 n_cloud_layers = NA, 
-                                notes = "NO MCI RASTER; ", 
                                 n_pts_tot = nrow(mu_pts_img@data), 
                                 n_pts_cloudy = 0, 
-                                n_pts_noncloudy = 0)
+                                n_pts_noncloudy = 0,
+                                notes = "NO MCI RASTER; ")
     
     if (has_error(read.csv(sprintf("validation_S2_682imgs_%s_img_summary_%s.csv", process_name, Sys.Date())))) {
       write.table(img_summary_i, sprintf("validation_S2_682imgs_%s_img_summary_%s.csv", process_name, start_date),
@@ -120,10 +120,10 @@ for (i in 1:length(mci_imgs)) {
     # update img_summary dataframe
     img_summary_i <- data.frame(img = mci_imgs[i], 
                                 n_cloud_layers = NA, 
-                                notes = "no points in image; ", 
                                 n_pts_tot = nrow(mu_pts_img@data), 
                                 n_pts_cloudy = 0, 
-                                n_pts_noncloudy = 0)
+                                n_pts_noncloudy = 0,
+                                notes = "no points in image; ")
     
     if (has_error(read.csv(sprintf("validation_S2_682imgs_%s_img_summary_%s.csv", process_name, Sys.Date())))) {
       write.table(img_summary_i, sprintf("validation_S2_682imgs_%s_img_summary_%s.csv", process_name, start_date),
@@ -188,32 +188,35 @@ for (i in 1:length(mci_imgs)) {
     }
   }
   
-  # initialize dataframe for this image
-  mu_mci_i <- data.frame()
-  
-  # extract
-  if (window_extraction == TRUE) {
-    for (p in 1:length(mu_pts_img_proj)) {
-      
-      # print progress inline
-      cat(paste(p, " "))
-      
-      # get cellNum under this pt
-      cellNum <- cellFromXY(mci_i, mu_pts_img_proj@coords[p, ])
-      
-      # get cell indices for 3x3 window
-      window_indices <- adjacent(mci_i, cells = cellNum, directions = 8, include = TRUE)
-      
-      # get values from those indices
-      window_vals <- mci_i[window_indices[, 2]]
-      
-      # make NAs if cellNum is NA
-      if (is.na(cellNum)) {
-        window_vals <- rep(NA, 9)
-      }
-      
-      # extract value summaries
-      '
+  # only proceed if there are still points remaining after cloud removal
+  if (nrow(mu_pts_img_proj) > 0) {
+    
+    # initialize dataframe for this image
+    mu_mci_i <- data.frame()
+    
+    # extract
+    if (window_extraction == TRUE) {
+      for (p in 1:length(mu_pts_img_proj)) {
+        
+        # print progress inline
+        cat(paste(p, " "))
+        
+        # get cellNum under this pt
+        cellNum <- cellFromXY(mci_i, mu_pts_img_proj@coords[p, ])
+        
+        # get cell indices for 3x3 window
+        window_indices <- adjacent(mci_i, cells = cellNum, directions = 8, include = TRUE)
+        
+        # get values from those indices
+        window_vals <- mci_i[window_indices[, 2]]
+        
+        # make NAs if cellNum is NA
+        if (is.na(cellNum)) {
+          window_vals <- rep(NA, 9)
+        }
+        
+        # extract value summaries
+        '
       window_df <- data.frame(
         nPts_CIwin = length(window_vals),
         nNA_CIwin = sum(is.na(window_vals)),
@@ -223,32 +226,33 @@ for (i in 1:length(mci_imgs)) {
         max_CIwin = max(window_vals, na.rm = TRUE),
         var_CIwin = var(window_vals, na.rm = TRUE)
       )'
+        
+        # extract actual cell values
+        window_df <- data.frame(t(rep(NA, 9)))
+        window_df[1:length(window_vals)] <- data.frame(t(window_vals))
+        colnames(window_df) <- paste0("CI_val_", 1:9)
+        
+        # bind to mu_mci
+        mu_mci_i <- rbind(mu_mci_i, cbind(mu_pts_img_proj@data[p, ], window_df))
+      }
       
-      # extract actual cell values
-      window_df <- data.frame(t(rep(NA, 9)))
-      window_df[1:length(window_vals)] <- data.frame(t(window_vals))
-      colnames(window_df) <- paste0("CI_val_", 1:9)
+    } else {
+      # extract single-pixel mci value(s) and add as new column
+      mci_vals <- extract(mci_i, mu_pts_img_proj)
+      mu_pts_img_proj$mci <- mci_vals
       
-      # bind to mu_mci
-      mu_mci_i <- rbind(mu_mci_i, cbind(mu_pts_img_proj@data[p, ], window_df))
+      # append these points to mu_mci df
+      mu_mci_i <- mu_pts_img_proj@data
     }
     
-  } else {
-    # extract single-pixel mci value(s) and add as new column
-    mci_vals <- extract(mci_i, mu_pts_img_proj)
-    mu_pts_img_proj$mci <- mci_vals
-    
-    # append these points to mu_mci df
-    mu_mci_i <- mu_pts_img_proj@data
-  }
-  
-  # append points to validation table
-  if (has_error(read.csv(sprintf("validation_S2_682imgs_%s_%s.csv", process_name, Sys.Date())))) {
-    write.table(mu_mci_i, sprintf("validation_S2_682imgs_%s_%s.csv", process_name, Sys.Date()),
-                sep = ",", append = FALSE, row.names = FALSE, col.names = TRUE)
-  } else {
-    write.table(mu_mci_i, sprintf("validation_S2_682imgs_%s_%s.csv", process_name, Sys.Date()),
-                sep = ",", append = TRUE, row.names = FALSE, col.names = FALSE)
+    # append points to validation table
+    if (has_error(read.csv(sprintf("validation_S2_682imgs_%s_%s.csv", process_name, Sys.Date())))) {
+      write.table(mu_mci_i, sprintf("validation_S2_682imgs_%s_%s.csv", process_name, Sys.Date()),
+                  sep = ",", append = FALSE, row.names = FALSE, col.names = TRUE)
+    } else {
+      write.table(mu_mci_i, sprintf("validation_S2_682imgs_%s_%s.csv", process_name, Sys.Date()),
+                  sep = ",", append = TRUE, row.names = FALSE, col.names = FALSE)
+    }
   }
   
   # update img_summary dataframe
