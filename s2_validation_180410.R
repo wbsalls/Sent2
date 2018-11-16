@@ -77,15 +77,15 @@ start_date <- Sys.Date()
 print(Sys.time())
 for (i in 1:length(mci_imgs)) {
   
-  # progress
-  print(sprintf("image #%s at %s", i, Sys.time()))
-  
   # initialize variable for use below
   notes <- ""
   n_cloud_layers <- 0
   
   # subset points to those in this image
   mu_pts_img <- mu_pts[mu_pts$PRODUCT_ID == sub(".data", "", sub("mci_resample20_", "", mci_imgs[i])), ]
+  
+  # progress
+  print(sprintf("image #%s of %s at %s - %s pts", i, length(mci_imgs), Sys.time(), nrow(mu_pts_img)))
   
   # load raster
   
@@ -184,19 +184,22 @@ for (i in 1:length(mci_imgs)) {
   if (window_extraction == TRUE) {
     for (p in 1:length(mu_pts_img_proj)) {
       
-      print(sprintf("point %s of %s", p, length(mu_pts_img_proj)))
+      # print progress inline
+      cat(paste(p, " "))
       
       # get cellNum under this pt
       cellNum <- cellFromXY(mci_i, mu_pts_img_proj@coords[p, ])
-      
-      # skip if cellNum is NA
-      
       
       # get cell indices for 3x3 window
       window_indices <- adjacent(mci_i, cells = cellNum, directions = 8, include = TRUE)
       
       # get values from those indices
       window_vals <- mci_i[window_indices[, 2]]
+      
+      # make NAs if cellNum is NA
+      if (is.na(cellNum)) {
+        window_vals <- rep(NA, 9)
+      }
       
       # extract value summaries
       '
@@ -209,10 +212,6 @@ for (i in 1:length(mci_imgs)) {
         max_CIwin = max(window_vals, na.rm = TRUE),
         var_CIwin = var(window_vals, na.rm = TRUE)
       )'
-      
-      if (is.na(cellNum)) {
-        window_vals <- rep(NA, 9)
-      }
       
       # extract actual cell values
       window_df <- data.frame(t(rep(NA, 9)))
