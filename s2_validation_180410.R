@@ -1,6 +1,7 @@
 library(raster)
 library(rgdal)
 library(sp)
+library(testit) # has_error
 
 
 # query MCI values at in situ points ------------------------------------------------------------------------------------------
@@ -70,13 +71,9 @@ sum(unique(mu_pts$PRODUCT_ID) %in% mci_img_names)
 
 ## ---------------
 
-# initialize csvs
-start_date <- Sys.Date()
-write.csv(data.frame(), sprintf("validation_S2_682imgs_%s_%s.csv", process_name, start_date))
-write.csv(data.frame(), sprintf("validation_S2_682imgs_%s_cloudypts_%s.csv", process_name, start_date))
-write.csv(data.frame(), sprintf("validation_S2_682imgs_%s_img_summary_%s.csv", process_name, start_date))
 
 # run extraction
+start_date <- Sys.Date()
 print(Sys.time())
 for (i in 1:length(mci_imgs)) {
   
@@ -117,9 +114,9 @@ for (i in 1:length(mci_imgs)) {
                                 n_pts_cloudy = 0, 
                                 n_pts_noncloudy = 0)
     
-    if (nrow(read.csv(sprintf("validation_S2_682imgs_%s_img_summary_%s.csv", process_name, Sys.Date()))) == 0) {
+    if (has_error(read.csv(sprintf("validation_S2_682imgs_%s_img_summary_%s.csv", process_name, Sys.Date())))) {
       write.table(img_summary_i, sprintf("validation_S2_682imgs_%s_img_summary_%s.csv", process_name, start_date),
-                  sep = ",", append = TRUE, row.names = FALSE)
+                  sep = ",", append = FALSE, row.names = FALSE, col.names = TRUE)
     } else {
       write.table(img_summary_i, sprintf("validation_S2_682imgs_%s_img_summary_%s.csv", process_name, start_date),
                   sep = ",", append = TRUE, row.names = FALSE, col.names = FALSE)
@@ -163,20 +160,18 @@ for (i in 1:length(mci_imgs)) {
       # only include points with extracted value of NA (meaning they don't fall over a cloud - whether in this mask or a different one)
       mu_pts_img_proj <- mu_pts_img_proj[is.na(cloud_pts_index$gml_id), ]
       
-      
-      if (nrow(read.csv(sprintf("validation_S2_682imgs_%s_cloudypts_%s.csv", process_name, Sys.Date()))) == 0) {
-        write.table(mu_mci_i, sprintf("validation_S2_682imgs_%s_cloudypts_%s.csv", process_name, Sys.Date()),
-                    sep = ",", append = TRUE, row.names = FALSE)
-      } else {
-        write.table(mu_mci_i, sprintf("validation_S2_682imgs_%s_cloudypts_%s.csv", process_name, Sys.Date()),
-                    sep = ",", append = TRUE, row.names = FALSE, col.names = FALSE)
-      }
-      
-      write.csv(cloudy_pts, sprintf("validation_S2_682imgs_%s_cloudypts_%s.csv", process_name, Sys.Date()))
-      cloudy_pts <- rbind(cloudy_pts, mu_pts_img_proj@data[!is.na(cloud_pts_index$gml_id), ])
-      
-      # print notification
-      if (nrow(mu_pts_img_proj@data[!is.na(cloud_pts_index$gml_id), ]) > 0) {
+      # subset to cloudy points (if any)
+      cloudy_pts_i <- mu_pts_img_proj@data[!is.na(cloud_pts_index$gml_id), ]
+
+      # append cloudy points to cloudypts table
+      if (nrow(cloudy_pts_i) > 0) {
+        if (has_error(read.csv(sprintf("validation_S2_682imgs_%s_cloudypts_%s.csv", process_name, Sys.Date())))) {
+          write.table(cloudy_pts_i , sprintf("validation_S2_682imgs_%s_cloudypts_%s.csv", process_name, Sys.Date()),
+                      sep = ",", append = FALSE, row.names = FALSE, col.names = TRUE)
+        } else {
+          write.table(cloudy_pts_i , sprintf("validation_S2_682imgs_%s_cloudypts_%s.csv", process_name, Sys.Date()),
+                      sep = ",", append = TRUE, row.names = FALSE, col.names = FALSE)
+        }
         print("cloud(s)")
       }
     }
@@ -237,10 +232,10 @@ for (i in 1:length(mci_imgs)) {
     mu_mci_i <- mu_pts_img_proj@data
   }
   
-  # append points to mu_mci df
-  if (nrow(read.csv(sprintf("validation_S2_682imgs_%s_%s.csv", process_name, Sys.Date()))) == 0) {
+  # append points to validation table
+  if (has_error(read.csv(sprintf("validation_S2_682imgs_%s_%s.csv", process_name, Sys.Date())))) {
     write.table(mu_mci_i, sprintf("validation_S2_682imgs_%s_%s.csv", process_name, Sys.Date()),
-                sep = ",", append = TRUE, row.names = FALSE)
+                sep = ",", append = FALSE, row.names = FALSE, col.names = TRUE)
   } else {
     write.table(mu_mci_i, sprintf("validation_S2_682imgs_%s_%s.csv", process_name, Sys.Date()),
                 sep = ",", append = TRUE, row.names = FALSE, col.names = FALSE)
@@ -254,9 +249,9 @@ for (i in 1:length(mci_imgs)) {
                               n_pts_noncloudy = nrow(mu_pts_img_proj@data),
                               notes = notes)
   
-  if (nrow(read.csv(sprintf("validation_S2_682imgs_%s_img_summary_%s.csv", process_name, Sys.Date()))) == 0) {
+  if (has_error(read.csv(sprintf("validation_S2_682imgs_%s_img_summary_%s.csv", process_name, Sys.Date())))) {
     write.table(img_summary_i, sprintf("validation_S2_682imgs_%s_img_summary_%s.csv", process_name, start_date),
-                sep = ",", append = TRUE, row.names = FALSE)
+                sep = ",", append = FALSE, row.names = FALSE, col.names = TRUE)
   } else {
     write.table(img_summary_i, sprintf("validation_S2_682imgs_%s_img_summary_%s.csv", process_name, start_date),
                 sep = ",", append = TRUE, row.names = FALSE, col.names = FALSE)
