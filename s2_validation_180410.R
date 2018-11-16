@@ -69,7 +69,8 @@ length(mci_img_names)
 sum(mci_img_names %in% mu_pts$PRODUCT_ID)
 sum(unique(mu_pts$PRODUCT_ID) %in% mci_img_names)
 
-## ---------------
+
+## ----------------------------------------------------
 
 
 # run extraction
@@ -89,18 +90,28 @@ for (i in 1:length(mci_imgs)) {
   
   # load raster
   
-  # if mci raster doesn't exist, note in summary file and move to next
+  # if mci raster doesn't exist, note in summary file and skip to next
   if (!("MCI.img" %in% list.files(file.path(rfolder, mci_imgs[i])))) {
     print("NO MCI IMAGE!!!")
-    img_summary <- rbind(img_summary, data.frame(img = mci_imgs[i], 
-                                                 n_cloud_layers = NA, 
-                                                 notes = "NO MCI RASTER; ", 
-                                                 n_pts_tot = nrow(mu_pts_img@data), 
-                                                 n_pts_cloudy = 0, 
-                                                 n_pts_noncloudy = 0))
+    img_summary_i <- data.frame(img = mci_imgs[i], 
+                                n_cloud_layers = NA, 
+                                notes = "NO MCI RASTER; ", 
+                                n_pts_tot = nrow(mu_pts_img@data), 
+                                n_pts_cloudy = 0, 
+                                n_pts_noncloudy = 0)
+    
+    if (has_error(read.csv(sprintf("validation_S2_682imgs_%s_img_summary_%s.csv", process_name, Sys.Date())))) {
+      write.table(img_summary_i, sprintf("validation_S2_682imgs_%s_img_summary_%s.csv", process_name, start_date),
+                  sep = ",", append = FALSE, row.names = FALSE, col.names = TRUE)
+    } else {
+      write.table(img_summary_i, sprintf("validation_S2_682imgs_%s_img_summary_%s.csv", process_name, start_date),
+                  sep = ",", append = TRUE, row.names = FALSE, col.names = FALSE)
+    }
+    
     next
   }
   
+  # load raster
   mci_i <- raster(file.path(rfolder, mci_imgs[i], "MCI.img"))
   
   # if no points, update img_summary and skip to next image
@@ -162,7 +173,7 @@ for (i in 1:length(mci_imgs)) {
       
       # subset to cloudy points (if any)
       cloudy_pts_i <- mu_pts_img_proj@data[!is.na(cloud_pts_index$gml_id), ]
-
+      
       # append cloudy points to cloudypts table
       if (nrow(cloudy_pts_i) > 0) {
         if (has_error(read.csv(sprintf("validation_S2_682imgs_%s_cloudypts_%s.csv", process_name, Sys.Date())))) {
@@ -258,11 +269,6 @@ for (i in 1:length(mci_imgs)) {
 }
 
 print(Sys.time())
-
-# write out
-#write.csv(mu_mci, sprintf("O:/PRIV/NERL_ORD_CYAN/Sentinel2/Validation/validation_S2_682imgs_%s_%s.csv", process_name, Sys.Date()))
-#write.csv(img_summary, sprintf("O:/PRIV/NERL_ORD_CYAN/Sentinel2/Validation/validation_S2_682imgs_%s_img_summary_%s.csv", process_name, Sys.Date()))
-#write.csv(cloudy_pts, sprintf("O:/PRIV/NERL_ORD_CYAN/Sentinel2/Validation/validation_S2_682imgs_%s_cloudypts_%s.csv", process_name, Sys.Date()))
 
 
 # --------------------------------------------------------------------------------------------
