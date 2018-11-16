@@ -5,6 +5,8 @@ library(sp)
 
 # query MCI values at in situ points ------------------------------------------------------------------------------------------
 
+setwd("O:/PRIV/NERL_ORD_CYAN/Sentinel2/Validation")
+
 mu <- read.csv("O:/PRIV/NERL_ORD_CYAN/Sentinel2/Matchups/out/Matchups_S2_chla_10day_filtered_2018-07-23.csv", stringsAsFactors = FALSE)
 #mu <- read.csv("/Users/wilsonsalls/Desktop/EPA/S2/Validation/xxx", stringsAsFactors = FALSE)
 
@@ -66,11 +68,15 @@ length(mci_img_names)
 sum(mci_img_names %in% mu_pts$PRODUCT_ID)
 sum(unique(mu_pts$PRODUCT_ID) %in% mci_img_names)
 
-# run extraction
-mu_mci <- data.frame()
-img_summary <- data.frame()
-cloudy_pts <- data.frame()
+## ---------------
 
+# initialize csvs
+start_date <- Sys.Date()
+write.csv(data.frame(), sprintf("validation_S2_682imgs_%s_%s.csv", process_name, start_date))
+write.csv(data.frame(), sprintf("validation_S2_682imgs_%s_cloudypts_%s.csv", process_name, start_date))
+write.csv(data.frame(), sprintf("validation_S2_682imgs_%s_img_summary_%s.csv", process_name, start_date))
+
+# run extraction
 print(Sys.time())
 for (i in 1:length(mci_imgs)) {
   
@@ -102,12 +108,23 @@ for (i in 1:length(mci_imgs)) {
   
   # if no points, update img_summary and skip to next image
   if (length(mu_pts_img) == 0) {
-    img_summary <- rbind(img_summary, data.frame(img = mci_imgs[i], 
-                                                 n_cloud_layers = NA, 
-                                                 notes = "no points in image; ", 
-                                                 n_pts_tot = nrow(mu_pts_img@data), 
-                                                 n_pts_cloudy = 0, 
-                                                 n_pts_noncloudy = 0))
+    
+    # update img_summary dataframe
+    img_summary_i <- data.frame(img = mci_imgs[i], 
+                                n_cloud_layers = NA, 
+                                notes = "no points in image; ", 
+                                n_pts_tot = nrow(mu_pts_img@data), 
+                                n_pts_cloudy = 0, 
+                                n_pts_noncloudy = 0)
+    
+    if (nrow(read.csv(sprintf("validation_S2_682imgs_%s_img_summary_%s.csv", process_name, Sys.Date()))) == 0) {
+      write.table(img_summary_i, sprintf("validation_S2_682imgs_%s_img_summary_%s.csv", process_name, start_date),
+                  sep = ",", append = TRUE, row.names = FALSE)
+    } else {
+      write.table(img_summary_i, sprintf("validation_S2_682imgs_%s_img_summary_%s.csv", process_name, start_date),
+                  sep = ",", append = TRUE, row.names = FALSE, col.names = FALSE)
+    }
+    
     next
   }
   
@@ -145,16 +162,36 @@ for (i in 1:length(mci_imgs)) {
       
       # only include points with extracted value of NA (meaning they don't fall over a cloud - whether in this mask or a different one)
       mu_pts_img_proj <- mu_pts_img_proj[is.na(cloud_pts_index$gml_id), ]
+      
+      
+      if (nrow(read.csv(sprintf("validation_S2_682imgs_%s_cloudypts_%s.csv", process_name, Sys.Date()))) == 0) {
+        write.table(mu_mci_i, sprintf("validation_S2_682imgs_%s_cloudypts_%s.csv", process_name, Sys.Date()),
+                    sep = ",", append = TRUE, row.names = FALSE)
+      } else {
+        write.table(mu_mci_i, sprintf("validation_S2_682imgs_%s_cloudypts_%s.csv", process_name, Sys.Date()),
+                    sep = ",", append = TRUE, row.names = FALSE, col.names = FALSE)
+      }
+      
+      write.csv(cloudy_pts, sprintf("validation_S2_682imgs_%s_cloudypts_%s.csv", process_name, Sys.Date()))
       cloudy_pts <- rbind(cloudy_pts, mu_pts_img_proj@data[!is.na(cloud_pts_index$gml_id), ])
+      
+      # print notification
       if (nrow(mu_pts_img_proj@data[!is.na(cloud_pts_index$gml_id), ]) > 0) {
         print("cloud(s)")
       }
     }
   }
   
-  #
+  # initialize dataframe for this image
+  mu_mci_i <- data.frame()
+  
+  # extract
   if (window_extraction == TRUE) {
     for (p in 1:length(mu_pts_img_proj)) {
+      
+      print(sprintf("point %s of %s", p, length(mu_pts_img_proj)))
+      
+      # get cellNum under this pt
       cellNum <- cellFromXY(mci_i, mu_pts_img_proj@coords[p, ])
       
       # skip if cellNum is NA
@@ -188,7 +225,7 @@ for (i in 1:length(mci_imgs)) {
       colnames(window_df) <- paste0("CI_val_", 1:9)
       
       # bind to mu_mci
-      mu_mci <- rbind(mu_mci, cbind(mu_pts_img_proj@data[p, ], window_df))
+      mu_mci_i <- rbind(mu_mci_i, cbind(mu_pts_img_proj@data[p, ], window_df))
     }
     
   } else {
@@ -197,26 +234,41 @@ for (i in 1:length(mci_imgs)) {
     mu_pts_img_proj$mci <- mci_vals
     
     # append these points to mu_mci df
-    mu_mci <- rbind(mu_mci, mu_pts_img_proj@data)
+    mu_mci_i <- mu_pts_img_proj@data
+  }
+  
+  # append points to mu_mci df
+  if (nrow(read.csv(sprintf("validation_S2_682imgs_%s_%s.csv", process_name, Sys.Date()))) == 0) {
+    write.table(mu_mci_i, sprintf("validation_S2_682imgs_%s_%s.csv", process_name, Sys.Date()),
+                sep = ",", append = TRUE, row.names = FALSE)
+  } else {
+    write.table(mu_mci_i, sprintf("validation_S2_682imgs_%s_%s.csv", process_name, Sys.Date()),
+                sep = ",", append = TRUE, row.names = FALSE, col.names = FALSE)
   }
   
   # update img_summary dataframe
-  img_summary <- rbind(img_summary, data.frame(img = mci_imgs[i], 
-                                               n_cloud_layers = n_cloud_layers, 
-                                               n_pts_tot = nrow(mu_pts_img@data), 
-                                               n_pts_cloudy = nrow(mu_pts_img@data) - nrow(mu_pts_img_proj@data), 
-                                               n_pts_noncloudy = nrow(mu_pts_img_proj@data),
-                                               notes = notes))
+  img_summary_i <- data.frame(img = mci_imgs[i], 
+                              n_cloud_layers = n_cloud_layers, 
+                              n_pts_tot = nrow(mu_pts_img@data), 
+                              n_pts_cloudy = nrow(mu_pts_img@data) - nrow(mu_pts_img_proj@data), 
+                              n_pts_noncloudy = nrow(mu_pts_img_proj@data),
+                              notes = notes)
+  
+  if (nrow(read.csv(sprintf("validation_S2_682imgs_%s_img_summary_%s.csv", process_name, Sys.Date()))) == 0) {
+    write.table(img_summary_i, sprintf("validation_S2_682imgs_%s_img_summary_%s.csv", process_name, start_date),
+                sep = ",", append = TRUE, row.names = FALSE)
+  } else {
+    write.table(img_summary_i, sprintf("validation_S2_682imgs_%s_img_summary_%s.csv", process_name, start_date),
+                sep = ",", append = TRUE, row.names = FALSE, col.names = FALSE)
+  }
 }
+
 print(Sys.time())
 
-# rename mci column appropriately
-colnames(mu_mci)[which(colnames(mu_mci) == "mci")] <- process_name
-
 # write out
-write.csv(mu_mci, sprintf("O:/PRIV/NERL_ORD_CYAN/Sentinel2/Validation/validation_S2_682imgs_%s_%s.csv", process_name, Sys.Date()))
-write.csv(img_summary, sprintf("O:/PRIV/NERL_ORD_CYAN/Sentinel2/Validation/validation_S2_682imgs_%s_img_summary_%s.csv", process_name, Sys.Date()))
-write.csv(cloudy_pts, sprintf("O:/PRIV/NERL_ORD_CYAN/Sentinel2/Validation/validation_S2_682imgs_%s_cloudypts_%s.csv", process_name, Sys.Date()))
+#write.csv(mu_mci, sprintf("O:/PRIV/NERL_ORD_CYAN/Sentinel2/Validation/validation_S2_682imgs_%s_%s.csv", process_name, Sys.Date()))
+#write.csv(img_summary, sprintf("O:/PRIV/NERL_ORD_CYAN/Sentinel2/Validation/validation_S2_682imgs_%s_img_summary_%s.csv", process_name, Sys.Date()))
+#write.csv(cloudy_pts, sprintf("O:/PRIV/NERL_ORD_CYAN/Sentinel2/Validation/validation_S2_682imgs_%s_cloudypts_%s.csv", process_name, Sys.Date()))
 
 
 # --------------------------------------------------------------------------------------------
