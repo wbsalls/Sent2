@@ -76,7 +76,7 @@ sum(unique(mu_pts$PRODUCT_ID) %in% mci_img_names)
 
 # run extraction
 start_date <- Sys.Date()
-print(Sys.time())
+start_time <- Sys.time()
 for (i in 1:length(mci_imgs)) {
   
   # initialize variable for use below
@@ -103,10 +103,10 @@ for (i in 1:length(mci_imgs)) {
     
     if (has_error(read.csv(sprintf("validation_S2_682imgs_%s_img_summary_%s.csv", process_name, Sys.Date())))) {
       write.table(img_summary_i, sprintf("validation_S2_682imgs_%s_img_summary_%s.csv", process_name, start_date),
-                  sep = "\t", append = FALSE, row.names = FALSE, col.names = TRUE)
+                  sep = "|", append = FALSE, row.names = FALSE, col.names = TRUE)
     } else {
       write.table(img_summary_i, sprintf("validation_S2_682imgs_%s_img_summary_%s.csv", process_name, start_date),
-                  sep = "\t", append = TRUE, row.names = FALSE, col.names = FALSE)
+                  sep = "|", append = TRUE, row.names = FALSE, col.names = FALSE)
     }
     
     next
@@ -128,10 +128,10 @@ for (i in 1:length(mci_imgs)) {
     
     if (has_error(read.csv(sprintf("validation_S2_682imgs_%s_img_summary_%s.csv", process_name, Sys.Date())))) {
       write.table(img_summary_i, sprintf("validation_S2_682imgs_%s_img_summary_%s.csv", process_name, start_date),
-                  sep = "\t", append = FALSE, row.names = FALSE, col.names = TRUE)
+                  sep = "|", append = FALSE, row.names = FALSE, col.names = TRUE)
     } else {
       write.table(img_summary_i, sprintf("validation_S2_682imgs_%s_img_summary_%s.csv", process_name, start_date),
-                  sep = "\t", append = TRUE, row.names = FALSE, col.names = FALSE)
+                  sep = "|", append = TRUE, row.names = FALSE, col.names = FALSE)
     }
     
     next
@@ -179,10 +179,10 @@ for (i in 1:length(mci_imgs)) {
       if (nrow(cloudy_pts_i) > 0) {
         if (has_error(read.csv(sprintf("validation_S2_682imgs_%s_cloudypts_%s.csv", process_name, Sys.Date())))) {
           write.table(cloudy_pts_i , sprintf("validation_S2_682imgs_%s_cloudypts_%s.csv", process_name, Sys.Date()),
-                      sep = "\t", append = FALSE, row.names = FALSE, col.names = TRUE)
+                      sep = "|", append = FALSE, row.names = FALSE, col.names = TRUE)
         } else {
           write.table(cloudy_pts_i , sprintf("validation_S2_682imgs_%s_cloudypts_%s.csv", process_name, Sys.Date()),
-                      sep = "\t", append = TRUE, row.names = FALSE, col.names = FALSE)
+                      sep = "|", append = TRUE, row.names = FALSE, col.names = FALSE)
         }
         print("cloud(s)")
       }
@@ -249,10 +249,10 @@ for (i in 1:length(mci_imgs)) {
     # append points to validation table
     if (has_error(read.csv(sprintf("validation_S2_682imgs_%s_%s.csv", process_name, Sys.Date())))) {
       write.table(mu_mci_i, sprintf("validation_S2_682imgs_%s_%s.csv", process_name, Sys.Date()),
-                  sep = "\t", append = FALSE, row.names = FALSE, col.names = TRUE)
+                  sep = "|", append = FALSE, row.names = FALSE, col.names = TRUE)
     } else {
       write.table(mu_mci_i, sprintf("validation_S2_682imgs_%s_%s.csv", process_name, Sys.Date()),
-                  sep = "\t", append = TRUE, row.names = FALSE, col.names = FALSE)
+                  sep = "|", append = TRUE, row.names = FALSE, col.names = FALSE)
     }
   } 
   
@@ -266,14 +266,14 @@ for (i in 1:length(mci_imgs)) {
   
   if (has_error(read.csv(sprintf("validation_S2_682imgs_%s_img_summary_%s.csv", process_name, Sys.Date())))) {
     write.table(img_summary_i, sprintf("validation_S2_682imgs_%s_img_summary_%s.csv", process_name, start_date),
-                sep = "\t", append = FALSE, row.names = FALSE, col.names = TRUE)
+                sep = "|", append = FALSE, row.names = FALSE, col.names = TRUE)
   } else {
     write.table(img_summary_i, sprintf("validation_S2_682imgs_%s_img_summary_%s.csv", process_name, start_date),
-                sep = "\t", append = TRUE, row.names = FALSE, col.names = FALSE)
+                sep = "|", append = TRUE, row.names = FALSE, col.names = FALSE)
   }
 }
 
-print(Sys.time())
+print(sprintf("started: %s | finished: %s", start_time, Sys.time()))
 
 # --------------------------------------------------------------------------------------------
 
@@ -291,7 +291,8 @@ setwd("O:/PRIV/NERL_ORD_CYAN/Sentinel2/Validation/681_imgs_array")
 #setwd("/Users/wilsonsalls/Desktop/EPA/Sentinel2/Validation/681_imgs_array")
 
 #mu_mci_raw <- mu_mci
-mu_mci_raw <- read.table("validation_S2_682imgs_MCI_L1C_2018-11-20.csv", stringsAsFactors = FALSE, sep = "\t", header = TRUE)
+mu_mci_raw <- read.table("validation_S2_682imgs_MCI_L1C_2018-11-20.csv", 
+                         stringsAsFactors = FALSE, sep = "|", header = TRUE, "\"")
 
 
 # rename columns
