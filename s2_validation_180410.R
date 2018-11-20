@@ -287,10 +287,15 @@ library(RColorBrewer)
 source("C:/Users/WSalls/Desktop/Git/Sent2/error_metrics_1800611.R")
 #source("/Users/wilsonsalls/Desktop/Git/Sent2/error_metrics_1800611.R")
 
-#mu_mci_raw <- mu_mci
-mu_mci_raw <- read.csv("O:/PRIV/NERL_ORD_CYAN/Sentinel2/Validation/681_imgs/validation_S2_682imgs_MCI_L1C_2018-10-11.csv", stringsAsFactors = FALSE)
-#mu_mci_raw <- read.csv("/Users/wilsonsalls/Desktop/EPA/Sentinel2/Validation/682_imgs/validation_S2_682imgs_MCI_L1C_2018-10-10.csv", stringsAsFactors = FALSE)
+setwd("O:/PRIV/NERL_ORD_CYAN/Sentinel2/Validation/681_imgs")
+#setwd("/Users/wilsonsalls/Desktop/EPA/Sentinel2/Validation/681_imgs_array")
 
+#mu_mci_raw <- mu_mci
+mu_mci_raw <- read.csv("validation_S2_682imgs_MCI_L1C_2018-11-16.csv", stringsAsFactors = FALSE)
+
+# rename columns
+colnames(mu_mci_raw)[189:197] <- paste0("MCI_val_", 1:9)
+mu_mci_raw$MCI_L1C <- mu_mci_raw$MCI_val_1
 
 # remove duplicates: identify based on duplicated chlorophyll-a and MCI (L1C)
 val_df <- data.frame(mu_mci_raw$chla_corr, mu_mci_raw$MCI_L1C, mu_mci_raw$LatitudeMeasure, mu_mci_raw$LongitudeMeasure)
@@ -361,7 +366,22 @@ mu_mci <- mu_mci[mu_mci$chla_corr < 200, ] # **** discuss
 mu_mci_filtered <- mu_mci # for resetting data
 
 
-# subset by offset time
+# subset by CV -------------------
+mci_val_colindex <- which(colnames(mu_mci) == "MCI_val_1"):which(colnames(mu_mci) == "MCI_val_9")
+
+# define function for population SD (rather than sample SD)
+sd_pop <- function(x) {sqrt(sum((x - mean(x, na.rm = TRUE)) ^ 2) / (length(x)))}
+
+# calculate MCI mean, sd, CV for 3x3 array
+mu_mci$mci_mean <- apply(mu_mci[, mci_val_colindex], 1, mean)
+mu_mci$mci_sd <- apply(mu_mci[, mci_val_colindex], 1, sd_pop)
+mu_mci$mci_cv <- mu_mci$mci_sd / mu_mci$mci_mean
+
+# subset
+mu_mci <- mu_mci[mu_mci$mci_cv <= 0.15, ] # try adjusting cv threshold
+
+
+# subset by offset time ------------
 mu_mci <- mu_mci_filtered # reset
 offset_min <- 0
 offset_max <- 10
