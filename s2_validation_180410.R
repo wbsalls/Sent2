@@ -275,6 +275,19 @@ for (i in 1:length(mci_imgs)) {
 
 print(sprintf("started: %s | finished: %s", start_time, Sys.time()))
 
+
+# get | csvs back to comma csvs
+valpipes <- read.table("681_imgs_array/pipes/validation_S2_682imgs_MCI_L1C_2018-11-21.csv", 
+                         stringsAsFactors = FALSE, sep = "|", header = TRUE, quote = "\"")
+cloudpipes <- read.table("681_imgs_array/pipes/validation_S2_682imgs_MCI_L1C_cloudypts_2018-11-21.csv", 
+                  stringsAsFactors = FALSE, sep = "|", header = TRUE, quote = "\"")
+summarypipes <- read.table("681_imgs_array/pipes/validation_S2_682imgs_MCI_L1C_img_summary_2018-11-21.csv", 
+                  stringsAsFactors = FALSE, sep = "|", header = TRUE, quote = "\"")
+
+write.csv(valpipes, "681_imgs_array/validation_S2_682imgs_MCI_L1C_2018-11-21.csv")
+write.csv(cloudpipes, "681_imgs_array/validation_S2_682imgs_MCI_L1C_cloudypts_2018-11-21.csv")
+write.csv(summarypipes, "681_imgs_array/validation_S2_682imgs_MCI_L1C_img_summary_2018-11-21.csv")
+
 # --------------------------------------------------------------------------------------------
 
 # validation ----------------------------------------------------------------------------------
@@ -291,8 +304,7 @@ setwd("O:/PRIV/NERL_ORD_CYAN/Sentinel2/Validation/681_imgs_array")
 #setwd("/Users/wilsonsalls/Desktop/EPA/Sentinel2/Validation/681_imgs_array")
 
 #mu_mci_raw <- mu_mci
-mu_mci_raw <- read.table("validation_S2_682imgs_MCI_L1C_2018-11-20.csv", 
-                         stringsAsFactors = FALSE, sep = "|", header = TRUE, "\"")
+mu_mci_raw <- read.csv("validation_S2_682imgs_MCI_L1C_2018-11-21.csv", stringsAsFactors = FALSE)
 
 
 # rename columns
