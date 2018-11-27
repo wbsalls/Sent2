@@ -300,15 +300,15 @@ library(RColorBrewer)
 source("C:/Users/WSalls/Desktop/Git/Sent2/error_metrics_1800611.R")
 #source("/Users/wilsonsalls/Desktop/Git/Sent2/error_metrics_1800611.R")
 
-setwd("O:/PRIV/NERL_ORD_CYAN/Sentinel2/Validation/681_imgs_array")
+setwd("O:/PRIV/NERL_ORD_CYAN/Sentinel2/Validation/681_imgs")
 #setwd("/Users/wilsonsalls/Desktop/EPA/Sentinel2/Validation/681_imgs_array")
 
 #mu_mci_raw <- mu_mci
 mu_mci_raw <- read.csv("validation_S2_682imgs_MCI_L1C_2018-11-21.csv", stringsAsFactors = FALSE)
 
 
-# rename columns
-mu_mci_raw$MCI_L1C <- mu_mci_raw$MCI_val_1
+# rename MCI column
+colnames(mu_mci_raw)[which(colnames(mu_mci_raw) == "MCI_val_1")] <- "MCI_L1C"
 
 # remove duplicates: identify based on duplicated chlorophyll-a and MCI (L1C)
 val_df <- data.frame(mu_mci_raw$chla_corr, mu_mci_raw$MCI_L1C, mu_mci_raw$LatitudeMeasure, mu_mci_raw$LongitudeMeasure)
@@ -378,9 +378,18 @@ mu_mci <- mu_mci[mu_mci$chla_corr < 200, ] # **** discuss
 #write.csv(mu_mci, sprintf("O:/PRIV/NERL_ORD_CYAN/Sentinel2/Validation/682_imgs/validation_S2_682imgs_MCI_Chla_filtered_%s.csv", Sys.Date()))
 mu_mci_filtered <- mu_mci # for resetting data
 
+#-------------------------------------
+
+# subset by offset time ------------
+mu_mci <- mu_mci_filtered # reset
+offset_min <- 0
+offset_max <- 3
+offset_threshold <- offset_min:offset_max
+mu_mci <- mu_mci[mu_mci$offset_days %in% offset_threshold, ]
+
 
 # subset by CV -------------------
-mci_val_colindex <- which(colnames(mu_mci) == "MCI_val_1"):which(colnames(mu_mci) == "MCI_val_9")
+mci_val_colindex <- which(colnames(mu_mci) == "MCI_L1C"):which(colnames(mu_mci) == "MCI_val_9")
 
 # define function for population SD (rather than sample SD)
 sd_pop <- function(x) {sqrt(sum((x - mean(x, na.rm = TRUE)) ^ 2) / (length(x)))}
@@ -391,15 +400,7 @@ mu_mci$mci_sd <- apply(mu_mci[, mci_val_colindex], 1, sd_pop)
 mu_mci$mci_cv <- mu_mci$mci_sd / mu_mci$mci_mean
 
 # subset
-mu_mci <- mu_mci[mu_mci$mci_cv <= 0.15, ] # try adjusting cv threshold
-
-
-# subset by offset time ------------
-mu_mci <- mu_mci_filtered # reset
-offset_min <- 0
-offset_max <- 10
-offset_threshold <- offset_min:offset_max
-mu_mci <- mu_mci[mu_mci$offset_days %in% offset_threshold, ]
+#mu_mci <- mu_mci[abs(mu_mci$mci_cv) <= 0.15, ] # *try adjusting cv threshold
 
 # subset by method
 #mu_mci <- mu_mci_filtered
@@ -407,11 +408,10 @@ mu_mci <- mu_mci[mu_mci$offset_days %in% offset_threshold, ]
 #mu_mci <- mu_mci[which(mu_mci$ResultAnalyticalMethod.MethodIdentifierContext == method_sub), ]
 
 ### plot  ---------------
-setwd("O:/PRIV/NERL_ORD_CYAN/Sentinel2/Validation/681_imgs")
 
 # b & w
 col_plot <- alpha("black", 0.3)
-jpeg(sprintf("val_%s_%s.png", offset_min, offset_max), width = 800, height = 860)
+#jpeg(sprintf("val_%s_%s.png", offset_min, offset_max), width = 800, height = 860)
 pch_plot <- 20
 if (offset_min == offset_max) {
   plot_title <- sprintf("+/- %s day", offset_min)
@@ -437,8 +437,10 @@ plot_error_metrics(x = mu_mci$chla_corr, y = mu_mci$chla_s2, # export 800 x 860
                    yaxt="n") # col = alpha("black", 0.3), pch = 20
 axis(1, at = c(10^(-1:3)), labels = c(10^(-1:3)))
 axis(2, at = c(10^(-1:3)), labels = c(10^(-1:3)))
-dev.off()
+#dev.off()
 
+
+###
 
 # each day
 mu_mci <- mu_mci_preoffset
@@ -528,7 +530,7 @@ mu_mci_sort[1:20, c(185, 191:194)]
 
 ## shore dist ---------------
 plot(mu_mci$dist_shore_m, mu_mci$residual_chla, 
-     xlim = c(0, 1000), # try removing this too
+     xlim = c(0, 2000), # try removing this too
      #ylim = c(0, 200),
      xlab = "distance from shore (m)",
      ylab = "chl a error (ug/L)",
@@ -539,11 +541,16 @@ abline(v = 30, lty = 2)
 
 # boxplot
 mu_mci$dist_shore_m_interval <- cut(mu_mci$dist_shore_m, seq(0, 2000, 50))
-barplot(table(mu_mci$dist_shore_m_interval), xlab = "distance from shore (m)", ylab = "frequency")
+#barplot(table(mu_mci$dist_shore_m_interval), xlab = "distance from shore (m)", ylab = "frequency")
+barplot(table(mu_mci$dist_shore_m_interval), xlab = NULL, ylab = NULL, xaxt = 'n', yaxt = 'n')
 boxplot(residual_chla ~ dist_shore_m_interval, data = mu_mci,
+        las = 3,
+        xaxt = 'n',
         xlab = "distance from shore (m)",
-        ylab = "chl a residual")
-
+        ylab = "chl a error (ug/l)")
+axis(side = 1, las = 3,
+     at = seq(from = 0.5, to = 40.5, by = 1), 
+     labels = c(rbind(seq(from = 0, to = 2000, by = 100), ""))[1:41])
 
 ## offset days ---------------
 plot(mu_mci$offset_days, mu_mci$residual_chla)
