@@ -369,7 +369,7 @@ mu_mci <- mu_mci[mu_mci$MCI_L1C != max(mu_mci$MCI_L1C), ]
 
 min(mu_mci$MCI_L1C)
 sum(mu_mci$MCI_L1C < -0.01)
-mu_mci <- mu_mci[mu_mci$MCI_L1C > -0.01, ]
+mu_mci <- mu_mci[mu_mci$MCI_L1C > -0.01, ] # not relevant if removing negative S2 chl since intercept is -0.0021
 
 sum(mu_mci$chla_corr > 200)
 mu_mci <- mu_mci[mu_mci$chla_corr < 200, ] # **** discuss
@@ -735,6 +735,6 @@ mu_mci_pts_proj <- spTransform(mu_mci_pts, crs(us))
 conus <- us[-which(us$STUSPS %in% c("AK", "HI", "PR")), ]
 
 library(scales) # for alpha transparency
-plot(conus, col = "cornsilk", border = "grey", main = sprintf("+/- %s-day matchups", offset_max))
+plot(conus, col = "cornsilk2", border = "grey", main = sprintf("+/- %s-day matchups", offset_max))
 #plot(conus, col = "cornsilk", border = "grey", main = sprintf("+/- %s-%s-day matchups", offset_min, offset_max))
 plot(mu_mci_pts_proj, pch = 20, col = alpha("black", 0.2), add=TRUE)
