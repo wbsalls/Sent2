@@ -1,3 +1,5 @@
+# gifmaker.org
+
 # location of images
 rfolder <- "D:/s2/mci_resample20"
 safe_folder <- "D:/s2/raw"
@@ -91,7 +93,7 @@ for (i in seq_along(imgs)) {
 setwd("/Users/wilsonsalls/Desktop/EPA/Presentations/AGU2018/imgs")
 
 # set location to read rasters from
-chl_rasts <- list.files(rast_out_dir)
+chl_rasts <- list.files(rast_out_dir, pattern = ".tif")
 
 
 ## plot chlorophyll, save ---------------
@@ -100,25 +102,27 @@ chl_rasts <- list.files(rast_out_dir)
 #min <- NA
 #max <- NA
 
+library(viridis)
+
 # plot
-for (i in seq_along(imgs)) {
-  idate <- substr(imgs[i], 27, 34)
-  print(sprintf("image %s of %s: %s", i, length(imgs), idate))
+for (i in seq_along(chl_rasts)) {
+  idate <- substr(chl_rasts[i], 20, 27)
+  print(sprintf("image %s of %s: %s", i, length(chl_rasts), idate))
   
   # read raster
   rast_crop <- raster(file.path(rast_out_dir, chl_rasts[i]))
   
   # plot
   jpeg(sprintf("chl_%s_%s.png", lakename, idate), width = 600, height = 1200)
-  max.color.val <- 100
+  max.color.val <- 50
   plot(rast_crop,
        main = paste0(substr(idate, 1, 4), "-", substr(idate, 5, 6), "-", substr(idate, 7, 8)),
        cex.main = 4,
        xaxt = "n", yaxt = "n", box = FALSE, bty = "n",
        #col = colorRampPalette(c("blue", "green", "yellow"))(255),
-       col = viridis(max.color.val),
-       breaks = seq(1, max.color.val, length.out = max.color.val),
-       colNA = "black")
+       col = viridis(max.color.val + 1),
+       breaks = c(seq(1, max.color.val, length.out = max.color.val), 120),
+       colNA = NA)
   dev.off()
   
   # get min and mox to improve plotting
@@ -129,14 +133,25 @@ for (i in seq_along(imgs)) {
 min # ~0
 max # 117.3
 
+# for legend
+max.color.val <- 120
+plot(rast_crop,
+     main = paste0(substr(idate, 1, 4), "-", substr(idate, 5, 6), "-", substr(idate, 7, 8)),
+     cex.main = 4,
+     xaxt = "n", yaxt = "n", box = FALSE, bty = "n",
+     #col = colorRampPalette(c("blue", "green", "yellow"))(255),
+     col = viridis(50),
+     #breaks = c(seq(1, max.color.val, length.out = max.color.val), 120),
+     colNA = NA)
+
 #
 
 ## plot trophic state, save ---------------
 
 # plot
-for (i in seq_along(imgs)) {
-  idate <- substr(imgs[i], 27, 34)
-  print(sprintf("image %s of %s: %s", i, length(imgs), idate))
+for (i in seq_along(chl_rasts)) {
+  idate <- substr(chl_rasts[i], 20, 27)
+  print(sprintf("image %s of %s: %s", i, length(chl_rasts), idate))
   
   # read raster
   rast_crop <- raster(file.path(rast_out_dir, chl_rasts[i]))
@@ -150,7 +165,7 @@ for (i in seq_along(imgs)) {
        xaxt = "n", yaxt = "n", box = FALSE, bty = "n",
        col = plasma(4),
        breaks = c(0, 2, 7, 30, max.color.val),
-       colNA = "black")
+       colNA = NA)
   dev.off()
   
 }
@@ -159,6 +174,18 @@ for (i in seq_along(imgs)) {
 plasma(4)
 
 #
+
+# blank plot
+rast_blank <- rast_crop
+values(rast_blank) <- NA
+
+jpeg("xblank_black.png", width = 600, height = 1200)
+plot(rast_blank, colNA = "black", xaxt = "n", yaxt = "n", box = FALSE, bty = "n")
+dev.off()
+
+jpeg("xblank_white.png", width = 600, height = 1200)
+plot(rast_blank, colNA = NA, xaxt = "n", yaxt = "n", box = FALSE, bty = "n")
+dev.off()
 
 
 
