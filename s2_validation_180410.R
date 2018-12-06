@@ -427,7 +427,7 @@ plot_error_metrics(x = mu_mci$chla_corr, y = mu_mci$chla_s2, # export 800 x 860
                    log_axes = "xy", 
                    log_space = FALSE,
                    plot_abline = FALSE,
-                   rsq = FALSE,
+                   rsq = TRUE,
                    states = mu_mci$state,
                    lakes = mu_mci$comid,
                    col = col_plot, pch = pch_plot,
