@@ -29,34 +29,31 @@ for (i in seq_along(mci_files_jlake)) {
 
 
 # ---------------------------------------------
-
+library(rgdal)
+library(raster)
 
 # set image folder paths
-img_folder <- "C:/Users/WSalls/Desktop/s2_imgs_agu/mci/utah" #jordan or utah
-#img_folder <- "/Users/wilsonsalls/Desktop/EPA/Presentations/AGU2018/data/mci/jordan"
+#img_folder <- "C:/Users/WSalls/Desktop/s2_imgs_agu/mci/jordan" #jordan or utah
+img_folder <- "/Users/wilsonsalls/Desktop/EPA/Presentations/AGU2018/data/mci/jordan"
 imgs <- list.files(img_folder, pattern = ".data")
 
 # load lake shp
-library(rgdal)
-lakes <- readOGR("O:/PRIV/NERL_ORD_CYAN/Salls_working/geospatial_general/resolvableLakes/NHD_NLA_shoredist", 
-                 "nhd_nla_subset_shore_dist")
+#lakes <- readOGR("O:/PRIV/NERL_ORD_CYAN/Salls_working/geospatial_general/resolvableLakes/NHD_NLA_shoredist", "nhd_nla_subset_shore_dist")
 #lakes <- readOGR("/Users/wilsonsalls/Desktop/EPA/geosp_general/resolvableLakes/NHD_NLA_shoredist", "nhd_nla_subset_shore_dist")
 
-library(raster)
+lakename <- "utah" # jordan OR utah
 
-# select jordan lake; reproject to UTM for use with rasters, loading a raster first to get CRS
-lake_poly_raw <- lakes[which(lakes$COMID == 10327875), ] # 166755060 for jordan; 10327875 for utah
+# select lake; reproject to UTM for use with rasters, loading a raster first to get CRS
+#lake_poly_raw <- lakes[which(lakes$COMID == 166755060), ] #166755060 for jordan; xx for utah
+lake_poly_raw <- readOGR("/Users/wilsonsalls/Desktop/EPA/Presentations/AGU2018/data", "JordanLake")
 rast <- raster(file.path(img_folder, imgs[1], "MCI.img"))
 lake_poly <- spTransform (lake_poly_raw, crs(rast))
 
 ##
 
+rast_out_dir <- file.path("/Users/wilsonsalls/Desktop/EPA/Presentations/AGU2018/data/mci_cropped/", lakename)
+
 ## clip, remove edges, convert to chlorophyll, save new rasters ---------------
-
-lakename <- "utah" # jordan OR utah
-
-rast_out_dir <- file.path("O:/PRIV/NERL_ORD_CYAN/Salls_working/Presentations/AGU2018/data/mci_cropped/", lakename)
-#rast_out_dir <- file.path("/Users/wilsonsalls/Desktop/EPA/Presentations/AGU2018/data/mci_cropped/", lakename)
 
 for (i in seq_along(imgs)) {
   idate <- substr(imgs[i], 27, 34)
@@ -90,8 +87,7 @@ for (i in seq_along(imgs)) {
 ### plot
 
 # set location to save images
-setwd("O:/PRIV/NERL_ORD_CYAN/Salls_working/Presentations/AGU2018/imgs")
-#setwd("/Users/wilsonsalls/Desktop/EPA/Presentations/AGU2018/imgs")
+setwd("/Users/wilsonsalls/Desktop/EPA/Presentations/AGU2018/imgs")
 
 # set location to read rasters from
 chl_rasts <- list.files(rast_out_dir, pattern = ".tif")
@@ -100,17 +96,14 @@ chl_rasts <- list.files(rast_out_dir, pattern = ".tif")
 ## plot chlorophyll, save ---------------
 
 # preset min and max
-min <- NA
-max <- NA
+#min <- NA
+#max <- NA
 
 library(viridis)
 
-max.color.val <- 150
-max.chl.val <- 320
-
 # plot
 for (i in seq_along(chl_rasts)) {
-  idate <- substr(chl_rasts[i], nchar(chl_rasts[i]) - 11, nchar(chl_rasts[i]) - 4)
+  idate <- substr(chl_rasts[i], 20, 27)
   print(sprintf("image %s of %s: %s", i, length(chl_rasts), idate))
   
   # read raster
@@ -118,30 +111,45 @@ for (i in seq_along(chl_rasts)) {
   
   # plot
   jpeg(sprintf("chl_%s_%s.png", lakename, idate), width = 600, height = 1200)
+  max.color.val <- 50
   plot(rast_crop,
        main = paste0(substr(idate, 1, 4), "-", substr(idate, 5, 6), "-", substr(idate, 7, 8)),
        cex.main = 4,
        xaxt = "n", yaxt = "n", box = FALSE, bty = "n",
        #col = colorRampPalette(c("blue", "green", "yellow"))(255),
        col = viridis(max.color.val + 1),
-       breaks = c(seq(1, max.color.val, length.out = max.color.val), max.chl.val),
+       breaks = c(seq(1, max.color.val, length.out = max.color.val), 120),
        colNA = NA)
   dev.off()
   
   # get min and mox to improve plotting
-  min <- min(min, minValue(rast_crop), na.rm = T)
-  max <- max(max, maxValue(rast_crop), na.rm = T)
+  #min <- min(min, minValue(rast_crop), na.rm = T)
+  #max <- max(max, maxValue(rast_crop), na.rm = T)
 }
 
 min # ~0
-max # 117.3 / 313.1
+max # 117.3
 
+# for legend
+rast_crop <- raster(file.path(rast_out_dir, chl_rasts[i]))
+values(rast_crop)[values(rast_crop) > 50.1] <- NA
+max.color.val <- 50
+plot(rast_crop,
+     main = paste0(substr(idate, 1, 4), "-", substr(idate, 5, 6), "-", substr(idate, 7, 8)),
+     cex.main = 4,
+     xaxt = "n", yaxt = "n", box = FALSE, bty = "n",
+     #col = colorRampPalette(c("blue", "green", "yellow"))(255),
+     col = viridis(50),
+     #breaks = c(seq(1, max.color.val, length.out = max.color.val), 120),
+     colNA = NA)
+
+#
 
 ## plot trophic state, save ---------------
 
 # plot
 for (i in seq_along(chl_rasts)) {
-  idate <- substr(chl_rasts[i], nchar(chl_rasts[i]) - 11, nchar(chl_rasts[i]) - 4)
+  idate <- substr(chl_rasts[i], 20, 27)
   print(sprintf("image %s of %s: %s", i, length(chl_rasts), idate))
   
   # read raster
@@ -155,29 +163,14 @@ for (i in seq_along(chl_rasts)) {
        cex.main = 4,
        xaxt = "n", yaxt = "n", box = FALSE, bty = "n",
        col = plasma(4),
-       breaks = c(0, 2, 7, 30, max.chl.val),
+       breaks = c(0, 2, 7, 30, max.color.val),
        colNA = NA)
   dev.off()
   
 }
 
-# -------------------------
-
-# for legend
-max.color.val <- 320
-plot(rast_crop,
-     main = paste0(substr(idate, 1, 4), "-", substr(idate, 5, 6), "-", substr(idate, 7, 8)),
-     cex.main = 4,
-     xaxt = "n", yaxt = "n", box = FALSE, bty = "n",
-     #col = colorRampPalette(c("blue", "green", "yellow"))(255),
-     col = viridis(50),
-     #breaks = c(seq(1, max.color.val, length.out = max.color.val), 120),
-     colNA = NA)
-
-#
-
 # colors used
-plasma(4) # "#0D0887FF" "#9C179EFF" "#ED7953FF" "#F0F921FF"
+plasma(4)
 
 #
 
@@ -194,7 +187,37 @@ plot(rast_blank, colNA = NA, xaxt = "n", yaxt = "n", box = FALSE, bty = "n")
 dev.off()
 
 
+## pie charts----------------------------
+setwd("/Users/wilsonsalls/Desktop/EPA/Presentations/AGU2018/imgs/pie")
 
+clrs <- plasma(4)
+
+#trophic_counts <- data.frame()
+
+for (i in seq_along(chl_rasts)) {
+  idate <- substr(chl_rasts[i], 20, 27)
+  print(sprintf("image %s of %s: %s", i, length(chl_rasts), idate))
+  
+  # read raster
+  rast_crop <- raster(file.path(rast_out_dir, chl_rasts[i]))
+  
+  vals <- values(rast_crop)[!is.na(values(rast_crop))]
+  
+  oligotrophic <- sum(vals < 2)
+  mesotrophic <- sum(vals >= 2 & vals < 7)
+  eutrophic <- sum(vals >= 7 & vals < 30)
+  hypereutrophic <- sum(vals >= 30)
+  #total <- length(vals)
+  
+  #trophic_counts <- rbind(trophic_counts, data.frame(oligotrophic, mesotrophic, eutrophic, hypereutrophic, total))
+  
+  jpeg(sprintf("pie_%s_%s.png", lakename, idate), width = 600, height = 600)
+  pie(c(oligotrophic, mesotrophic, eutrophic, hypereutrophic), labels=NA, col=clrs, main = sprintf("%s: %s", lakename, idate))
+  dev.off()
+}
+
+
+# where to change raster options
 showMethods("plot")
 getMethod("plot", c("Raster", "ANY"))
 getAnywhere(".plotraster2")
