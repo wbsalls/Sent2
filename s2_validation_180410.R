@@ -347,8 +347,6 @@ intercept.mci <- -0.0021 # from Binding et al. 2013 - Erie
 
 mu_mci$chla_s2 <- (mu_mci$MCI_L1C - intercept.mci) / slope.mci
 
-mu_mci <- mu_mci[mu_mci$chla_s2 > 0, ] # remove calculated negatives -617 (depends on coefficients used)
-
 mu_mci$residual_chla <- abs(mu_mci$chla_s2 - mu_mci$chla_corr) # residual
 mu_mci$pct_error_chla <- (abs(mu_mci$chla_s2 - mu_mci$chla_corr) / mu_mci$chla_corr) * 100 # % error
 
@@ -365,7 +363,22 @@ mu_mci <- mu_mci_presubset
 sum(is.na(mu_mci$MCI_L1C))
 mu_mci <- mu_mci[!is.na(mu_mci$MCI_L1C), ]
 
+# remove MCI = 4.999
+max(mu_mci$MCI_L1C)
+sum(mu_mci$MCI_L1C == max(mu_mci$MCI_L1C))
+'mu_mci_499 <- mu_mci[mu_mci$MCI_L1C == max(mu_mci$MCI_L1C), ]
+plot(sort(mu_mci_499$chla_corr), ylab = "in situ chlorophyll-a (ug/l)")
+plot(sort(mu_mci$chla_corr))
+hist(mu_mci_499$chla_corr)'
+
+mu_mci <- mu_mci[mu_mci$MCI_L1C != max(mu_mci$MCI_L1C), ]
+
+# plot raw MCI
+plot(mu_mci$chla_corr, mu_mci$MCI_L1C, xlab = "in situ chlorophyll-a (ug/l)", ylab = "MCI (Level 1C)")
+#
+
 # remove 0s (NA MCI_L1C)
+sum(mu_mci$MCI_L1C == 0)
 '
 sum(mu_mci$MCI_L1C == 0)
 mu_mci_0 <- mu_mci[mu_mci$MCI_L1C == 0, ]
@@ -377,20 +390,26 @@ hist(mu_mci$chla_corr)
 
 mu_mci <- mu_mci[mu_mci$MCI_L1C != 0, ]
 
-# remove outliers
-max(mu_mci$MCI_L1C)
-sum(mu_mci$MCI_L1C == max(mu_mci$MCI_L1C))
-mu_mci <- mu_mci[mu_mci$MCI_L1C != max(mu_mci$MCI_L1C), ]
+# remove negatives
+sum(mu_mci$chla_s2 < 0)
+mu_mci <- mu_mci[mu_mci$chla_s2 > 0, ] # remove calculated negatives -617 (depends on coefficients used)
 
 min(mu_mci$MCI_L1C)
 sum(mu_mci$MCI_L1C < -0.01)
 mu_mci <- mu_mci[mu_mci$MCI_L1C > -0.01, ] # not relevant if removing negative S2 chl since intercept is -0.0021
 
-sum(mu_mci$chla_corr > 200)
-mu_mci_hi <- mu_mci[mu_mci$chla_corr >= 200 & mu_mci$chla_corr <= 1000, ]
-plot(mu_mci_hi$chla_corr)
+# remove high values
+sum(mu_mci$chla_corr >= 200)
+mu_mci$chla_corr[mu_mci$chla_corr > 1000]
+mu_mci_hi <- mu_mci[mu_mci$chla_corr >= 150 & mu_mci$chla_corr <= 600, ]
+plot(sort(mu_mci$chla_corr[mu_mci$chla_corr < 1000]), ylab = "in situ chlorophyll-a (ug/l)")
+plot(sort(mu_mci_hi$chla_corr), ylab = "in situ chlorophyll-a (ug/l)")
 
-mu_mci <- mu_mci[mu_mci$chla_corr < 200, ] # **** discuss
+mu_mci <- mu_mci[mu_mci$chla_corr <= 200, ] # **** discuss
+
+# plot raw S2 chla
+plot(mu_mci$chla_corr, mu_mci$chla_s2, ylim = c(0, 200),
+     xlab = "in situ chlorophyll-a (ug/l)", ylab = "S2-derived chlorophyll-a (from MCI L1C)")
 
 # export filtered validation data set
 #write.csv(mu_mci, sprintf("O:/PRIV/NERL_ORD_CYAN/Sentinel2/Validation/682_imgs/validation_S2_682imgs_MCI_Chla_filtered_%s.csv", Sys.Date()))
@@ -400,8 +419,8 @@ mu_mci_filtered <- mu_mci # for resetting data
 
 # subset by offset time ------------
 mu_mci <- mu_mci_filtered # reset
-offset_min <- 4
-offset_max <- 10
+offset_min <- 0
+offset_max <- 3
 offset_threshold <- offset_min:offset_max
 mu_mci <- mu_mci[mu_mci$offset_days %in% offset_threshold, ]
 
@@ -410,7 +429,9 @@ mu_mci <- mu_mci[mu_mci$offset_days %in% offset_threshold, ]
 mci_val_colindex <- which(colnames(mu_mci) == "MCI_L1C"):which(colnames(mu_mci) == "MCI_val_9")
 
 # define function for population SD (rather than sample SD)
-sd_pop <- function(x) {sqrt(sum((x - mean(x, na.rm = TRUE)) ^ 2) / (length(x)))}
+sd_pop <- function(x) {
+  sqrt(sum((x - mean(x, na.rm = TRUE)) ^ 2) / (length(x)))
+  }
 
 # calculate MCI mean, sd, CV for 3x3 array
 mu_mci$mci_mean <- apply(mu_mci[, mci_val_colindex], 1, mean)
@@ -422,15 +443,15 @@ mu_mci$mci_cv <- mu_mci$mci_sd / mu_mci$mci_mean
 
 # subset by method  -------------------
 #mu_mci <- mu_mci_filtered
-#method_sub <- "APHA" # APHA USEPA USGS
-#mu_mci <- mu_mci[which(mu_mci$ResultAnalyticalMethod.MethodIdentifierContext == method_sub), ]
+method_sub <- "USGS" # APHA USEPA USGS
+mu_mci <- mu_mci[which(mu_mci$ResultAnalyticalMethod.MethodIdentifierContext == method_sub), ]
 
 ### validation plot  ---------------
 
 # b & w
 col_plot <- alpha("black", 0.3)
-#jpeg(sprintf("val_%s_%s.png", offset_min, offset_max), width = 800, height = 860)
 pch_plot <- 20
+#jpeg(sprintf("val_%s_%s.png", offset_min, offset_max), width = 800, height = 860)
 if (offset_min == offset_max) {
   plot_title <- sprintf("+/- %s day", offset_min)
 } else {
@@ -439,8 +460,8 @@ if (offset_min == offset_max) {
 plot_error_metrics(x = mu_mci$chla_corr, y = mu_mci$chla_s2, # export 800 x 860
                    xname = "in situ chlorophyll-a (ug/l)", 
                    yname = "S2-derived chlorophyll-a (from MCI L1C)", 
-                   title = plot_title, 
-                   #title = paste0(method_sub, plot_title), # if subsetting by method
+                   #title = plot_title, 
+                   title = paste0(method_sub, ", ", plot_title), # if subsetting by method
                    equal_axes = TRUE, 
                    log_axes = "xy", 
                    log_space = FALSE,
@@ -544,14 +565,16 @@ slope.mci <- 0.0002 # from Binding et al. 2013 - Ontario
 intercept.mci <- -0.0012 # from Binding et al. 2013 - Ontario
 '
 
+# color code by day
 
-#plot(mu_mci$chla_corr, mu_mci$MCI_L1C, col = rainbow(mu_mci$offset_days_factor))
-#legend(10, 0.03, levels(mu_mci$offset_days_factor), col = rainbow(1:length(mu_mci$offset_days_factor)), pch=1)
+plot(mu_mci$chla_corr, mu_mci$MCI_L1C, col = mu_mci$offset_days_factor)
+plot(mu_mci$chla_corr, mu_mci$MCI_L1C, col = rainbow(mu_mci$offset_days_factor))
+legend(10, 0.03, levels(mu_mci$offset_days_factor), col = rainbow(1:length(mu_mci$offset_days_factor)), pch=1)
 
-plot(mu_mci$chla_corr, mu_mci$MCI_L1C, col = topo.colors(n = 11, alpha = 0.5), pch = 16, xlim = c(0, 210))
-legend(195, 0.04, levels(mu_mci$offset_days_factor), col = topo.colors(11, alpha = 0.5), pch = 16)
+#plot(mu_mci$chla_corr, mu_mci$MCI_L1C, col = topo.colors(n = 11, alpha = 0.5), pch = 16, xlim = c(0, 210))
+#legend(195, 0.04, levels(mu_mci$offset_days_factor), col = topo.colors(11, alpha = 0.5), pch = 16)
 
-
+library(ggplot2)
 qplot(mu_mci$chla_corr, mu_mci$MCI_L1C, col = mu_mci$offset_days_factor)
 
 
@@ -561,17 +584,15 @@ par()$mfrow
 par(mfrow = c(2,1))
 par(mfrow = c(1,1))
 
-## residual vs. in situ value ************************
-plot(mu_mci$chla_corr, mu_mci$residual_chla)
-
+## residual vs. in situ value *************   interesting!   *******
+plot(mu_mci$chla_corr, mu_mci$residual_chla, xlab = "in situ chlorophyll-a (ug/l)", ylab = "chl a error (ug/L)")
 
 ## check high error
 mu_mci_sort <- mu_mci[order(-mu_mci$residual_chla), ]
 mu_mci_sort <- mu_mci[order(-mu_mci$pct_error_chla), ]
-mu_mci_sort[1:20, c(185, 191:194)]
+mu_mci_sort[1:20, c(185, 191:194)] # this no longer works right - what's it supposed to be??
 
-
-## shore dist ---------------
+## shore dist ----------------------------------
 plot(mu_mci$dist_shore_m, mu_mci$residual_chla, 
      xlim = c(0, 2000), # try removing this too
      #ylim = c(0, 200),
@@ -584,8 +605,10 @@ abline(v = 30, lty = 2)
 
 # boxplot
 mu_mci$dist_shore_m_interval <- cut(mu_mci$dist_shore_m, seq(0, 2000, 50))
-#barplot(table(mu_mci$dist_shore_m_interval), xlab = "distance from shore (m)", ylab = "frequency")
-barplot(table(mu_mci$dist_shore_m_interval), xlab = NULL, ylab = NULL, xaxt = 'n', yaxt = 'n')
+
+par(mfrow = c(2,1))
+barplot(table(mu_mci$dist_shore_m_interval), xlab = "distance from shore (m)", ylab = "frequency")
+#barplot(table(mu_mci$dist_shore_m_interval), xlab = NULL, ylab = NULL, xaxt = 'n', yaxt = 'n')
 boxplot(residual_chla ~ dist_shore_m_interval, data = mu_mci,
         las = 3,
         xaxt = 'n',
@@ -606,6 +629,7 @@ plot(abs(mu_mci$offset_hrs), mu_mci$residual_chla,
      pch = 20,
      col = alpha("black", alpha = 0.4))
 
+par(mfrow = c(2,1))
 barplot(table(mu_mci$offset_days), xlab = "offset days", ylab = "frequency")
 boxplot(residual_chla ~ offset_days, data = mu_mci,
         xlab = "offset days",
@@ -669,8 +693,8 @@ boxplot(residual_chla ~ dist_shore_m_interval, data = mu_mci[which(mu_mci$Result
         xlab = "distance from shore (m)",
         ylab = "chl a residual")
 
-mu_method <- mu_mci[which(mu_mci$ResultAnalyticalMethod.MethodIdentifierContext == "USEPA"), ]
-plot(mu_method$dist_shore_m, mu_usgs$residual_chla)
+mu_method <- mu_mci[which(mu_mci$ResultAnalyticalMethod.MethodIdentifierContext == "APHA"), ]
+plot(mu_method$dist_shore_m, mu_method$residual_chla)
 
 m_usgs <- lm(residual_chla ~ dist_shore_m, mu_usgs)
 
