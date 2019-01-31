@@ -278,11 +278,11 @@ print(sprintf("started: %s | finished: %s", start_time, Sys.time()))
 
 # get | csvs back to comma csvs
 valpipes <- read.table("681_imgs_array/pipes/validation_S2_682imgs_MCI_L1C_2018-11-21.csv", 
-                         stringsAsFactors = FALSE, sep = "|", header = TRUE, quote = "\"")
+                       stringsAsFactors = FALSE, sep = "|", header = TRUE, quote = "\"")
 cloudpipes <- read.table("681_imgs_array/pipes/validation_S2_682imgs_MCI_L1C_cloudypts_2018-11-21.csv", 
-                  stringsAsFactors = FALSE, sep = "|", header = TRUE, quote = "\"")
+                         stringsAsFactors = FALSE, sep = "|", header = TRUE, quote = "\"")
 summarypipes <- read.table("681_imgs_array/pipes/validation_S2_682imgs_MCI_L1C_img_summary_2018-11-21.csv", 
-                  stringsAsFactors = FALSE, sep = "|", header = TRUE, quote = "\"")
+                           stringsAsFactors = FALSE, sep = "|", header = TRUE, quote = "\"")
 
 write.csv(valpipes, "681_imgs_array/validation_S2_682imgs_MCI_L1C_2018-11-21.csv")
 write.csv(cloudpipes, "681_imgs_array/validation_S2_682imgs_MCI_L1C_cloudypts_2018-11-21.csv")
@@ -296,6 +296,10 @@ library(chron)
 library(colorRamps)
 library(grDevices)
 library(RColorBrewer)
+library(sp)
+library(rgdal)
+library(raster)
+library(scales) # for alpha transparency
 
 source("C:/Users/WSalls/Desktop/Git/Sent2/error_metrics_1800611.R")
 #source("/Users/wilsonsalls/Desktop/Git/Sent2/error_metrics_1800611.R")
@@ -348,9 +352,12 @@ mu_mci <- mu_mci[mu_mci$chla_s2 > 0, ] # remove calculated negatives -617 (depen
 mu_mci$residual_chla <- abs(mu_mci$chla_s2 - mu_mci$chla_corr) # residual
 mu_mci$pct_error_chla <- (abs(mu_mci$chla_s2 - mu_mci$chla_corr) / mu_mci$chla_corr) * 100 # % error
 
+mu_mci_presubset <- mu_mci
 
 
-## subset ---------------
+## subset ---------------------------------------------------------------------------------------
+mu_mci <- mu_mci_presubset
+
 # remove land-adjacent
 #mu_mci <- mu_mci[mu_mci$dist_shore_m >= 30, ]
 
@@ -359,7 +366,15 @@ sum(is.na(mu_mci$MCI_L1C))
 mu_mci <- mu_mci[!is.na(mu_mci$MCI_L1C), ]
 
 # remove 0s (NA MCI_L1C)
+'
 sum(mu_mci$MCI_L1C == 0)
+mu_mci_0 <- mu_mci[mu_mci$MCI_L1C == 0, ]
+mu_mci_0 <- mu_mci_0[mu_mci_0$chla_corr < 200, ]
+plot(mu_mci_0$chla_corr, mu_mci_0$chla_s2)
+hist(mu_mci_0$chla_corr) # slightly more right-skewed than hist with all data, so 0 values tend to have lower in situ chl (good)
+hist(mu_mci$chla_corr)
+'
+
 mu_mci <- mu_mci[mu_mci$MCI_L1C != 0, ]
 
 # remove outliers
@@ -372,6 +387,9 @@ sum(mu_mci$MCI_L1C < -0.01)
 mu_mci <- mu_mci[mu_mci$MCI_L1C > -0.01, ] # not relevant if removing negative S2 chl since intercept is -0.0021
 
 sum(mu_mci$chla_corr > 200)
+mu_mci_hi <- mu_mci[mu_mci$chla_corr >= 200 & mu_mci$chla_corr <= 1000, ]
+plot(mu_mci_hi$chla_corr)
+
 mu_mci <- mu_mci[mu_mci$chla_corr < 200, ] # **** discuss
 
 # export filtered validation data set
@@ -382,8 +400,8 @@ mu_mci_filtered <- mu_mci # for resetting data
 
 # subset by offset time ------------
 mu_mci <- mu_mci_filtered # reset
-offset_min <- 0
-offset_max <- 3
+offset_min <- 4
+offset_max <- 10
 offset_threshold <- offset_min:offset_max
 mu_mci <- mu_mci[mu_mci$offset_days %in% offset_threshold, ]
 
@@ -402,12 +420,12 @@ mu_mci$mci_cv <- mu_mci$mci_sd / mu_mci$mci_mean
 # subset
 #mu_mci <- mu_mci[abs(mu_mci$mci_cv) <= 0.15, ] # *try adjusting cv threshold
 
-# subset by method
+# subset by method  -------------------
 #mu_mci <- mu_mci_filtered
 #method_sub <- "APHA" # APHA USEPA USGS
 #mu_mci <- mu_mci[which(mu_mci$ResultAnalyticalMethod.MethodIdentifierContext == method_sub), ]
 
-### plot  ---------------
+### validation plot  ---------------
 
 # b & w
 col_plot <- alpha("black", 0.3)
@@ -439,11 +457,36 @@ axis(1, at = c(10^(-1:3)), labels = c(10^(-1:3)))
 axis(2, at = c(10^(-1:3)), labels = c(10^(-1:3)))
 #dev.off()
 
+# make map of in situ locations ------------------------------------------------------------------
+
+# read us shp for state names
+us <- readOGR("O:/PRIV/NERL_ORD_CYAN/Salls_working/geospatial_general/US", "cb_2015_us_state_20m")
+
+# make spdf of matchups
+lon <- mu_mci$LongitudeMeasure # **
+lat <- mu_mci$LatitudeMeasure # **
+mu_mci_pts <- SpatialPointsDataFrame(coords = matrix(c(lon, lat), ncol = 2), 
+                                     mu_mci, proj4string = CRS("+init=epsg:4326"))
+
+# append state name to each point
+mu_mci_pts_proj <- spTransform(mu_mci_pts, crs(us))
+
+conus <- us[-which(us$STUSPS %in% c("AK", "HI", "PR")), ]
+
+if (offset_min == offset_max) {
+  plot(conus, col = "cornsilk2", border = "grey", main = sprintf("+/- %s-day matchups", offset_max))
+} else {
+  plot(conus, col = "cornsilk2", border = "grey", main = sprintf("+/- %s-%s-day matchups", offset_min, offset_max))
+}
+plot(mu_mci_pts_proj, pch = 20, col = alpha("black", 0.2), add=TRUE)
+
+# ------------------------------------------------------------------
+
 
 ###
 
-# each day
-mu_mci <- mu_mci_preoffset
+# validation plot: each day
+mu_mci <- mu_mci_filtered
 for (d in 10:0) {
   
   offset_threshold <- d
@@ -713,28 +756,3 @@ mu_mci <- mu_mci[mu_mci$offset_days == "same day", ]
 # include estuaries (probably just same day, but no more than +/- 3 day)
 
 # options(scipen = 1)
-
-
-
-# make map of in situ locations ------------------------------------------------------------------
-
-library(sp)
-library(rgdal)
-library(raster)
-
-# make spdf of matchups
-lon <- mu_mci$LongitudeMeasure # **
-lat <- mu_mci$LatitudeMeasure # **
-mu_mci_pts <- SpatialPointsDataFrame(coords = matrix(c(lon, lat), ncol = 2), 
-                                     mu_mci, proj4string = CRS("+init=epsg:4326"))
-
-# append state name to each point
-us <- readOGR("O:/PRIV/NERL_ORD_CYAN/Salls_working/geospatial_general/US", "cb_2015_us_state_20m")
-mu_mci_pts_proj <- spTransform(mu_mci_pts, crs(us))
-
-conus <- us[-which(us$STUSPS %in% c("AK", "HI", "PR")), ]
-
-library(scales) # for alpha transparency
-plot(conus, col = "cornsilk2", border = "grey", main = sprintf("+/- %s-day matchups", offset_max))
-#plot(conus, col = "cornsilk", border = "grey", main = sprintf("+/- %s-%s-day matchups", offset_min, offset_max))
-plot(mu_mci_pts_proj, pch = 20, col = alpha("black", 0.2), add=TRUE)
