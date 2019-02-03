@@ -301,11 +301,11 @@ library(rgdal)
 library(raster)
 library(scales) # for alpha transparency
 
-source("C:/Users/WSalls/Desktop/Git/Sent2/error_metrics_1800611.R")
-#source("/Users/wilsonsalls/Desktop/Git/Sent2/error_metrics_1800611.R")
+#source("C:/Users/WSalls/Desktop/Git/Sent2/error_metrics_1800611.R")
+source("/Users/wilsonsalls/Desktop/Git/Sent2/error_metrics_1800611.R")
 
-setwd("O:/PRIV/NERL_ORD_CYAN/Sentinel2/Validation/681_imgs")
-#setwd("/Users/wilsonsalls/Desktop/EPA/Sentinel2/Validation/681_imgs_array")
+#setwd("O:/PRIV/NERL_ORD_CYAN/Sentinel2/Validation/681_imgs")
+setwd("/Users/wilsonsalls/Desktop/EPA/Sentinel2/Validation/681_imgs")
 
 #mu_mci_raw <- mu_mci
 mu_mci_raw <- read.csv("validation_S2_682imgs_MCI_L1C_2018-11-21.csv", stringsAsFactors = FALSE)
@@ -330,13 +330,6 @@ mu_mci$img_localTime <- chron(dates. = substr(mu_mci$img_localTime, 2, 9),
                               times. = substr(mu_mci$img_localTime, 11, 18))
 
 mu_mci$offset_hrs <- as.numeric(mu_mci$samp_localTime - mu_mci$img_localTime) * 24
-
-# for plotting color
-mu_mci$offset_days_factor <- as.factor(mu_mci$offset_days)
-length(levels(mu_mci$offset_days_factor))
-
-jcolors <- data.frame(day = levels(mu_mci$offset_days_factor),
-                      color = I(topo.colors(11, alpha = 0.5)))
 
 #
 
@@ -374,19 +367,19 @@ hist(mu_mci_499$chla_corr)'
 mu_mci <- mu_mci[mu_mci$MCI_L1C != max(mu_mci$MCI_L1C), ]
 
 # plot raw MCI
-plot(mu_mci$chla_corr, mu_mci$MCI_L1C, xlab = "in situ chlorophyll-a (ug/l)", ylab = "MCI (Level 1C)")
+#plot(mu_mci$chla_corr, mu_mci$MCI_L1C, xlab = "in situ chlorophyll-a (ug/l)", ylab = "MCI (Level 1C)")
 #
 
 # remove 0s (NA MCI_L1C)
 sum(mu_mci$MCI_L1C == 0)
-'
-sum(mu_mci$MCI_L1C == 0)
+
+'sum(mu_mci$MCI_L1C == 0)
 mu_mci_0 <- mu_mci[mu_mci$MCI_L1C == 0, ]
 mu_mci_0 <- mu_mci_0[mu_mci_0$chla_corr < 200, ]
 plot(mu_mci_0$chla_corr, mu_mci_0$chla_s2)
 hist(mu_mci_0$chla_corr) # slightly more right-skewed than hist with all data, so 0 values tend to have lower in situ chl (good)
-hist(mu_mci$chla_corr)
-'
+hist(mu_mci$chla_corr)'
+
 
 mu_mci <- mu_mci[mu_mci$MCI_L1C != 0, ]
 
@@ -399,16 +392,16 @@ sum(mu_mci$MCI_L1C < -0.01)
 mu_mci <- mu_mci[mu_mci$MCI_L1C > -0.01, ] # not relevant if removing negative S2 chl since intercept is -0.0021
 
 # remove high values
-sum(mu_mci$chla_corr >= 200)
+'sum(mu_mci$chla_corr >= 200)
 mu_mci$chla_corr[mu_mci$chla_corr > 1000]
 mu_mci_hi <- mu_mci[mu_mci$chla_corr >= 150 & mu_mci$chla_corr <= 600, ]
 plot(sort(mu_mci$chla_corr[mu_mci$chla_corr < 1000]), ylab = "in situ chlorophyll-a (ug/l)")
-plot(sort(mu_mci_hi$chla_corr), ylab = "in situ chlorophyll-a (ug/l)")
+plot(sort(mu_mci_hi$chla_corr), ylab = "in situ chlorophyll-a (ug/l)")'
 
 mu_mci <- mu_mci[mu_mci$chla_corr <= 200, ] # **** discuss
 
 # plot raw S2 chla
-plot(mu_mci$chla_corr, mu_mci$chla_s2, ylim = c(0, 200),
+#plot(mu_mci$chla_corr, mu_mci$chla_s2, ylim = c(0, 200),
      xlab = "in situ chlorophyll-a (ug/l)", ylab = "S2-derived chlorophyll-a (from MCI L1C)")
 
 # export filtered validation data set
@@ -443,8 +436,8 @@ mu_mci$mci_cv <- mu_mci$mci_sd / mu_mci$mci_mean
 
 # subset by method  -------------------
 #mu_mci <- mu_mci_filtered
-method_sub <- "USGS" # APHA USEPA USGS
-mu_mci <- mu_mci[which(mu_mci$ResultAnalyticalMethod.MethodIdentifierContext == method_sub), ]
+#method_sub <- "USGS" # APHA USEPA USGS
+#mu_mci <- mu_mci[which(mu_mci$ResultAnalyticalMethod.MethodIdentifierContext == method_sub), ]
 
 ### validation plot  ---------------
 
@@ -565,17 +558,44 @@ slope.mci <- 0.0002 # from Binding et al. 2013 - Ontario
 intercept.mci <- -0.0012 # from Binding et al. 2013 - Ontario
 '
 
-# color code by day
+# color code by day ----------------------------------
 
-plot(mu_mci$chla_corr, mu_mci$MCI_L1C, col = mu_mci$offset_days_factor)
-plot(mu_mci$chla_corr, mu_mci$MCI_L1C, col = rainbow(mu_mci$offset_days_factor))
-legend(10, 0.03, levels(mu_mci$offset_days_factor), col = rainbow(1:length(mu_mci$offset_days_factor)), pch=1)
+#
+#plot(mu_mci$chla_corr, mu_mci$MCI_L1C, col = mu_mci$offset_days_factor)
+#plot(mu_mci$chla_corr, mu_mci$MCI_L1C, col = rainbow(mu_mci$offset_days_factor))
+#legend(10, 0.045, levels(mu_mci$offset_days_factor), col = rainbow(1:length(mu_mci$offset_days_factor)), pch=1)
 
-#plot(mu_mci$chla_corr, mu_mci$MCI_L1C, col = topo.colors(n = 11, alpha = 0.5), pch = 16, xlim = c(0, 210))
-#legend(195, 0.04, levels(mu_mci$offset_days_factor), col = topo.colors(11, alpha = 0.5), pch = 16)
-
+#
 library(ggplot2)
 qplot(mu_mci$chla_corr, mu_mci$MCI_L1C, col = mu_mci$offset_days_factor)
+
+#
+plot(mu_mci$chla_corr, mu_mci$MCI_L1C, col = topo.colors(n = 11, alpha = 0.5), pch = 16, xlim = c(0, 210))
+legend(195, 0.045, levels(mu_mci$offset_days_factor), col = topo.colors(11, alpha = 0.5), pch = 16)
+plot(mu_mci$chla_corr[mu_mci$offset_days %in% 0:3], mu_mci$MCI_L1C[mu_mci$offset_days %in% 0:3], col = topo.colors(n = 11, alpha = 0.5), pch = 16, xlim = c(0, 210)) # doesn't work
+
+
+#
+mu_mci$offset_days_factor <- as.factor(mu_mci$offset_days)
+mu_mci_precolor <- mu_mci # for resetting
+mu_mci <- mu_mci_filtered # reset
+
+#
+jcolors <- data.frame(day = levels(mu_mci$offset_days_factor),
+                      color = (topo.colors(length(levels(mu_mci$offset_days_factor)), 
+                                           alpha = 0.3)))
+
+mu_mci <- mu_mci_precolor # reset
+
+mu_mci <- merge(mu_mci, jcolors, by.x = "offset_days", by.y = "day", all.x = TRUE, all.y = FALSE)
+mu_mci$color <- as.character(mu_mci$color)
+
+plot(mu_mci$chla_corr, mu_mci$chla_s2, col = mu_mci$color, pch = 16, 
+     xlim = c(0, 210), ylim = c(0, 210), 
+     xlab = "in situ chlorophyll-a (ug/l)", 
+     ylab = "S2-derived chlorophyll-a (from MCI L1C)") #[mu_mci$offset_days %in% 0:3]
+legend(195, 217, levels(mu_mci$offset_days_factor), col = topo.colors(11, alpha = 0.3), 
+       pch = 16, y.intersp = 0.5)
 
 
 
