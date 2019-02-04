@@ -1,294 +1,4 @@
-library(raster)
-library(rgdal)
-library(sp)
-library(testit) # has_error
 
-
-# query MCI values at in situ points ------------------------------------------------------------------------------------------
-
-setwd("O:/PRIV/NERL_ORD_CYAN/Sentinel2/Validation")
-
-mu <- read.csv("O:/PRIV/NERL_ORD_CYAN/Sentinel2/Matchups/out/Matchups_S2_chla_10day_filtered_2018-07-23.csv", stringsAsFactors = FALSE)
-#mu <- read.csv("/Users/wilsonsalls/Desktop/EPA/S2/Validation/xxx", stringsAsFactors = FALSE)
-
-# subset to same day (if desired)
-#mu_sameday <- mu[mu$offset_days == "same day", ]
-
-# set single-pixel extraction (FALSE) or 3x3 window extraction (TRUE)
-window_extraction <- TRUE
-
-# make spdf of matchups
-lon <- mu$LongitudeMeasure # **
-lat <- mu$LatitudeMeasure # **
-mu_pts <- SpatialPointsDataFrame(coords = matrix(c(lon, lat), ncol = 2), 
-                                 mu, proj4string = CRS("+init=epsg:4326"))
-
-# append state name to each point
-us <- readOGR("O:/PRIV/NERL_ORD_CYAN/Salls_working/geospatial_general/US", "cb_2015_us_state_20m")
-#us <- readOGR("/Users/wilsonsalls/Desktop/EPA/geosp_general/cb_2016_us_state_20m", "cb_2016_us_state_20m")
-mu_pts_states <- spTransform(mu_pts, crs(us))
-mu_pts_states$state <- over(mu_pts_states, us)$STUSPS
-
-# append COMID to each point
-lakes <- readOGR("O:/PRIV/NERL_ORD_CYAN/Salls_working/geospatial_general/resolvableLakes/geospatial", "resolvableLakes90m")
-#lakes <- readOGR("/Users/wilsonsalls/Desktop/EPA/geosp_general/resolvableLakes/intermediate", "resolvableLakes90m")
-mu_pts_lakes <- spTransform(mu_pts_states, crs(lakes))
-mu_pts_lakes$comid <- over(mu_pts_lakes, lakes)$COMID
-
-mu_pts <- mu_pts_lakes
-
-# write to shapefile, csv
-'
-mu_pts$modeled_MCI_L1C <- (mu_pts$MCI_L1C + 0.00357) / 0.000222 # chla = 4504.5 * MCI + 16.08 {L1C, extreme negs removed}
-#mu_pts$modeled_MCI_L1C <- (mu_pts$MCI_L1C + 0.0054) / 0.000232 # chla = 4310.3 * MCI + 23.27 {L1C, all}
-mu_pts$residual_MCI_L1C <- abs(mu_pts$modeled_MCI_L1C - mu_pts$chla_corr)
-mu_pts_brief <- mu_pts[, c(9, 60, 6, 194, 195, 188, 196, 197)] # take only relevant columns
-mu_pts_brief <- mu_pts_brief[!is.na(mu_pts_brief$MCI_L1C), ] # remove NA
-mu_pts_brief <- mu_pts_brief[mu_pts_brief$MCI_L1C == 0, ] # remove bad L1C (0)
-mu_pts_brief$uniqueID <- 1:nrow(mu_pts_brief@data)
-mu_pts_brief@data <- mu_pts_brief@data[, c(9, 1:8)]
-writeOGR(mu_pts_brief, "O:/PRIV/NERL_ORD_CYAN/Sentinel2/Validation/geospatial", "matchups_S2_chla", driver = "ESRI Shapefile")
-write.csv(mu_pts_brief@data, "O:/PRIV/NERL_ORD_CYAN/Sentinel2/Validation/validation_S2_50imgs_brief.csv")
-'
-
-# location of images
-rfolder <- "D:/s2/mci_resample20"
-#rfolder <- "/Users/wilsonsalls/Desktop/EPA/S2/Images"
-safe_folder <- "D:/s2/raw"
-
-# for naming MCI output column
-process_name <- "MCI_L1C"
-
-# check image name matching
-mci_imgs <- list.files(rfolder, pattern = "\\.data")
-#mci_img_names <- substr(mci_imgs, 16, 75)
-mci_img_names <- gsub("mci_resample20_", "", mci_imgs)
-mci_img_names <- gsub(".data", "", mci_img_names)
-length(unique(mu_pts$PRODUCT_ID))
-length(mci_img_names)
-sum(mci_img_names %in% mu_pts$PRODUCT_ID)
-sum(unique(mu_pts$PRODUCT_ID) %in% mci_img_names)
-
-
-## ----------------------------------------------------
-
-
-
-# run extraction
-start_date <- Sys.Date()
-start_time <- Sys.time()
-for (i in 1:length(mci_imgs)) {
-  
-  # initialize variable for use below
-  notes <- ""
-  n_cloud_layers <- 0
-  
-  # subset points to those in this image
-  mu_pts_img <- mu_pts[mu_pts$PRODUCT_ID == sub(".data", "", sub("mci_resample20_", "", mci_imgs[i])), ]
-  
-  # progress
-  cat(sprintf("\nimage #%s of %s (%s) - %s pts\n", i, length(mci_imgs), Sys.time(), nrow(mu_pts_img)))
-  
-  # load raster
-  
-  # if mci raster doesn't exist, note in summary file and skip to next
-  if (!("MCI.img" %in% list.files(file.path(rfolder, mci_imgs[i])))) {
-    print("NO MCI IMAGE!!!")
-    img_summary_i <- data.frame(img = mci_imgs[i], 
-                                n_cloud_layers = NA, 
-                                n_pts_tot = nrow(mu_pts_img@data), 
-                                n_pts_cloudy = 0, 
-                                n_pts_noncloudy = 0,
-                                notes = "NO MCI RASTER; ")
-    
-    if (has_error(read.csv(sprintf("validation_S2_682imgs_%s_img_summary_%s.csv", process_name, Sys.Date())))) {
-      write.table(img_summary_i, sprintf("validation_S2_682imgs_%s_img_summary_%s.csv", process_name, start_date),
-                  sep = "|", append = FALSE, row.names = FALSE, col.names = TRUE)
-    } else {
-      write.table(img_summary_i, sprintf("validation_S2_682imgs_%s_img_summary_%s.csv", process_name, start_date),
-                  sep = "|", append = TRUE, row.names = FALSE, col.names = FALSE)
-    }
-    
-    next
-  }
-  
-  # load raster
-  mci_i <- raster(file.path(rfolder, mci_imgs[i], "MCI.img"))
-  
-  # if no points, update img_summary and skip to next image
-  if (length(mu_pts_img) == 0) {
-    
-    # update img_summary dataframe
-    img_summary_i <- data.frame(img = mci_imgs[i], 
-                                n_cloud_layers = NA, 
-                                n_pts_tot = nrow(mu_pts_img@data), 
-                                n_pts_cloudy = 0, 
-                                n_pts_noncloudy = 0,
-                                notes = "no points in image; ")
-    
-    if (has_error(read.csv(sprintf("validation_S2_682imgs_%s_img_summary_%s.csv", process_name, Sys.Date())))) {
-      write.table(img_summary_i, sprintf("validation_S2_682imgs_%s_img_summary_%s.csv", process_name, start_date),
-                  sep = "|", append = FALSE, row.names = FALSE, col.names = TRUE)
-    } else {
-      write.table(img_summary_i, sprintf("validation_S2_682imgs_%s_img_summary_%s.csv", process_name, start_date),
-                  sep = "|", append = TRUE, row.names = FALSE, col.names = FALSE)
-    }
-    
-    next
-  }
-  
-  # reproject points
-  mu_pts_img_proj <- spTransform(mu_pts_img, crs(mci_i))
-  
-  ## remove cloudy points
-  tiles_img <- unique(mu_pts_img_proj$tileID)
-  
-  # check layers in cloud mask - should be 1, but at least one file has 0
-  granule_dir <- file.path(safe_folder, paste0(mci_img_names[i], ".SAFE"), "GRANULE")
-  granule_folders <- list.files(granule_dir)
-  
-  for (t in 1:length(tiles_img)) {
-    
-    granule_folder <- granule_folders[which((grepl(tiles_img[t], granule_folders)))]
-    
-    qi_data <- list.files(file.path(granule_dir, granule_folder, "QI_DATA"), pattern = ".gml")
-    cloud_file <- qi_data[grep("MSK_CLOUDS", qi_data)]
-    layers <- ogrListLayers(file.path(granule_dir, granule_folder, "QI_DATA", cloud_file))
-    n_cloud_layers <- n_cloud_layers + length(layers)
-    
-    # if the layer exists: load cloud mask; get point indices falling on cloud; remove these points
-    if (length(layers) == 1) {
-      gml <- readOGR(file.path(granule_dir, granule_folder, "QI_DATA", cloud_file), "MaskFeature",
-                     disambiguateFIDs = TRUE, verbose = FALSE)
-      
-      # assign crs to cloud mask if missing (which it always seems to be)
-      if (is.na(crs(gml))) {
-        crs(gml) <- crs(mu_pts_img_proj)
-      }
-      
-      # query cloud mask value at locations of points
-      cloud_pts_index <- over(mu_pts_img_proj, gml)
-      
-      # only include points with extracted value of NA (meaning they don't fall over a cloud - whether in this mask or a different one)
-      mu_pts_img_proj <- mu_pts_img_proj[is.na(cloud_pts_index$gml_id), ]
-      
-      # subset to cloudy points (if any)
-      cloudy_pts_i <- mu_pts_img_proj@data[!is.na(cloud_pts_index$gml_id), ]
-      
-      # append cloudy points to cloudypts table
-      if (nrow(cloudy_pts_i) > 0) {
-        if (has_error(read.csv(sprintf("validation_S2_682imgs_%s_cloudypts_%s.csv", process_name, Sys.Date())))) {
-          write.table(cloudy_pts_i , sprintf("validation_S2_682imgs_%s_cloudypts_%s.csv", process_name, Sys.Date()),
-                      sep = "|", append = FALSE, row.names = FALSE, col.names = TRUE)
-        } else {
-          write.table(cloudy_pts_i , sprintf("validation_S2_682imgs_%s_cloudypts_%s.csv", process_name, Sys.Date()),
-                      sep = "|", append = TRUE, row.names = FALSE, col.names = FALSE)
-        }
-        print("cloud(s)")
-      }
-    }
-  }
-  
-  # only proceed if there are still points remaining after cloud removal
-  if (nrow(mu_pts_img_proj) > 0) {
-    
-    # initialize dataframe for this image
-    mu_mci_i <- data.frame()
-    
-    # extract
-    if (window_extraction == TRUE) {
-      for (p in 1:length(mu_pts_img_proj)) {
-        
-        # print progress inline
-        cat(paste(p, " "))
-        
-        # get cellNum under this pt
-        cellNum <- cellFromXY(mci_i, mu_pts_img_proj@coords[p, ])
-        
-        # get cell indices for 3x3 window
-        window_indices <- adjacent(mci_i, cells = cellNum, directions = 8, include = TRUE)
-        
-        # get values from those indices
-        window_vals <- mci_i[window_indices[, 2]]
-        
-        # make NAs if cellNum is NA
-        if (is.na(cellNum)) {
-          window_vals <- rep(NA, 9)
-        }
-        
-        # extract value summaries
-        '
-      window_df <- data.frame(
-        nPts_CIwin = length(window_vals),
-        nNA_CIwin = sum(is.na(window_vals)),
-        mean_CIwin = mean(window_vals, na.rm = TRUE),
-        median_CIwin = median(window_vals, na.rm = TRUE),
-        min_CIwin = min(window_vals, na.rm = TRUE),
-        max_CIwin = max(window_vals, na.rm = TRUE),
-        var_CIwin = var(window_vals, na.rm = TRUE)
-      )'
-        
-        # extract actual cell values
-        window_df <- data.frame(t(rep(NA, 9)))
-        window_df[1:length(window_vals)] <- data.frame(t(window_vals))
-        colnames(window_df) <- paste0("MCI_val_", 1:9)
-        
-        # bind to mu_mci
-        mu_mci_i <- rbind(mu_mci_i, cbind(mu_pts_img_proj@data[p, ], window_df))
-      }
-      
-    } else {
-      # extract single-pixel mci value(s) and add as new column
-      mci_vals <- extract(mci_i, mu_pts_img_proj)
-      mu_pts_img_proj$mci <- mci_vals
-      
-      # append these points to mu_mci df
-      mu_mci_i <- mu_pts_img_proj@data
-    }
-    
-    # append points to validation table
-    if (has_error(read.csv(sprintf("validation_S2_682imgs_%s_%s.csv", process_name, Sys.Date())))) {
-      write.table(mu_mci_i, sprintf("validation_S2_682imgs_%s_%s.csv", process_name, Sys.Date()),
-                  sep = "|", append = FALSE, row.names = FALSE, col.names = TRUE)
-    } else {
-      write.table(mu_mci_i, sprintf("validation_S2_682imgs_%s_%s.csv", process_name, Sys.Date()),
-                  sep = "|", append = TRUE, row.names = FALSE, col.names = FALSE)
-    }
-  } 
-  
-  # update img_summary dataframe
-  img_summary_i <- data.frame(img = mci_imgs[i], 
-                              n_cloud_layers = n_cloud_layers, 
-                              n_pts_tot = nrow(mu_pts_img@data), 
-                              n_pts_cloudy = nrow(mu_pts_img@data) - nrow(mu_pts_img_proj@data), 
-                              n_pts_noncloudy = nrow(mu_pts_img_proj@data),
-                              notes = notes)
-  
-  if (has_error(read.csv(sprintf("validation_S2_682imgs_%s_img_summary_%s.csv", process_name, Sys.Date())))) {
-    write.table(img_summary_i, sprintf("validation_S2_682imgs_%s_img_summary_%s.csv", process_name, start_date),
-                sep = "|", append = FALSE, row.names = FALSE, col.names = TRUE)
-  } else {
-    write.table(img_summary_i, sprintf("validation_S2_682imgs_%s_img_summary_%s.csv", process_name, start_date),
-                sep = "|", append = TRUE, row.names = FALSE, col.names = FALSE)
-  }
-}
-
-print(sprintf("started: %s | finished: %s", start_time, Sys.time()))
-
-
-# get | csvs back to comma csvs
-valpipes <- read.table("681_imgs_array/pipes/validation_S2_682imgs_MCI_L1C_2018-11-21.csv", 
-                       stringsAsFactors = FALSE, sep = "|", header = TRUE, quote = "\"")
-cloudpipes <- read.table("681_imgs_array/pipes/validation_S2_682imgs_MCI_L1C_cloudypts_2018-11-21.csv", 
-                         stringsAsFactors = FALSE, sep = "|", header = TRUE, quote = "\"")
-summarypipes <- read.table("681_imgs_array/pipes/validation_S2_682imgs_MCI_L1C_img_summary_2018-11-21.csv", 
-                           stringsAsFactors = FALSE, sep = "|", header = TRUE, quote = "\"")
-
-write.csv(valpipes, "681_imgs_array/validation_S2_682imgs_MCI_L1C_2018-11-21.csv")
-write.csv(cloudpipes, "681_imgs_array/validation_S2_682imgs_MCI_L1C_cloudypts_2018-11-21.csv")
-write.csv(summarypipes, "681_imgs_array/validation_S2_682imgs_MCI_L1C_img_summary_2018-11-21.csv")
-
-# --------------------------------------------------------------------------------------------
 
 # validation ----------------------------------------------------------------------------------
 
@@ -301,11 +11,11 @@ library(rgdal)
 library(raster)
 library(scales) # for alpha transparency
 
-#source("C:/Users/WSalls/Desktop/Git/Sent2/error_metrics_1800611.R")
-source("/Users/wilsonsalls/Desktop/Git/Sent2/error_metrics_1800611.R")
+source("C:/Users/WSalls/Desktop/Git/Sent2/error_metrics_1800611.R")
+#source("/Users/wilsonsalls/Desktop/Git/Sent2/error_metrics_1800611.R")
 
-#setwd("O:/PRIV/NERL_ORD_CYAN/Sentinel2/Validation/681_imgs")
-setwd("/Users/wilsonsalls/Desktop/EPA/Sentinel2/Validation/681_imgs")
+setwd("O:/PRIV/NERL_ORD_CYAN/Sentinel2/Validation/681_imgs")
+#setwd("/Users/wilsonsalls/Desktop/EPA/Sentinel2/Validation/681_imgs")
 
 #mu_mci_raw <- mu_mci
 mu_mci_raw <- read.csv("validation_S2_682imgs_MCI_L1C_2018-11-21.csv", stringsAsFactors = FALSE)
@@ -401,8 +111,7 @@ plot(sort(mu_mci_hi$chla_corr), ylab = "in situ chlorophyll-a (ug/l)")'
 mu_mci <- mu_mci[mu_mci$chla_corr <= 200, ] # **** discuss
 
 # plot raw S2 chla
-#plot(mu_mci$chla_corr, mu_mci$chla_s2, ylim = c(0, 200),
-     xlab = "in situ chlorophyll-a (ug/l)", ylab = "S2-derived chlorophyll-a (from MCI L1C)")
+#plot(mu_mci$chla_corr, mu_mci$chla_s2, ylim = c(0, 200), xlab = "in situ chlorophyll-a (ug/l)", ylab = "S2-derived chlorophyll-a (from MCI L1C)")
 
 # export filtered validation data set
 #write.csv(mu_mci, sprintf("O:/PRIV/NERL_ORD_CYAN/Sentinel2/Validation/682_imgs/validation_S2_682imgs_MCI_Chla_filtered_%s.csv", Sys.Date()))
@@ -431,7 +140,7 @@ mu_mci$mci_mean <- apply(mu_mci[, mci_val_colindex], 1, mean)
 mu_mci$mci_sd <- apply(mu_mci[, mci_val_colindex], 1, sd_pop)
 mu_mci$mci_cv <- mu_mci$mci_sd / mu_mci$mci_mean
 
-# subset
+# perform subset
 #mu_mci <- mu_mci[abs(mu_mci$mci_cv) <= 0.15, ] # *try adjusting cv threshold
 
 # subset by method  -------------------
@@ -441,7 +150,6 @@ mu_mci$mci_cv <- mu_mci$mci_sd / mu_mci$mci_mean
 
 ### validation plot  ---------------
 
-# b & w
 col_plot <- alpha("black", 0.3)
 pch_plot <- 20
 #jpeg(sprintf("val_%s_%s.png", offset_min, offset_max), width = 800, height = 860)
@@ -497,10 +205,52 @@ plot(mu_mci_pts_proj, pch = 20, col = alpha("black", 0.2), add=TRUE)
 # ------------------------------------------------------------------
 
 
-###
+# mci vs chl-a
+'
+l1c <- calc_error_metrics(mu_mci$chla_corr, mu_mci$MCI_L1C)
+l1c
+#plot_error_metrics(x = mu_mci$chla_corr, y = mu_mci$MCI_L1C, 
+xname = "in situ chlorophyll-a (ug/l)", 
+yname = "S2 MCI (L1C)", 
+title = sprintf("L1C MCI (r-sq = %s)", round(l1c$r.sq, 2)), 
+equal_axes = FALSE, 
+log_axes = "", 
+states = mu_mci$state, 
+lakes = mu_mci$comid)
 
-# validation plot: each day
-mu_mci <- mu_mci_filtered
+# convert MCI to chlorophyll-a
+slope.mci <- l1c$slope # 0.0001579346 from 237 imgs; 0.000222 from 50 imgs
+intercept.mci <- l1c$int # -0.0003651727 from 237 imgs; -0.00357 from 50 imgs
+
+slope.mci <- 0.0002 # from Binding et al. 2013 - Ontario
+intercept.mci <- -0.0012 # from Binding et al. 2013 - Ontario
+'
+
+# color code by day ----------------------------------
+library(viridis)
+
+mu_mci <- mu_mci_filtered # reset
+
+# make table of colors, with factor for plotting
+mu_mci$offset_days_factor <- as.factor(mu_mci$offset_days)
+
+jcolors <- data.frame(day = levels(mu_mci$offset_days_factor),
+                      color = topo.colors(length(levels(mu_mci$offset_days_factor)), 
+                                           alpha = 0.3)) # topo.colors, viridis
+
+# merge color to mu_mci for plotting
+mu_mci <- merge(mu_mci, jcolors, by.x = "offset_days", by.y = "day", all.x = TRUE, all.y = FALSE)
+mu_mci$color <- as.character(mu_mci$color)
+
+plot(mu_mci$chla_corr, mu_mci$chla_s2, col = mu_mci$color, pch = 16, 
+     xlim = c(0, 210), ylim = c(0, 210), 
+     xlab = "in situ chlorophyll-a (ug/l)", 
+     ylab = "S2-derived chlorophyll-a (from MCI L1C)", 
+     main = "Days between in situ and satellite") #[mu_mci$offset_days %in% 0:3]
+legend(199, 217, levels(mu_mci$offset_days_factor), col = as.character(jcolors$color), 
+       pch = 16, y.intersp = 0.5)
+
+## validation plot: each day
 for (d in 10:0) {
   
   offset_threshold <- d
@@ -531,35 +281,8 @@ for (d in 10:0) {
   legend(0.03, 10, levels(mu_mci$offset_days_factor), pt.bg = jcolors$color, col = "black", pch = pch_plot)
 }
 
-#
 
-
-
-#
-
-# mci vs chl-a
-'
-l1c <- calc_error_metrics(mu_mci$chla_corr, mu_mci$MCI_L1C)
-l1c
-#plot_error_metrics(x = mu_mci$chla_corr, y = mu_mci$MCI_L1C, 
-xname = "in situ chlorophyll-a (ug/l)", 
-yname = "S2 MCI (L1C)", 
-title = sprintf("L1C MCI (r-sq = %s)", round(l1c$r.sq, 2)), 
-equal_axes = FALSE, 
-log_axes = "", 
-states = mu_mci$state, 
-lakes = mu_mci$comid)
-
-# convert MCI to chlorophyll-a
-slope.mci <- l1c$slope # 0.0001579346 from 237 imgs; 0.000222 from 50 imgs
-intercept.mci <- l1c$int # -0.0003651727 from 237 imgs; -0.00357 from 50 imgs
-
-slope.mci <- 0.0002 # from Binding et al. 2013 - Ontario
-intercept.mci <- -0.0012 # from Binding et al. 2013 - Ontario
-'
-
-# color code by day ----------------------------------
-
+## these don't work....
 #
 #plot(mu_mci$chla_corr, mu_mci$MCI_L1C, col = mu_mci$offset_days_factor)
 #plot(mu_mci$chla_corr, mu_mci$MCI_L1C, col = rainbow(mu_mci$offset_days_factor))
@@ -574,28 +297,6 @@ plot(mu_mci$chla_corr, mu_mci$MCI_L1C, col = topo.colors(n = 11, alpha = 0.5), p
 legend(195, 0.045, levels(mu_mci$offset_days_factor), col = topo.colors(11, alpha = 0.5), pch = 16)
 plot(mu_mci$chla_corr[mu_mci$offset_days %in% 0:3], mu_mci$MCI_L1C[mu_mci$offset_days %in% 0:3], col = topo.colors(n = 11, alpha = 0.5), pch = 16, xlim = c(0, 210)) # doesn't work
 
-
-#
-mu_mci$offset_days_factor <- as.factor(mu_mci$offset_days)
-mu_mci_precolor <- mu_mci # for resetting
-mu_mci <- mu_mci_filtered # reset
-
-#
-jcolors <- data.frame(day = levels(mu_mci$offset_days_factor),
-                      color = (topo.colors(length(levels(mu_mci$offset_days_factor)), 
-                                           alpha = 0.3)))
-
-mu_mci <- mu_mci_precolor # reset
-
-mu_mci <- merge(mu_mci, jcolors, by.x = "offset_days", by.y = "day", all.x = TRUE, all.y = FALSE)
-mu_mci$color <- as.character(mu_mci$color)
-
-plot(mu_mci$chla_corr, mu_mci$chla_s2, col = mu_mci$color, pch = 16, 
-     xlim = c(0, 210), ylim = c(0, 210), 
-     xlab = "in situ chlorophyll-a (ug/l)", 
-     ylab = "S2-derived chlorophyll-a (from MCI L1C)") #[mu_mci$offset_days %in% 0:3]
-legend(195, 217, levels(mu_mci$offset_days_factor), col = topo.colors(11, alpha = 0.3), 
-       pch = 16, y.intersp = 0.5)
 
 
 
