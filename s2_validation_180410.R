@@ -145,10 +145,17 @@ mu_mci$mci_cv <- mu_mci$mci_sd / mu_mci$mci_mean
 
 # subset by method  -------------------
 #mu_mci <- mu_mci_filtered
-#method_sub <- "USGS" # APHA USEPA USGS
-#mu_mci <- mu_mci[which(mu_mci$ResultAnalyticalMethod.MethodIdentifierContext == method_sub), ]
+method_sub <- "APHA" # APHA USEPA USGS
+mu_mci <- mu_mci[which(mu_mci$ResultAnalyticalMethod.MethodIdentifierContext == method_sub), ]
 
-### validation plot  ---------------
+# shore dist -------------------
+mu_mci <- mu_mci[which(mu_mci$dist_shore_m > 20), ]
+
+# clouds -------------------
+
+
+
+### validation plot  ----------------------------------
 
 col_plot <- alpha("black", 0.3)
 pch_plot <- 20
@@ -161,8 +168,8 @@ if (offset_min == offset_max) {
 plot_error_metrics(x = mu_mci$chla_corr, y = mu_mci$chla_s2, # export 800 x 860
                    xname = "in situ chlorophyll-a (ug/l)", 
                    yname = "S2-derived chlorophyll-a (from MCI L1C)", 
-                   #title = plot_title, 
-                   title = paste0(method_sub, ", ", plot_title), # if subsetting by method
+                   title = plot_title, 
+                   #title = paste0(method_sub, ", ", plot_title), # if subsetting by method
                    equal_axes = TRUE, 
                    log_axes = "xy", 
                    log_space = FALSE,
