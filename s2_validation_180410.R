@@ -149,10 +149,18 @@ method_sub <- "APHA" # APHA USEPA USGS
 mu_mci <- mu_mci[which(mu_mci$ResultAnalyticalMethod.MethodIdentifierContext == method_sub), ]
 
 # shore dist -------------------
-mu_mci <- mu_mci[which(mu_mci$dist_shore_m > 20), ]
+mu_mci <- mu_mci[mu_mci$dist_shore_m > 30, ]
 
 # clouds -------------------
+#mu_mci <- mu_mci[mu_mci$CLOUDY_PIXEL_PERCENTAGE == 0, ]
 
+# depth -------------------
+hist(mu_mci$depth_corr)
+sum(mu_mci[is.na(mu_mci$ActivityDepthHeightMeasure.MeasureValue) &
+             is.na(mu_mci$ActivityTopDepthHeightMeasure.MeasureValue) & 
+             is.na(mu_mci$ActivityBottomDepthHeightMeasure.MeasureValue), ]) # make this work to check
+mu_mci <- mu_mci[!is.na(mu_mci$depth_corr), ]
+#mu_mci <- mu_mci[mu_mci$depth_corr <= 1, ]
 
 
 ### validation plot  ----------------------------------
@@ -177,14 +185,22 @@ plot_error_metrics(x = mu_mci$chla_corr, y = mu_mci$chla_s2, # export 800 x 860
                    rsq = TRUE,
                    states = mu_mci$state,
                    lakes = mu_mci$comid,
-                   col = col_plot, pch = pch_plot,
                    xlim = c(0.05, 200),
                    ylim = c(0.05, 200),
                    xaxt="n",
-                   yaxt="n") # col = alpha("black", 0.3), pch = 20
+                   yaxt="n",
+                   col = col_plot, pch = pch_plot) # col = alpha("black", 0.3), pch = 20
 axis(1, at = c(10^(-1:3)), labels = c(10^(-1:3)))
 axis(2, at = c(10^(-1:3)), labels = c(10^(-1:3)))
 #dev.off()
+
+threshold_lty <- 2
+abline(h = 2, lty = threshold_lty, col = "blue")
+abline(h = 7, lty = threshold_lty, col = "green")
+abline(h = 30, lty = threshold_lty, col = "red")
+abline(v = 2, lty = threshold_lty, col = "blue")
+abline(v = 7, lty = threshold_lty, col = "green")
+abline(v = 30, lty = threshold_lty, col = "red")
 
 # make map of in situ locations ------------------------------------------------------------------
 
