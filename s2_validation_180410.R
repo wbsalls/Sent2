@@ -10,6 +10,7 @@ library(sp)
 library(rgdal)
 library(raster)
 library(scales) # for alpha transparency
+library(ggplot2)
 
 source("C:/Users/WSalls/Desktop/Git/Sent2/error_metrics_1800611.R")
 #source("/Users/wilsonsalls/Desktop/Git/Sent2/error_metrics_1800611.R")
@@ -93,22 +94,13 @@ hist(mu_mci$chla_corr)'
 
 mu_mci <- mu_mci[mu_mci$MCI_L1C != 0, ]
 
-# remove negatives
+## remove negatives
 sum(mu_mci$chla_s2 < 0)
 mu_mci <- mu_mci[mu_mci$chla_s2 > 0, ] # remove calculated negatives -617 (depends on coefficients used)
 
 min(mu_mci$MCI_L1C)
 sum(mu_mci$MCI_L1C < -0.01)
 mu_mci <- mu_mci[mu_mci$MCI_L1C > -0.01, ] # not relevant if removing negative S2 chl since intercept is -0.0021
-
-# remove high values
-'sum(mu_mci$chla_corr >= 200)
-mu_mci$chla_corr[mu_mci$chla_corr > 1000]
-mu_mci_hi <- mu_mci[mu_mci$chla_corr >= 150 & mu_mci$chla_corr <= 600, ]
-plot(sort(mu_mci$chla_corr[mu_mci$chla_corr < 1000]), ylab = "in situ chlorophyll-a (ug/l)")
-plot(sort(mu_mci_hi$chla_corr), ylab = "in situ chlorophyll-a (ug/l)")'
-
-mu_mci <- mu_mci[mu_mci$chla_corr <= 200, ] # **** discuss
 
 # plot raw S2 chla
 #plot(mu_mci$chla_corr, mu_mci$chla_s2, ylim = c(0, 200), xlab = "in situ chlorophyll-a (ug/l)", ylab = "S2-derived chlorophyll-a (from MCI L1C)")
@@ -125,7 +117,6 @@ offset_min <- 0
 offset_max <- 3
 offset_threshold <- offset_min:offset_max
 mu_mci <- mu_mci[mu_mci$offset_days %in% offset_threshold, ]
-
 
 # subset by CV -------------------
 mci_val_colindex <- which(colnames(mu_mci) == "MCI_L1C"):which(colnames(mu_mci) == "MCI_val_9")
@@ -154,14 +145,11 @@ mu_mci <- mu_mci[mu_mci$dist_shore_m > 30, ]
 # clouds -------------------
 #mu_mci <- mu_mci[mu_mci$CLOUDY_PIXEL_PERCENTAGE == 0, ]
 
-# depth -------------------
-hist(mu_mci$depth_corr)
-sum(mu_mci[is.na(mu_mci$ActivityDepthHeightMeasure.MeasureValue) &
-             is.na(mu_mci$ActivityTopDepthHeightMeasure.MeasureValue) & 
-             is.na(mu_mci$ActivityBottomDepthHeightMeasure.MeasureValue), ]) # make this work to check
-mu_mci <- mu_mci[!is.na(mu_mci$depth_corr), ]
-#mu_mci <- mu_mci[mu_mci$depth_corr <= 1, ]
-
+# depth - remove 
+mu_mci <- mu_mci[-which(is.na(mu_mci$depth_corr) &
+                    is.na(mu_mci$topdepth_corr) & 
+                    is.na(mu_mci$botdepth_corr) & 
+                    is.na(mu_mci$ActivityRelativeDepthName)), ]
 
 ### validation plot  ----------------------------------
 
@@ -485,7 +473,7 @@ vioplot(mu_mci$residual_chla[which(mu_mci$ResultAnalyticalMethod.MethodIdentifie
         col = "lightblue")
 
 
-####
+#### scraps
 
 
 
@@ -508,6 +496,61 @@ for (i in 1:nrow(mci_freq)) {
 ## different days
 mu_mci <- mu_mci[mu_mci$offset_days == "same day", ]
 #...
+
+
+## high values
+'sum(mu_mci$chla_corr >= 200)
+mu_mci$chla_corr[mu_mci$chla_corr > 1000]
+mu_mci_hi <- mu_mci[mu_mci$chla_corr >= 150 & mu_mci$chla_corr <= 600, ]
+plot(sort(mu_mci$chla_corr[mu_mci$chla_corr < 1000]), ylab = "in situ chlorophyll-a (ug/l)")
+plot(sort(mu_mci_hi$chla_corr), ylab = "in situ chlorophyll-a (ug/l)")'
+
+## outliers
+'
+library(ggpubr)
+
+hist(log(mu_mci$chla_corr))
+summary(log(mu_mci$chla_corr))
+
+# SD * 3 - cant use since not normal (linear nor log)
+min_cut <- mean(log(mu_mci$chla_corr)) - 3 * sd(log(mu_mci$chla_corr))
+max_cut <- mean(log(mu_mci$chla_corr)) + 3 * sd(log(mu_mci$chla_corr))
+exp(max_cut)
+
+min_cut <- mean((mu_mci$chla_corr)) - 3 * sd((mu_mci$chla_corr))
+max_cut <- mean((mu_mci$chla_corr)) + 3 * sd((mu_mci$chla_corr))
+max_cut
+
+library(ggpubr)
+ggqqplot(mu_mci$chla_corr)
+ggqqplot(log(mu_mci$chla_corr))
+
+shapiro.test(mu_mci$chla_corr) # non-normal
+shapiro.test(log(mu_mci$chla_corr)) # even log transformed is non-normal
+
+# IQR * 1.5
+(summary(mu_mci$chla_corr)[5] - summary(mu_mci$chla_corr)[2]) * 1.5
+
+#mu_mci <- mu_mci[mu_mci$chla_corr <= 200, ]
+'
+
+## depth - doesn't improve validation
+hist(mu_mci$depth_corr)
+'sum(is.na(mu_mci$depth_corr) &
+is.na(mu_mci$topdepth_corr) & 
+is.na(mu_mci$botdepth_corr) & 
+is.na(mu_mci$ActivityRelativeDepthName))'
+
+mu_mci$surface <- "no"
+mu_mci$surface[which(mu_mci$depth_corr <= 0.5 | mu_mci$ActivityRelativeDepthName == "Surface" | 
+                       mu_mci$botdepth_corr <= 0.5)] <- "<= 0.5 m"
+'mu_mci$surface[which((mu_mci$depth_corr > 0.5 & mu_mci$depth_corr <= 1) | 
+(mu_mci$botdepth_corr > 0.5 & mu_mci$depth_corr <= 1))] <- "0.5 - 1 m"
+mu_mci$surface[which((mu_mci$depth_corr > 1 & mu_mci$depth_corr <= 1.5) | 
+(mu_mci$botdepth_corr > 1 & mu_mci$depth_corr <= 1.5))] <- "1 - 1.5 m"'
+table(mu_mci$surface)
+#mu_mci <- mu_mci[mu_mci$surface == "<= 0.5 m", ]
+
 
 
 ## To Do:
