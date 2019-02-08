@@ -107,7 +107,21 @@ plot_error_metrics <- function(x, y,
                                states = NA, 
                                lakes = NA,
                                log_space = TRUE,
+                               #xaxt = xaxt,
+                               #yaxt = yaxt,
                                ...) {
+  
+  #
+  if (grepl("x", log_axes)) {
+    pxaxt <- "n"
+  } else {
+    pxaxt <- "s"
+  }
+  if (grepl("y", log_axes)) {
+    pyaxt <- "n"
+  } else {
+    pyaxt <- "s"
+  }
   
   # make data frame with x, y, and states and lakes if provided
   df <- data.frame(x, y, states, lakes)
@@ -137,7 +151,8 @@ plot_error_metrics <- function(x, y,
   }
   
   if (equal_axes == FALSE) {
-    plot(df$x, df$y, log = log_axes, pch = 1, xlab = xname, ylab = yname, main = title, ...)
+    plot(df$x, df$y, log = log_axes, pch = 1, xlab = xname, ylab = yname, main = title,
+         xaxt = pxaxt, yaxt = pyaxt, ...)
     abline(line.int, line.slope, untf = TRUE) # show model line
     #abline(0, 0, lty = 2) # show y = 0 line
     
@@ -147,6 +162,7 @@ plot_error_metrics <- function(x, y,
   }
   else if (equal_axes == TRUE) {
     plot(df$x, df$y, log = log_axes, xlab = xname, ylab = yname, main = title, 
+         xaxt = pxaxt, yaxt = pyaxt,
          #xlim = c(min(df$x, df$y), max(df$x, df$y)), 
          #ylim = c(min(df$x, df$y), max(df$x, df$y)),
          ...) # col = alpha("black", 0.3), pch = 20

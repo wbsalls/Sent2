@@ -12,16 +12,17 @@ library(raster)
 library(scales) # for alpha transparency
 library(ggplot2)
 
-source("C:/Users/WSalls/Desktop/Git/Sent2/error_metrics_1800611.R")
-#source("/Users/wilsonsalls/Desktop/Git/Sent2/error_metrics_1800611.R")
+#source("C:/Users/WSalls/Desktop/Git/Sent2/error_metrics_1800611.R")
+source("/Users/wilsonsalls/Desktop/Git/Sent2/error_metrics_1800611.R")
 
-setwd("O:/PRIV/NERL_ORD_CYAN/Sentinel2/Validation/681_imgs")
-#setwd("/Users/wilsonsalls/Desktop/EPA/Sentinel2/Validation/681_imgs")
+#setwd("O:/PRIV/NERL_ORD_CYAN/Sentinel2/Validation/681_imgs")
+setwd("/Users/wilsonsalls/Desktop/EPA/Sentinel2/Validation/681_imgs")
 
 #mu_mci_raw <- mu_mci
 mu_mci_raw <- read.csv("validation_S2_682imgs_MCI_L1C_2018-11-21.csv", stringsAsFactors = FALSE)
 
 
+## formatting, pre-filtering -------------------------------------------
 # rename MCI column
 colnames(mu_mci_raw)[which(colnames(mu_mci_raw) == "MCI_val_1")] <- "MCI_L1C"
 
@@ -42,7 +43,11 @@ mu_mci$img_localTime <- chron(dates. = substr(mu_mci$img_localTime, 2, 9),
 
 mu_mci$offset_hrs <- as.numeric(mu_mci$samp_localTime - mu_mci$img_localTime) * 24
 
-#
+# depth - remove NAs that were left
+mu_mci <- mu_mci[-which(is.na(mu_mci$depth_corr) &
+                          is.na(mu_mci$topdepth_corr) & 
+                          is.na(mu_mci$botdepth_corr) & 
+                          is.na(mu_mci$ActivityRelativeDepthName)), ]
 
 ## calc chl a from MCI  ---------------
 
@@ -60,14 +65,11 @@ mu_mci_presubset <- mu_mci
 ## subset ---------------------------------------------------------------------------------------
 mu_mci <- mu_mci_presubset
 
-# remove land-adjacent
-#mu_mci <- mu_mci[mu_mci$dist_shore_m >= 30, ]
-
-# remove NAs
+## remove NAs
 sum(is.na(mu_mci$MCI_L1C))
 mu_mci <- mu_mci[!is.na(mu_mci$MCI_L1C), ]
 
-# remove MCI = 4.999
+## remove MCI = 4.999
 max(mu_mci$MCI_L1C)
 sum(mu_mci$MCI_L1C == max(mu_mci$MCI_L1C))
 'mu_mci_499 <- mu_mci[mu_mci$MCI_L1C == max(mu_mci$MCI_L1C), ]
@@ -81,7 +83,7 @@ mu_mci <- mu_mci[mu_mci$MCI_L1C != max(mu_mci$MCI_L1C), ]
 #plot(mu_mci$chla_corr, mu_mci$MCI_L1C, xlab = "in situ chlorophyll-a (ug/l)", ylab = "MCI (Level 1C)")
 #
 
-# remove 0s (NA MCI_L1C)
+## remove 0s (NA MCI_L1C)
 sum(mu_mci$MCI_L1C == 0)
 
 'sum(mu_mci$MCI_L1C == 0)
@@ -101,6 +103,13 @@ mu_mci <- mu_mci[mu_mci$chla_s2 > 0, ] # remove calculated negatives -617 (depen
 min(mu_mci$MCI_L1C)
 sum(mu_mci$MCI_L1C < -0.01)
 mu_mci <- mu_mci[mu_mci$MCI_L1C > -0.01, ] # not relevant if removing negative S2 chl since intercept is -0.0021
+
+## shore dist
+mu_mci <- mu_mci[mu_mci$dist_shore_m > 30, ]
+
+## method
+method_sub <- "APHA" # APHA USEPA USGS
+mu_mci <- mu_mci[which(mu_mci$ResultAnalyticalMethod.MethodIdentifierContext == method_sub), ]
 
 # plot raw S2 chla
 #plot(mu_mci$chla_corr, mu_mci$chla_s2, ylim = c(0, 200), xlab = "in situ chlorophyll-a (ug/l)", ylab = "S2-derived chlorophyll-a (from MCI L1C)")
@@ -134,22 +143,12 @@ mu_mci$mci_cv <- mu_mci$mci_sd / mu_mci$mci_mean
 # perform subset
 #mu_mci <- mu_mci[abs(mu_mci$mci_cv) <= 0.15, ] # *try adjusting cv threshold
 
-# subset by method  -------------------
-#mu_mci <- mu_mci_filtered
-method_sub <- "APHA" # APHA USEPA USGS
-mu_mci <- mu_mci[which(mu_mci$ResultAnalyticalMethod.MethodIdentifierContext == method_sub), ]
-
-# shore dist -------------------
-mu_mci <- mu_mci[mu_mci$dist_shore_m > 30, ]
-
 # clouds -------------------
-#mu_mci <- mu_mci[mu_mci$CLOUDY_PIXEL_PERCENTAGE == 0, ]
+mu_mci <- mu_mci[mu_mci$CLOUDY_PIXEL_PERCENTAGE == 0, ]
 
-# depth - remove 
-mu_mci <- mu_mci[-which(is.na(mu_mci$depth_corr) &
-                    is.na(mu_mci$topdepth_corr) & 
-                    is.na(mu_mci$botdepth_corr) & 
-                    is.na(mu_mci$ActivityRelativeDepthName)), ]
+# season -------------------
+mu_mci$month <- as.numeric(substr(mu_mci$samp_localTime, 2, 3))
+
 
 ### validation plot  ----------------------------------
 
@@ -175,8 +174,8 @@ plot_error_metrics(x = mu_mci$chla_corr, y = mu_mci$chla_s2, # export 800 x 860
                    lakes = mu_mci$comid,
                    xlim = c(0.05, 200),
                    ylim = c(0.05, 200),
-                   xaxt="n",
-                   yaxt="n",
+                   #xaxt="n",
+                   #yaxt="n",
                    col = col_plot, pch = pch_plot) # col = alpha("black", 0.3), pch = 20
 axis(1, at = c(10^(-1:3)), labels = c(10^(-1:3)))
 axis(2, at = c(10^(-1:3)), labels = c(10^(-1:3)))
@@ -323,6 +322,22 @@ plot(mu_mci$chla_corr, mu_mci$residual_chla, xlab = "in situ chlorophyll-a (ug/l
 mu_mci_sort <- mu_mci[order(-mu_mci$residual_chla), ]
 mu_mci_sort <- mu_mci[order(-mu_mci$pct_error_chla), ]
 mu_mci_sort[1:20, c(185, 191:194)] # this no longer works right - what's it supposed to be??
+
+## month ----------------------------------
+# boxplot
+mu_mci$dist_shore_m_interval <- cut(mu_mci$dist_shore_m, seq(0, 2000, 50))
+
+par(mfrow = c(2,1))
+barplot(table(mu_mci$dist_shore_m_interval), xlab = "distance from shore (m)", ylab = "frequency")
+#barplot(table(mu_mci$dist_shore_m_interval), xlab = NULL, ylab = NULL, xaxt = 'n', yaxt = 'n')
+boxplot(residual_chla ~ dist_shore_m_interval, data = mu_mci,
+        las = 3,
+        xaxt = 'n',
+        xlab = "distance from shore (m)",
+        ylab = "chl a error (ug/l)")
+axis(side = 1, las = 3,
+     at = seq(from = 0.5, to = 40.5, by = 1), 
+     labels = c(rbind(seq(from = 0, to = 2000, by = 100), ""))[1:41])
 
 ## shore dist ----------------------------------
 plot(mu_mci$dist_shore_m, mu_mci$residual_chla, 
