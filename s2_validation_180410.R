@@ -325,19 +325,16 @@ mu_mci_sort[1:20, c(185, 191:194)] # this no longer works right - what's it supp
 
 ## month ----------------------------------
 # boxplot
-mu_mci$dist_shore_m_interval <- cut(mu_mci$dist_shore_m, seq(0, 2000, 50))
-
 par(mfrow = c(2,1))
-barplot(table(mu_mci$dist_shore_m_interval), xlab = "distance from shore (m)", ylab = "frequency")
-#barplot(table(mu_mci$dist_shore_m_interval), xlab = NULL, ylab = NULL, xaxt = 'n', yaxt = 'n')
-boxplot(residual_chla ~ dist_shore_m_interval, data = mu_mci,
+barplot(table(mu_mci$month), xlab = NULL, ylab = "frequency")
+boxplot(residual_chla ~ month, data = mu_mci,
         las = 3,
         xaxt = 'n',
-        xlab = "distance from shore (m)",
+        xlab = "month",
         ylab = "chl a error (ug/l)")
-axis(side = 1, las = 3,
-     at = seq(from = 0.5, to = 40.5, by = 1), 
-     labels = c(rbind(seq(from = 0, to = 2000, by = 100), ""))[1:41])
+axis(side = 1,
+     at = seq(from = 1, to = length(unique(mu_mci$month)), by = 1), 
+     labels = sort(unique(mu_mci$month)))
 
 ## shore dist ----------------------------------
 plot(mu_mci$dist_shore_m, mu_mci$residual_chla, 
