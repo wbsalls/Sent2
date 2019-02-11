@@ -103,10 +103,12 @@ plot_error_metrics <- function(x, y,
                                equal_axes = FALSE, 
                                log_axes = "",
                                plot_abline = TRUE,
-                               rsq = TRUE,
+                               rand_error = TRUE,
+                               regr_stats = TRUE,
                                states = NA, 
                                lakes = NA,
                                log_space = TRUE,
+                               show_metrics = FALSE,
                                #xaxt = xaxt,
                                #yaxt = yaxt,
                                ...) {
@@ -181,6 +183,14 @@ plot_error_metrics <- function(x, y,
     }
   }
   
+  ## add axes if log transformed and axes withheld
+  if (grepl("x", log_axes)) {
+  axis(1, at = c(10^(-1:3)), labels = c(10^(-1:3)))
+  }
+  if (grepl("y", log_axes)) {
+  axis(2, at = c(10^(-1:3)), labels = c(10^(-1:3)))
+  }
+  
   ## add metrics text
   # specify number of states and lakes, if included
   add.text <- ""
@@ -196,7 +206,7 @@ plot_error_metrics <- function(x, y,
   # add text
   if (equal_axes == TRUE) {
     text_x <- 0.05 #min(df$x, df$y)
-    text_y <- 150 #max(df$x, df$y)
+    text_y <- max(df$x, df$y) #150
   } else if (equal_axes == FALSE) {
     text_x <- min(df$x)
     text_y <- max(df$y)
@@ -204,11 +214,17 @@ plot_error_metrics <- function(x, y,
   
   text(x = text_x, y = text_y, adj = c(0, 1), 
        paste0(#"y = ", signif(err_metr$slope, digits = 3), "x + ", signif(err_metr$int, digits = 3), "\n",
-              if (rsq == TRUE) {paste0("R-sq. = ", round(err_metr$r.sq, 2), "\n")},
               "MAE = ", signif(err_metr$MAE, digits = 3), "\n", 
               "MAPE = ", signif(err_metr$MAPE, digits = 3), "\n", 
               "bias = ", signif(err_metr$bias, digits = 3), "\n", 
-              "random error = ", signif(err_metr$rand.err, digits = 3), "\n", 
+              if (rand_error == TRUE) {paste0("random error = ", signif(err_metr$rand.err, digits = 3), "\n")}, 
+              if (regr_stats == TRUE) {paste0("slope = ", round(err_metr$slope, 2), "\n",
+                                              "intercept = ", round(err_metr$int, 2), "\n",
+                                              "R-sq. = ", round(err_metr$r.sq, 2), "\n")},
               "n = ", err_metr$n, 
               add.text))
+  
+  if (show_metrics == TRUE){
+    print(err_metr)
+  }
 }

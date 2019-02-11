@@ -12,11 +12,11 @@ library(raster)
 library(scales) # for alpha transparency
 library(ggplot2)
 
-#source("C:/Users/WSalls/Desktop/Git/Sent2/error_metrics_1800611.R")
-source("/Users/wilsonsalls/Desktop/Git/Sent2/error_metrics_1800611.R")
+source("C:/Users/WSalls/Desktop/Git/Sent2/error_metrics_1800611.R")
+#source("/Users/wilsonsalls/Desktop/Git/Sent2/error_metrics_1800611.R")
 
-#setwd("O:/PRIV/NERL_ORD_CYAN/Sentinel2/Validation/681_imgs")
-setwd("/Users/wilsonsalls/Desktop/EPA/Sentinel2/Validation/681_imgs")
+setwd("O:/PRIV/NERL_ORD_CYAN/Sentinel2/Validation/681_imgs")
+#setwd("/Users/wilsonsalls/Desktop/EPA/Sentinel2/Validation/681_imgs")
 
 #mu_mci_raw <- mu_mci
 mu_mci_raw <- read.csv("validation_S2_682imgs_MCI_L1C_2018-11-21.csv", stringsAsFactors = FALSE)
@@ -49,23 +49,14 @@ mu_mci <- mu_mci[-which(is.na(mu_mci$depth_corr) &
                           is.na(mu_mci$botdepth_corr) & 
                           is.na(mu_mci$ActivityRelativeDepthName)), ]
 
-## calc chl a from MCI  ---------------
-
-slope.mci <- 0.0004 # from Binding et al. 2013 - Erie
-intercept.mci <- -0.0021 # from Binding et al. 2013 - Erie
-
-mu_mci$chla_s2 <- (mu_mci$MCI_L1C - intercept.mci) / slope.mci
-
-mu_mci$residual_chla <- abs(mu_mci$chla_s2 - mu_mci$chla_corr) # residual
-mu_mci$pct_error_chla <- (abs(mu_mci$chla_s2 - mu_mci$chla_corr) / mu_mci$chla_corr) * 100 # % error
-
-mu_mci_presubset <- mu_mci
+# make copy
+mu_mci_prefilter <- mu_mci
 
 
-## subset ---------------------------------------------------------------------------------------
-mu_mci <- mu_mci_presubset
+## filter ---------------------------------------------------------------------------------------
+mu_mci <- mu_mci_prefilter # reset
 
-## remove NAs
+## remove NA MCI
 sum(is.na(mu_mci$MCI_L1C))
 mu_mci <- mu_mci[!is.na(mu_mci$MCI_L1C), ]
 
@@ -81,9 +72,8 @@ mu_mci <- mu_mci[mu_mci$MCI_L1C != max(mu_mci$MCI_L1C), ]
 
 # plot raw MCI
 #plot(mu_mci$chla_corr, mu_mci$MCI_L1C, xlab = "in situ chlorophyll-a (ug/l)", ylab = "MCI (Level 1C)")
-#
 
-## remove 0s (NA MCI_L1C)
+## remove MCI = 0
 sum(mu_mci$MCI_L1C == 0)
 
 'sum(mu_mci$MCI_L1C == 0)
@@ -93,16 +83,13 @@ plot(mu_mci_0$chla_corr, mu_mci_0$chla_s2)
 hist(mu_mci_0$chla_corr) # slightly more right-skewed than hist with all data, so 0 values tend to have lower in situ chl (good)
 hist(mu_mci$chla_corr)'
 
-
 mu_mci <- mu_mci[mu_mci$MCI_L1C != 0, ]
 
-## remove negatives
-sum(mu_mci$chla_s2 < 0)
-mu_mci <- mu_mci[mu_mci$chla_s2 > 0, ] # remove calculated negatives -617 (depends on coefficients used)
-
+## negative MCI
 min(mu_mci$MCI_L1C)
+#hist(mu_mci$MCI_L1C)
 sum(mu_mci$MCI_L1C < -0.01)
-mu_mci <- mu_mci[mu_mci$MCI_L1C > -0.01, ] # not relevant if removing negative S2 chl since intercept is -0.0021
+#mu_mci <- mu_mci[mu_mci$MCI_L1C > -0.01, ] # not relevant if removing negative S2 chl since intercept is -0.0021
 
 ## shore dist
 mu_mci <- mu_mci[mu_mci$dist_shore_m > 30, ]
@@ -111,49 +98,81 @@ mu_mci <- mu_mci[mu_mci$dist_shore_m > 30, ]
 method_sub <- "APHA" # APHA USEPA USGS
 mu_mci <- mu_mci[which(mu_mci$ResultAnalyticalMethod.MethodIdentifierContext == method_sub), ]
 
-# plot raw S2 chla
-#plot(mu_mci$chla_corr, mu_mci$chla_s2, ylim = c(0, 200), xlab = "in situ chlorophyll-a (ug/l)", ylab = "S2-derived chlorophyll-a (from MCI L1C)")
+## in situ chla
+summary(mu_mci$chla_corr)
+mu_mci <- mu_mci[mu_mci$chla_corr < 1000, ]
 
 # export filtered validation data set
 #write.csv(mu_mci, sprintf("O:/PRIV/NERL_ORD_CYAN/Sentinel2/Validation/682_imgs/validation_S2_682imgs_MCI_Chla_filtered_%s.csv", Sys.Date()))
 mu_mci_filtered <- mu_mci # for resetting data
 
-#-------------------------------------
 
-# subset by offset time ------------
+# subsets --------------------------------------------------------------------------------------------------------
+
+# subset by offset time  -----------------------------------
 mu_mci <- mu_mci_filtered # reset
+
 offset_min <- 0
-offset_max <- 3
+offset_max <- 0
 offset_threshold <- offset_min:offset_max
 mu_mci <- mu_mci[mu_mci$offset_days %in% offset_threshold, ]
 
-# subset by CV -------------------
-mci_val_colindex <- which(colnames(mu_mci) == "MCI_L1C"):which(colnames(mu_mci) == "MCI_val_9")
+# clouds  -------------------------------------------------
+#mu_mci <- mu_mci[mu_mci$CLOUDY_PIXEL_PERCENTAGE == 0, ]
 
-# define function for population SD (rather than sample SD)
-sd_pop <- function(x) {
-  sqrt(sum((x - mean(x, na.rm = TRUE)) ^ 2) / (length(x)))
-  }
-
-# calculate MCI mean, sd, CV for 3x3 array
-mu_mci$mci_mean <- apply(mu_mci[, mci_val_colindex], 1, mean)
-mu_mci$mci_sd <- apply(mu_mci[, mci_val_colindex], 1, sd_pop)
-mu_mci$mci_cv <- mu_mci$mci_sd / mu_mci$mci_mean
-
-# perform subset
-#mu_mci <- mu_mci[abs(mu_mci$mci_cv) <= 0.15, ] # *try adjusting cv threshold
-
-# clouds -------------------
-mu_mci <- mu_mci[mu_mci$CLOUDY_PIXEL_PERCENTAGE == 0, ]
-
-# season -------------------
+# season  -------------------------------------------------
 mu_mci$month <- as.numeric(substr(mu_mci$samp_localTime, 2, 3))
+table(mu_mci$month)
+mu_mci <- mu_mci[mu_mci$month %in% 5:7, ]
+
+# for reset
+mu_mci_subset <- mu_mci
 
 
-### validation plot  ----------------------------------
+## calc chl a from MCI  ---------------------------------------------------------------------------------------------------
 
-col_plot <- alpha("black", 0.3)
-pch_plot <- 20
+mu_mci <- mu_mci_subset
+
+# choose 1) binding OR 2) cal-val
+
+s2_calc <- "binding" # <<<<<<<<<<< *** binding / split ***
+
+if (s2_calc == "binding") {
+  # 1) binding paper -------
+  slope.mci <- 0.0004 # from Binding et al. 2013 - Erie
+  intercept.mci <- -0.0021 # from Binding et al. 2013 - Erie
+  
+} else if (s2_calc == "split") {
+  
+  # 2) cal-val split -------
+  set.seed(1)
+  index.selected <- sample(1:nrow(mu_mci), size = floor(nrow(mu_mci) * 0.8), replace = FALSE)
+  mu_mci_calc <- mu_mci[index.selected, ] # select 80% for cal
+  mu_mci <- mu_mci[-index.selected, ] # retain remaining 20% for val
+  
+  # fit linear model; set coefficients
+  model_s2chla <- lm(mu_mci_calc$MCI_L1C ~ mu_mci_calc$chla_corr)
+  
+  slope.mci <- model_s2chla$coefficients[2]
+  intercept.mci <- model_s2chla$coefficients[1]
+}
+
+# calculate S2 chla
+mu_mci$chla_s2 <- (mu_mci$MCI_L1C - intercept.mci) / slope.mci
+
+# remove negative S2 Chla
+sum(mu_mci$chla_s2 < 0)
+mu_mci <- mu_mci[mu_mci$chla_s2 > 0, ]
+
+# calculate error
+mu_mci$residual_chla <- abs(mu_mci$chla_s2 - mu_mci$chla_corr) # residual
+mu_mci$pct_error_chla <- (abs(mu_mci$chla_s2 - mu_mci$chla_corr) / mu_mci$chla_corr) * 100 # % error
+
+
+mu_mci_presubset <- mu_mci
+
+### validation plot  -----------------------------------------------------------------------------------
+
 #jpeg(sprintf("val_%s_%s.png", offset_min, offset_max), width = 800, height = 860)
 if (offset_min == offset_max) {
   plot_title <- sprintf("+/- %s day", offset_min)
@@ -166,28 +185,57 @@ plot_error_metrics(x = mu_mci$chla_corr, y = mu_mci$chla_s2, # export 800 x 860
                    title = plot_title, 
                    #title = paste0(method_sub, ", ", plot_title), # if subsetting by method
                    equal_axes = TRUE, 
-                   log_axes = "xy", 
+                   log_axes = "", 
                    log_space = FALSE,
                    plot_abline = FALSE,
-                   rsq = TRUE,
+                   rand_error = FALSE,
+                   regr_stats = T,
                    states = mu_mci$state,
                    lakes = mu_mci$comid,
-                   xlim = c(0.05, 200),
-                   ylim = c(0.05, 200),
+                   xlim = c(0.05, max(mu_mci$chla_corr, mu_mci$chla_s2)),
+                   ylim = c(0.05, max(mu_mci$chla_corr, mu_mci$chla_s2)),
+                   show_metrics = TRUE, 
                    #xaxt="n",
                    #yaxt="n",
-                   col = col_plot, pch = pch_plot) # col = alpha("black", 0.3), pch = 20
-axis(1, at = c(10^(-1:3)), labels = c(10^(-1:3)))
-axis(2, at = c(10^(-1:3)), labels = c(10^(-1:3)))
+                   col = alpha("red", 0.4), 
+                   pch = 20) # col = alpha("black", 0.3), pch = 20
 #dev.off()
+sprintf("S2 regression slope = %s; intercept = %s (Binding = 0.0004; -0.0021)", 
+        signif(slope.mci, digits = 2), signif(intercept.mci, digits = 2))
+
 
 threshold_lty <- 2
 abline(h = 2, lty = threshold_lty, col = "blue")
-abline(h = 7, lty = threshold_lty, col = "green")
-abline(h = 30, lty = threshold_lty, col = "red")
 abline(v = 2, lty = threshold_lty, col = "blue")
+abline(h = 7, lty = threshold_lty, col = "green")
 abline(v = 7, lty = threshold_lty, col = "green")
+abline(h = 30, lty = threshold_lty, col = "red")
 abline(v = 30, lty = threshold_lty, col = "red")
+
+
+##
+
+#plot(mu_mci$chla_corr, mu_mci$chla_s2, xlim = c(0, 415), ylim = c(0, 415), xlab = "in situ chlorophyll-a (ug/l)", ylab = "S2-derived chlorophyll-a (from MCI L1C)")
+#plot(mu_mci$chla_corr, mu_mci$residual_chla)
+#plot(mu_mci$chla_corr, mu_mci$pct_error_chla)
+
+# subset by CV  -------------------------------------------
+mci_val_colindex <- which(colnames(mu_mci) == "MCI_L1C"):which(colnames(mu_mci) == "MCI_val_9")
+
+# define function for population SD (rather than sample SD)
+sd_pop <- function(x) {
+  sqrt(sum((x - mean(x, na.rm = TRUE)) ^ 2) / (length(x)))
+}
+
+# calculate MCI mean, sd, CV for 3x3 array
+mu_mci$mci_mean <- apply(mu_mci[, mci_val_colindex], 1, mean)
+mu_mci$mci_sd <- apply(mu_mci[, mci_val_colindex], 1, sd_pop)
+mu_mci$mci_cv <- mu_mci$mci_sd / mu_mci$mci_mean
+
+# perform subset
+#mu_mci <- mu_mci[abs(mu_mci$mci_cv) <= 0.15, ] # *try adjusting cv threshold
+
+
 
 # make map of in situ locations ------------------------------------------------------------------
 
@@ -239,14 +287,12 @@ intercept.mci <- -0.0012 # from Binding et al. 2013 - Ontario
 # color code by day ----------------------------------
 library(viridis)
 
-mu_mci <- mu_mci_filtered # reset
-
 # make table of colors, with factor for plotting
 mu_mci$offset_days_factor <- as.factor(mu_mci$offset_days)
 
 jcolors <- data.frame(day = levels(mu_mci$offset_days_factor),
                       color = topo.colors(length(levels(mu_mci$offset_days_factor)), 
-                                           alpha = 0.3)) # topo.colors, viridis
+                                          alpha = 0.3)) # topo.colors, viridis
 
 # merge color to mu_mci for plotting
 mu_mci <- merge(mu_mci, jcolors, by.x = "offset_days", by.y = "day", all.x = TRUE, all.y = FALSE)
@@ -335,6 +381,7 @@ boxplot(residual_chla ~ month, data = mu_mci,
 axis(side = 1,
      at = seq(from = 1, to = length(unique(mu_mci$month)), by = 1), 
      labels = sort(unique(mu_mci$month)))
+par(mfrow = c(1,1))
 
 ## shore dist ----------------------------------
 plot(mu_mci$dist_shore_m, mu_mci$residual_chla, 
