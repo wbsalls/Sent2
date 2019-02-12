@@ -11,6 +11,7 @@ library(rgdal)
 library(raster)
 library(scales) # for alpha transparency
 library(ggplot2)
+library(dplyr)
 
 source("C:/Users/WSalls/Desktop/Git/Sent2/error_metrics_1800611.R")
 #source("/Users/wilsonsalls/Desktop/Git/Sent2/error_metrics_1800611.R")
@@ -102,8 +103,11 @@ mu_mci <- mu_mci[which(mu_mci$ResultAnalyticalMethod.MethodIdentifierContext == 
 summary(mu_mci$chla_corr)
 mu_mci <- mu_mci[mu_mci$chla_corr < 1000, ]
 
-# export filtered validation data set
-#write.csv(mu_mci, sprintf("O:/PRIV/NERL_ORD_CYAN/Sentinel2/Validation/682_imgs/validation_S2_682imgs_MCI_Chla_filtered_%s.csv", Sys.Date()))
+## remove bad points identified in imagery
+length(mu_mci_raw$X.5) == length(unique(mu_mci_raw$X.5)) # unique
+
+#mu_mci <- mu_mci[-which(mu_mci$X.5 %in% c(4888, 4889, 4890)), ]
+
 mu_mci_filtered <- mu_mci # for resetting data
 
 
@@ -162,7 +166,8 @@ mu_mci$chla_s2 <- (mu_mci$MCI_L1C - intercept.mci) / slope.mci
 
 # remove negative S2 Chla
 sum(mu_mci$chla_s2 < 0)
-mu_mci <- mu_mci[mu_mci$chla_s2 > 0, ]
+mu_mci <- mu_mci[mu_mci$chla_s2 >= 0, ]
+#mu_mci[mu_mci$chla_s2 < 0, ] <- 0 # set negatives to 0
 
 # calculate error
 mu_mci$residual_chla <- abs(mu_mci$chla_s2 - mu_mci$chla_corr) # residual
@@ -185,11 +190,11 @@ plot_error_metrics(x = mu_mci$chla_corr, y = mu_mci$chla_s2, # export 800 x 860
                    title = plot_title, 
                    #title = paste0(method_sub, ", ", plot_title), # if subsetting by method
                    equal_axes = TRUE, 
-                   log_axes = "", 
+                   log_axes = "xy", 
                    log_space = FALSE,
                    plot_abline = FALSE,
                    rand_error = FALSE,
-                   regr_stats = T,
+                   regr_stats = TRUE,
                    states = mu_mci$state,
                    lakes = mu_mci$comid,
                    xlim = c(0.05, max(mu_mci$chla_corr, mu_mci$chla_s2)),
@@ -200,9 +205,9 @@ plot_error_metrics(x = mu_mci$chla_corr, y = mu_mci$chla_s2, # export 800 x 860
                    col = alpha("red", 0.4), 
                    pch = 20) # col = alpha("black", 0.3), pch = 20
 #dev.off()
-sprintf("S2 regression slope = %s; intercept = %s (Binding = 0.0004; -0.0021)", 
-        signif(slope.mci, digits = 2), signif(intercept.mci, digits = 2))
-
+cat(sprintf("S2 regression slope = %s; intercept = %s (Binding = 0.0004; -0.0021)\n%s images", 
+        signif(slope.mci, digits = 2), signif(intercept.mci, digits = 2),
+        length(unique(mu_mci$PRODUCT_ID))))
 
 threshold_lty <- 2
 abline(h = 2, lty = threshold_lty, col = "blue")
