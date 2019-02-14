@@ -224,6 +224,9 @@ abline(v = 30, lty = threshold_lty, col = "red")
 #plot(mu_mci$chla_corr, mu_mci$residual_chla)
 #plot(mu_mci$chla_corr, mu_mci$pct_error_chla)
 
+# write image list
+write.csv(unique(mu_mci[, c("PRODUCT_ID", "GRANULE_ID")]), "O:/PRIV/NERL_ORD_CYAN/Sentinel2/Images/composited/0day_may_jul/img_list.csv")
+
 # subset by CV  -------------------------------------------
 mci_val_colindex <- which(colnames(mu_mci) == "MCI_L1C"):which(colnames(mu_mci) == "MCI_val_9")
 
@@ -357,8 +360,6 @@ qplot(mu_mci$chla_corr, mu_mci$MCI_L1C, col = mu_mci$offset_days_factor)
 plot(mu_mci$chla_corr, mu_mci$MCI_L1C, col = topo.colors(n = 11, alpha = 0.5), pch = 16, xlim = c(0, 210))
 legend(195, 0.045, levels(mu_mci$offset_days_factor), col = topo.colors(11, alpha = 0.5), pch = 16)
 plot(mu_mci$chla_corr[mu_mci$offset_days %in% 0:3], mu_mci$MCI_L1C[mu_mci$offset_days %in% 0:3], col = topo.colors(n = 11, alpha = 0.5), pch = 16, xlim = c(0, 210)) # doesn't work
-
-
 
 
 # investigate patterns ---------------------------------------------------------------------------

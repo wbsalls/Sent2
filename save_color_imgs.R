@@ -7,6 +7,16 @@ setwd("O:/PRIV/NERL_ORD_CYAN/Sentinel2/Images/composited/0day_may_jul")
 # load US
 #us <- readOGR("O:/PRIV/NERL_ORD_CYAN/Salls_working/geospatial_general/US", "cb_2015_us_state_20m")
 
+# create list of necessary images from mu_mci; export as csv
+imgs <- unique(data.frame(mu_mci$PRODUCT_ID, mu_mci$GRANULE_ID)) #[which(mu_mci$CLOUD_COVERAGE_ASSESSMENT == 0)]
+#write.csv(imgs, sprintf("imgs_mumci_0day_may_jul.csv"))
+
+# assign image # to mu_mci
+mu_mci$img_number <- NA
+for (p in 1:nrow(mu_mci)) {
+  mu_mci$img_number[p] <- which(imgs$mu_mci.GRANULE_ID == mu_mci$GRANULE_ID [p])
+}
+
 # set up points
 mu_mci$pointID <- 1:nrow(mu_mci)
 
@@ -14,23 +24,16 @@ lon <- mu_mci$LongitudeMeasure # **
 lat <- mu_mci$LatitudeMeasure # **
 mu_pts <- SpatialPointsDataFrame(coords = matrix(c(lon, lat), ncol = 2), 
                                  mu_mci, proj4string = CRS("+init=epsg:4326"))
+writeOGR(mu_pts[, -which(colnames(mu_pts@data) %in% c("samp_localTime", "img_localTime"))], 
+         "O:/PRIV/NERL_ORD_CYAN/Sentinel2/Images/composited/0day_may_jul/geospatial", "mu_pts", driver = "ESRI Shapefile")
 
-#writeOGR(mu_pts[, -which(colnames(mu_pts@data) %in% c("samp_localTime", "img_localTime"))], 
-         #"O:/PRIV/NERL_ORD_CYAN/Sentinel2/Images/composited/0day_may_jul", "mu_pts", driver = "ESRI Shapefile")
-
-# create list of necessary images from mu_mci; export as csv
-imgs <- unique(data.frame(mu_mci$PRODUCT_ID, mu_mci$GRANULE_ID)) #[which(mu_mci$CLOUD_COVERAGE_ASSESSMENT == 0)]
-#write.csv(imgs, sprintf("imgs_mumci_0day_may_jul.csv"))
 
 # write list of points
 pt_table <- data.frame(PRODUCT_ID = mu_mci$PRODUCT_ID, GRANULE_ID = mu_mci$GRANULE_ID, COMID = mu_mci$comid, 
                        shore_dist = round(mu_mci$dist_shore_m, digits = 2), state = mu_mci$state, 
                        chla_corr = round(mu_mci$chla_corr, digits = 0), chla_s2 = round(mu_mci$chla_s2, digits = 0), 
-                       chl_error = round(mu_mci$residual_chla, digits = 0), point_ID = mu_mci$pointID, point_IDX5 = mu_mci$X.5)
-pt_table$img_number <- NA
-for (p in 1:nrow(pt_table)) {
-  pt_table$img_number[p] <- which(imgs$mu_mci.GRANULE_ID == pt_table$GRANULE_ID [p])
-}
+                       chl_error = round(mu_mci$residual_chla, digits = 0), point_ID = mu_mci$pointID, 
+                       point_IDX5 = mu_mci$X.5, img_number = mu_mci$img_number)
 
 write.csv(pt_table, "ImageCheck_0day_may_jul.csv")
 
