@@ -14,10 +14,10 @@ library(ggplot2)
 library(dplyr)
 
 source("C:/Users/WSalls/Desktop/Git/Sent2/error_metrics_1800611.R")
-#source("/Users/wilsonsalls/Desktop/Git/Sent2/error_metrics_1800611.R")
+source("/Users/wilsonsalls/Desktop/Git/Sent2/error_metrics_1800611.R")
 
 setwd("O:/PRIV/NERL_ORD_CYAN/Sentinel2/Validation/681_imgs")
-#setwd("/Users/wilsonsalls/Desktop/EPA/Sentinel2/Validation/681_imgs")
+setwd("/Users/wilsonsalls/Desktop/EPA/Sentinel2/Validation/681_imgs")
 
 #mu_mci_raw <- mu_mci
 mu_mci_raw <- read.csv("validation_S2_682imgs_MCI_L1C_2018-11-21.csv", stringsAsFactors = FALSE)
@@ -49,6 +49,15 @@ mu_mci <- mu_mci[-which(is.na(mu_mci$depth_corr) &
                           is.na(mu_mci$topdepth_corr) & 
                           is.na(mu_mci$botdepth_corr) & 
                           is.na(mu_mci$ActivityRelativeDepthName)), ]
+
+# average 9-pixel window
+mci_val_colindex <- which(colnames(mu_mci) == "MCI_L1C"):which(colnames(mu_mci) == "MCI_val_9")
+
+mu_mci$mci_mean <- apply(mu_mci[, mci_val_colindex], 1, mean)
+mu_mci$mci_single <- mu_mci$MCI_L1C
+
+# choose which MCI to use *******
+mu_mci$MCI_L1C <- mu_mci$mci_single # mci_single OR mci_mean
 
 # make copy
 mu_mci_prefilter <- mu_mci
