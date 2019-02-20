@@ -110,12 +110,12 @@ mu_mci <- mu_mci[which(mu_mci$ResultAnalyticalMethod.MethodIdentifierContext == 
 
 ## in situ chla
 summary(mu_mci$chla_corr)
-mu_mci <- mu_mci[mu_mci$chla_corr < 1000, ]
+mu_mci <- mu_mci[mu_mci$chla_corr <= 1000, ]
 
 ## remove bad points identified in imagery
 length(mu_mci_raw$X.5) == length(unique(mu_mci_raw$X.5)) # unique
 
-#mu_mci <- mu_mci[-which(mu_mci$X.5 %in% c(4888, 4889, 4890)), ]
+mu_mci <- mu_mci[-which(mu_mci$X.5 %in% c(4888, 4889, 4890)), ]
 
 mu_mci_filtered <- mu_mci # for resetting data
 
@@ -182,8 +182,6 @@ mu_mci <- mu_mci[mu_mci$chla_s2 >= 0, ]
 mu_mci$residual_chla <- abs(mu_mci$chla_s2 - mu_mci$chla_corr) # residual
 mu_mci$pct_error_chla <- (abs(mu_mci$chla_s2 - mu_mci$chla_corr) / mu_mci$chla_corr) * 100 # % error
 
-
-mu_mci_presubset <- mu_mci
 
 ### validation plot  -----------------------------------------------------------------------------------
 
@@ -576,6 +574,7 @@ mu_mci <- mu_mci[mu_mci$offset_days == "same day", ]
 'sum(mu_mci$chla_corr >= 200)
 mu_mci$chla_corr[mu_mci$chla_corr > 1000]
 mu_mci_hi <- mu_mci[mu_mci$chla_corr >= 150 & mu_mci$chla_corr <= 600, ]
+sort(mu_mci$chla_corr[mu_mci$chla_corr >= 150])
 plot(sort(mu_mci$chla_corr[mu_mci$chla_corr < 1000]), ylab = "in situ chlorophyll-a (ug/l)")
 plot(sort(mu_mci_hi$chla_corr), ylab = "in situ chlorophyll-a (ug/l)")'
 
@@ -586,15 +585,18 @@ library(ggpubr)
 hist(log(mu_mci$chla_corr))
 summary(log(mu_mci$chla_corr))
 
-# SD * 3 - cant use since not normal (linear nor log)
+## SD * 3 - cant use since not normal (linear nor log)
+# log
 min_cut <- mean(log(mu_mci$chla_corr)) - 3 * sd(log(mu_mci$chla_corr))
 max_cut <- mean(log(mu_mci$chla_corr)) + 3 * sd(log(mu_mci$chla_corr))
 exp(max_cut)
 
+# linear
 min_cut <- mean((mu_mci$chla_corr)) - 3 * sd((mu_mci$chla_corr))
 max_cut <- mean((mu_mci$chla_corr)) + 3 * sd((mu_mci$chla_corr))
 max_cut
 
+# determine if normal
 library(ggpubr)
 ggqqplot(mu_mci$chla_corr)
 ggqqplot(log(mu_mci$chla_corr))
@@ -602,11 +604,27 @@ ggqqplot(log(mu_mci$chla_corr))
 shapiro.test(mu_mci$chla_corr) # non-normal
 shapiro.test(log(mu_mci$chla_corr)) # even log transformed is non-normal
 
-# IQR * 1.5
-(summary(mu_mci$chla_corr)[5] - summary(mu_mci$chla_corr)[2]) * 1.5
+## IQR +- [IQR * 1.5]
+q1 <- summary(mu_mci$chla_corr)[2]
+q3 <- summary(mu_mci$chla_corr)[5]
 
+c(q1 - (1.5 * (q3 - q1)), q3 + (1.5 * (q3 - q1)))
+
+##
 #mu_mci <- mu_mci[mu_mci$chla_corr <= 200, ]
 '
+
+## depth duplicates
+x5 <- c(1563,1564,1926,1927,5421,5422,6076,6077,8807,8929)
+
+mu_mci_dups <- mu_mci[mu_mci$X.5 %in% x5, ]
+
+mu_mci_dups[, 125:131]
+
+index <- c(7:8)
+mu_mci_dups$chla_corr[index]
+mu_mci_dups$chla_s2[index]
+#
 
 ## depth - doesn't improve validation
 hist(mu_mci$depth_corr)
