@@ -60,6 +60,9 @@ safe_folder <- "D:/s2/raw"
 process_name <- "MCI_L1C"
 
 # check image name matching
+# ***************** consider using GRANULE_ID instead if possible since PRODUCT_ID is not unique and results in duplicates *****
+# these duplicates are probably not a problem since they should have same MCI value, and thus get filtered out
+# (can make unique image list with PRODUCT_ID, GRANULE_ID in matchups)
 mci_imgs <- list.files(rfolder, pattern = "\\.data")
 #mci_img_names <- substr(mci_imgs, 16, 75)
 mci_img_names <- gsub("mci_resample20_", "", mci_imgs)

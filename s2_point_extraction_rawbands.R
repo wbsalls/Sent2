@@ -58,12 +58,12 @@ mu_rawbands <- data.frame()
 for (i in 1:nrow(imgs)) {
   
   # load points
-  mu_pts_img <- mu_pts[mu_pts$PRODUCT_ID == sub(".data", "", sub("mci_resample20_", "", imgs$mu_mci.PRODUCT_ID[i])), ]
+  mu_pts_img <- mu_pts[mu_pts$GRANULE_ID == sub(".data", "", sub("mci_resample20_", "", imgs$mu_mci.GRANULE_ID[i])), ]
   
   # print progress
   cat(sprintf("\nimage #%s of %s (%s) - %s pts... ", i, nrow(imgs), Sys.time(), nrow(mu_pts_img)))
   
-  # assign get granule dir and set workspace there
+  # get granule dir and set workspace there
   folder <- imgs$mu_mci.PRODUCT_ID[i]
   granule_id <- imgs$mu_mci.GRANULE_ID[i]
   granule_dir <- file.path("D:/s2/raw", paste0(folder, ".SAFE/GRANULE"), granule_id, "IMG_DATA")
@@ -119,7 +119,4 @@ for (i in 1:nrow(imgs)) {
   }
 }
 
-
 write.csv(mu_rawbands, "mu_rawbands_3day.csv")
-
-  

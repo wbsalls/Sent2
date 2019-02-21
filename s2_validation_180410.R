@@ -59,6 +59,11 @@ mu_mci$mci_single <- mu_mci$MCI_L1C
 # choose which MCI to use *******
 mu_mci$MCI_L1C <- mu_mci$mci_single # mci_single OR mci_mean
 
+# merge raw band values table
+raw_bands <- read.csv("mu_rawbands_3day_imgs.csv", stringsAsFactors = FALSE)
+
+mu_mci <- merge(mu_mci, raw_bands, by = "X.5", all.x = TRUE)
+
 # make copy
 mu_mci_prefilter <- mu_mci
 
