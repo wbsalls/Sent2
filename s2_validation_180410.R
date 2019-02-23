@@ -19,30 +19,30 @@ source("/Users/wilsonsalls/Desktop/Git/Sent2/error_metrics_1800611.R")
 setwd("O:/PRIV/NERL_ORD_CYAN/Sentinel2/Validation/681_imgs")
 setwd("/Users/wilsonsalls/Desktop/EPA/Sentinel2/Validation/681_imgs")
 
-#mu_mci_raw <- mu_mci
 mu_mci_raw <- read.csv("validation_S2_682imgs_MCI_L1C_2018-11-21.csv", stringsAsFactors = FALSE)
-
+mu_mci <- mu_mci_raw
 
 ## formatting, pre-filtering -------------------------------------------
 # rename MCI column
-colnames(mu_mci_raw)[which(colnames(mu_mci_raw) == "MCI_val_1")] <- "MCI_L1C"
-
-# remove duplicates: identify based on duplicated chlorophyll-a and MCI (L1C)
-val_df <- data.frame(mu_mci_raw$chla_corr, mu_mci_raw$MCI_L1C, mu_mci_raw$LatitudeMeasure, mu_mci_raw$LongitudeMeasure)
-sum(duplicated(val_df))
-val_df_dups <- val_df[duplicated(val_df), ]
-
-mu_mci <- mu_mci_raw[!duplicated(val_df), ]
-
-# most duplicates have 0 MCI_L1C
+colnames(mu_mci)[which(colnames(mu_mci) == "MCI_val_1")] <- "MCI_L1C"
 
 #* fix chron
 mu_mci$samp_localTime <- chron(dates. = substr(mu_mci$samp_localTime, 2, 9), 
                                times. = substr(mu_mci$samp_localTime, 11, 18))
 mu_mci$img_localTime <- chron(dates. = substr(mu_mci$img_localTime, 2, 9), 
                               times. = substr(mu_mci$img_localTime, 11, 18))
+mu_mci$samp_localDate <- substr(mu_mci$samp_localTime, 2,9)
 
 mu_mci$offset_hrs <- as.numeric(mu_mci$samp_localTime - mu_mci$img_localTime) * 24
+
+
+# remove duplicates: identify based on duplicated chlorophyll-a and MCI (L1C)
+# most duplicates have 0 MCI_L1C
+val_df <- data.frame(mu_mci$chla_corr, mu_mci$MCI_L1C, mu_mci$LatitudeMeasure, mu_mci$LongitudeMeasure, mu_mci$samp_localDate)
+sum(duplicated(val_df))
+val_df_dups <- val_df[duplicated(val_df), ]
+
+mu_mci <- mu_mci[!duplicated(val_df), ]
 
 # depth - remove NAs that were left
 mu_mci <- mu_mci[-which(is.na(mu_mci$depth_corr) &
@@ -58,11 +58,6 @@ mu_mci$mci_single <- mu_mci$MCI_L1C
 
 # choose which MCI to use *******
 mu_mci$MCI_L1C <- mu_mci$mci_single # mci_single OR mci_mean
-
-# merge raw band values table
-raw_bands <- read.csv("mu_rawbands_3day_imgs.csv", stringsAsFactors = FALSE)
-
-mu_mci <- merge(mu_mci, raw_bands, by = "X.5", all.x = TRUE)
 
 # make copy
 mu_mci_prefilter <- mu_mci
@@ -116,6 +111,15 @@ mu_mci <- mu_mci[which(mu_mci$ResultAnalyticalMethod.MethodIdentifierContext == 
 ## in situ chla
 summary(mu_mci$chla_corr)
 mu_mci <- mu_mci[mu_mci$chla_corr <= 1000, ]
+
+## sediment
+# merge raw band values table
+raw_bands <- read.csv("mu_rawbands_3day.csv", stringsAsFactors = FALSE)
+mu_mci <- merge(mu_mci, raw_bands, by = "X.5", all.x = TRUE)
+
+# calculate slope
+mu_mci$mci_baseline_b6_b4 <- mu_mci$b6_1 - mu_mci$b4_1
+mu_mci$sediment <- mu_mci$mci_baseline_b6_b4 / abs(mu_mci$mci_baseline_b6_b4)
 
 ## remove bad points identified in imagery
 length(mu_mci_raw$X.5) == length(unique(mu_mci_raw$X.5)) # unique
@@ -186,6 +190,69 @@ mu_mci <- mu_mci[mu_mci$chla_s2 >= 0, ]
 # calculate error
 mu_mci$residual_chla <- abs(mu_mci$chla_s2 - mu_mci$chla_corr) # residual
 mu_mci$pct_error_chla <- (abs(mu_mci$chla_s2 - mu_mci$chla_corr) / mu_mci$chla_corr) * 100 # % error
+
+mu_mci_42 <- mu_mci
+
+# --------------------------------
+## integrate depth duplicates (only done on set with n = 42 (same-day, filtered))
+
+mu_mci <- mu_mci_42
+
+# get space-time duplicates
+dup_fields <- data.frame(mu_mci$LatitudeMeasure, mu_mci$LongitudeMeasure, mu_mci$samp_localDate)
+dups <- which(duplicated(dup_fields))
+length(dups)
+
+# make dataframe of indices of duplicate pairs
+# !!! need to use x5 instead since index changes once removed !!!
+dup_pairs <- data.frame()
+for (d in (dups)) {
+  for (m in 1:nrow(dup_fields)) {
+    if (all(dup_fields[m, ] == dup_fields[d, ])) {
+      if (d == m) {
+        next
+      }
+      dup_pairs <- rbind(dup_pairs, data.frame(a = m, b = d))
+    }
+  }
+}
+dup_pairs
+
+# remove duplicate with non-surface depth
+mu_mci$depth_corr[as.numeric(dup_pairs[3, ])]
+mu_mci$X.5[as.numeric(dup_pairs[3, ])]
+mu_mci <- mu_mci[-which(mu_mci$X.5 == 5422), ]
+
+# average remaining duplicates (with same depth)
+for (p in 1:nrow(dup_pairs)) {
+  if (mu_mci$chla_s2[dup_pairs[p, 1]] == mu_mci$chla_s2[dup_pairs[p, 2]]) {
+    mean_chla_corr <- mean(mu_mci$chla_corr[dup_pairs[p, 1]], mu_mci$chla_corr[dup_pairs[p, 2]])
+    # !!! assign mean to first row, delete second
+  }
+  if (mu_mci$chla_corr[dup_pairs[p, 1]] == mu_mci$chla_corr[dup_pairs[p, 2]]) {
+    mean_chla_s2 <- mean(mu_mci$chla_s2[dup_pairs[p, 1]], mu_mci$chla_s2[dup_pairs[p, 2]])
+    # !!! assign mean to first row, delete second
+  }
+}
+
+
+'
+same_insitu <- data.frame(mu_mci[as.numeric(dup_pairs[p,]), which(colnames(mu_mci) %in% c(
+    "LatitudeMeasure", "", "", ""
+    ))])
+
+mu_mci <- mu_mci[-which(is.na(mu_mci$depth_corr) &
+                          is.na(mu_mci$topdepth_corr) & 
+                          is.na(mu_mci$botdepth_corr) & 
+                          is.na(mu_mci$ActivityRelativeDepthName)), ]
+
+print(mu_mci$depth_corr[dup_pairs[p, 1]] == mu_mci$depth_corr[dup_pairs[p, 2]] & 
+        mu_mci$topdepth_corr[dup_pairs[p, 1]] == mu_mci$topdepth_corr[dup_pairs[p, 2]] & 
+        mu_mci$botdepth_corr[dup_pairs[p, 1]] == mu_mci$botdepth_corr[dup_pairs[p, 2]] & 
+        mu_mci$ActivityRelativeDepthName[dup_pairs[p, 1]] == mu_mci$ActivityRelativeDepthName)
+(mu_mci$chla_s2[dup_pairs[p, 1]] == mu_mci$chla_s2[dup_pairs[p, 2]])
+(mu_mci$chla_corr[dup_pairs[p, 1]] == mu_mci$chla_corr[dup_pairs[p, 2]])
+'
 
 
 ### validation plot  -----------------------------------------------------------------------------------
@@ -371,7 +438,8 @@ qplot(mu_mci$chla_corr, mu_mci$MCI_L1C, col = mu_mci$offset_days_factor)
 #
 plot(mu_mci$chla_corr, mu_mci$MCI_L1C, col = topo.colors(n = 11, alpha = 0.5), pch = 16, xlim = c(0, 210))
 legend(195, 0.045, levels(mu_mci$offset_days_factor), col = topo.colors(11, alpha = 0.5), pch = 16)
-plot(mu_mci$chla_corr[mu_mci$offset_days %in% 0:3], mu_mci$MCI_L1C[mu_mci$offset_days %in% 0:3], col = topo.colors(n = 11, alpha = 0.5), pch = 16, xlim = c(0, 210)) # doesn't work
+plot(mu_mci$chla_corr[mu_mci$offset_days %in% 0:3], mu_mci$MCI_L1C[mu_mci$offset_days %in% 0:3], 
+     col = topo.colors(n = 11, alpha = 0.5), pch = 16, xlim = c(0, 210)) # doesn't work
 
 
 # investigate patterns ---------------------------------------------------------------------------
@@ -386,6 +454,13 @@ plot(mu_mci$chla_corr, mu_mci$residual_chla, xlab = "in situ chlorophyll-a (ug/l
 mu_mci_sort <- mu_mci[order(-mu_mci$residual_chla), ]
 mu_mci_sort <- mu_mci[order(-mu_mci$pct_error_chla), ]
 mu_mci_sort[1:20, c(185, 191:194)] # this no longer works right - what's it supposed to be??
+
+
+## sediment -------------------------------
+table(mu_mci$sediment)
+boxplot(residual_chla ~ sediment, data = mu_mci,
+        xlab = "offset hour of day",
+        ylab = "chl a residual")
 
 ## month ----------------------------------
 # boxplot
@@ -619,7 +694,7 @@ c(q1 - (1.5 * (q3 - q1)), q3 + (1.5 * (q3 - q1)))
 #mu_mci <- mu_mci[mu_mci$chla_corr <= 200, ]
 '
 
-## depth duplicates
+## depth duplicates in n = 45 (same day, filters)
 x5 <- c(1563,1564,1926,1927,5421,5422,6076,6077,8807,8929)
 
 mu_mci_dups <- mu_mci[mu_mci$X.5 %in% x5, ]
