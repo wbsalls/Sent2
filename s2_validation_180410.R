@@ -203,8 +203,7 @@ dup_fields <- data.frame(mu_mci$LatitudeMeasure, mu_mci$LongitudeMeasure, mu_mci
 dups <- which(duplicated(dup_fields))
 length(dups)
 
-# make dataframe of indices of duplicate pairs
-# !!! need to use x5 instead since index changes once removed !!!
+# make dataframe of X.5 indices of duplicate pairs
 dup_pairs <- data.frame()
 for (d in (dups)) {
   for (m in 1:nrow(dup_fields)) {
@@ -212,47 +211,47 @@ for (d in (dups)) {
       if (d == m) {
         next
       }
-      dup_pairs <- rbind(dup_pairs, data.frame(a = m, b = d))
+      dup_pairs <- rbind(dup_pairs, data.frame(a = mu_mci$X.5[m], b = mu_mci$X.5[d]))
+      print(c(m, d))
     }
   }
 }
 dup_pairs
 
 # remove duplicate with non-surface depth
-mu_mci$depth_corr[as.numeric(dup_pairs[3, ])]
-mu_mci$X.5[as.numeric(dup_pairs[3, ])]
-mu_mci <- mu_mci[-which(mu_mci$X.5 == 5422), ]
+mu_mci$depth_corr[which(mu_mci$X.5 == as.numeric(dup_pairs[3, ]))]
+dup_pairs[3, ]
+mu_mci <- mu_mci[-which(mu_mci$X.5 == dup_pairs[3, 2]), ]
+dup_pairs <- dup_pairs[-3, ]
 
-# average remaining duplicates (with same depth)
+# average chl (either in situ or S2) for remaining duplicates (with same depth)
+mu_mci$depth_avg_comment <- NA # for recording averaging
 for (p in 1:nrow(dup_pairs)) {
-  if (mu_mci$chla_s2[dup_pairs[p, 1]] == mu_mci$chla_s2[dup_pairs[p, 2]]) {
-    mean_chla_corr <- mean(mu_mci$chla_corr[dup_pairs[p, 1]], mu_mci$chla_corr[dup_pairs[p, 2]])
-    # !!! assign mean to first row, delete second
+  chla_s2_1 <- mu_mci$chla_s2[which(mu_mci$X.5 == dup_pairs[p, 1])]
+  chla_s2_2 <- mu_mci$chla_s2[which(mu_mci$X.5 == dup_pairs[p, 2])]
+  chla_insitu_1 <- mu_mci$chla_corr[which(mu_mci$X.5 == dup_pairs[p, 1])]
+  chla_insitu_2 <- mu_mci$chla_corr[which(mu_mci$X.5 == dup_pairs[p, 2])]
+  
+  # for cases of equal S2 chl, average in situ values, assign to first record, and delete second record
+  if (chla_s2_1 == chla_s2_2) {
+    mean_chla_corr <- mean(c(chla_insitu_1, chla_insitu_2))
+    mu_mci$depth_avg_comment[which(mu_mci$X.5 == dup_pairs[p, 1])] <- 
+      sprintf("avged in situ chl; original values: %s from this record, and %s from from X.5 = %s", chla_insitu_1, chla_insitu_2, dup_pairs[p, 2])
+    mu_mci$chla_corr[which(mu_mci$X.5 == dup_pairs[p, 1])] <- mean_chla_corr
+    mu_mci <- mu_mci[-which(mu_mci$X.5 == dup_pairs[p, 2]), ]
+    print(sprintf("averaging in situ values for X.5 = %s and %s", dup_pairs[p, 1], dup_pairs[p, 2]))
   }
-  if (mu_mci$chla_corr[dup_pairs[p, 1]] == mu_mci$chla_corr[dup_pairs[p, 2]]) {
-    mean_chla_s2 <- mean(mu_mci$chla_s2[dup_pairs[p, 1]], mu_mci$chla_s2[dup_pairs[p, 2]])
-    # !!! assign mean to first row, delete second
+  
+  # for cases of equal in situ chl, average s2 values, assign to first record, and delete second record
+  if (chla_insitu_1 == chla_insitu_2) {
+    mean_chla_corr <- mean(c(chla_s2_1, chla_s2_2))
+    mu_mci$depth_avg_comment[which(mu_mci$X.5 == dup_pairs[p, 1])] <- 
+      sprintf("avged S2 chl; original values: %s from this record, and %s from from X.5 = %s", chla_s2_1, chla_s2_2, dup_pairs[p, 2])
+    mu_mci$chla_s2[which(mu_mci$X.5 == dup_pairs[p, 1])] <- mean_chla_corr
+    mu_mci <- mu_mci[-which(mu_mci$X.5 == dup_pairs[p, 2]), ]
+    print(sprintf("averaging in situ values for X.5 = %s and %s", dup_pairs[p, 1], dup_pairs[p, 2]))
   }
 }
-
-
-'
-same_insitu <- data.frame(mu_mci[as.numeric(dup_pairs[p,]), which(colnames(mu_mci) %in% c(
-    "LatitudeMeasure", "", "", ""
-    ))])
-
-mu_mci <- mu_mci[-which(is.na(mu_mci$depth_corr) &
-                          is.na(mu_mci$topdepth_corr) & 
-                          is.na(mu_mci$botdepth_corr) & 
-                          is.na(mu_mci$ActivityRelativeDepthName)), ]
-
-print(mu_mci$depth_corr[dup_pairs[p, 1]] == mu_mci$depth_corr[dup_pairs[p, 2]] & 
-        mu_mci$topdepth_corr[dup_pairs[p, 1]] == mu_mci$topdepth_corr[dup_pairs[p, 2]] & 
-        mu_mci$botdepth_corr[dup_pairs[p, 1]] == mu_mci$botdepth_corr[dup_pairs[p, 2]] & 
-        mu_mci$ActivityRelativeDepthName[dup_pairs[p, 1]] == mu_mci$ActivityRelativeDepthName)
-(mu_mci$chla_s2[dup_pairs[p, 1]] == mu_mci$chla_s2[dup_pairs[p, 2]])
-(mu_mci$chla_corr[dup_pairs[p, 1]] == mu_mci$chla_corr[dup_pairs[p, 2]])
-'
 
 
 ### validation plot  -----------------------------------------------------------------------------------
