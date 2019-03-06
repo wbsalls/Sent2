@@ -112,28 +112,12 @@ mu_mci <- mu_mci[which(mu_mci$ResultAnalyticalMethod.MethodIdentifierContext == 
 summary(mu_mci$chla_corr)
 mu_mci <- mu_mci[mu_mci$chla_corr <= 1000, ]
 
-## sediment
-# merge raw band values table
-raw_bands <- read.csv("mu_rawbands_3day.csv", stringsAsFactors = FALSE)
-mu_mci <- merge(mu_mci, raw_bands, by = "X.5", all.x = TRUE)
-
-# calculate slope
-mu_mci$mci_baseline_b6_b4 <- mu_mci$b6_1 - mu_mci$b4_1
-mu_mci$sediment <- mu_mci$mci_baseline_b6_b4 / abs(mu_mci$mci_baseline_b6_b4)
-
 ## remove bad points identified in imagery
 length(mu_mci_raw$X.5) == length(unique(mu_mci_raw$X.5)) # unique
 
 mu_mci <- mu_mci[-which(mu_mci$X.5 %in% c(4888, 4889, 4890)), ]
 
-mu_mci_filtered <- mu_mci # for resetting data
-
-
-# subsets --------------------------------------------------------------------------------------------------------
-
-# subset by offset time  -----------------------------------
-mu_mci <- mu_mci_filtered # reset
-
+# offset time  -----------------------------------
 offset_min <- 0
 offset_max <- 0
 offset_threshold <- offset_min:offset_max
@@ -148,12 +132,12 @@ table(mu_mci$month)
 mu_mci <- mu_mci[mu_mci$month %in% 5:7, ]
 
 # for reset
-mu_mci_subset <- mu_mci
+mu_mci_filtered <- mu_mci
 
 
 ## calc chl a from MCI  ---------------------------------------------------------------------------------------------------
 
-mu_mci <- mu_mci_subset
+mu_mci <- mu_mci_filtered
 
 # choose 1) binding OR 2) cal-val
 
@@ -232,7 +216,7 @@ for (p in 1:nrow(dup_pairs)) {
   chla_insitu_1 <- mu_mci$chla_corr[which(mu_mci$X.5 == dup_pairs[p, 1])]
   chla_insitu_2 <- mu_mci$chla_corr[which(mu_mci$X.5 == dup_pairs[p, 2])]
   
-  # for cases of equal S2 chl, average in situ values, assign to first record, and delete second record
+  # for cases of equal S2 chl: average in situ values, assign to first record, and delete second record
   if (chla_s2_1 == chla_s2_2) {
     mean_chla_corr <- mean(c(chla_insitu_1, chla_insitu_2))
     mu_mci$depth_avg_comment[which(mu_mci$X.5 == dup_pairs[p, 1])] <- 
@@ -242,7 +226,7 @@ for (p in 1:nrow(dup_pairs)) {
     print(sprintf("averaging in situ values for X.5 = %s and %s", dup_pairs[p, 1], dup_pairs[p, 2]))
   }
   
-  # for cases of equal in situ chl, average s2 values, assign to first record, and delete second record
+  # for cases of equal in situ chl: average s2 values, assign to first record, and delete second record
   if (chla_insitu_1 == chla_insitu_2) {
     mean_chla_corr <- mean(c(chla_s2_1, chla_s2_2))
     mu_mci$depth_avg_comment[which(mu_mci$X.5 == dup_pairs[p, 1])] <- 
@@ -253,6 +237,24 @@ for (p in 1:nrow(dup_pairs)) {
   }
 }
 
+## sediment
+# merge raw band values table
+raw_bands <- read.csv("mu_rawbands_3day.csv", stringsAsFactors = FALSE)
+mu_mci <- merge(mu_mci, raw_bands, by = "X.5", all.x = TRUE)
+
+# calculate slope
+mu_mci$mci_baseline_b6_b4 <- mu_mci$b6_1 - mu_mci$b4_1
+mu_mci$mci_baseline_slope <- mu_mci$mci_baseline_b6_b4 / (740 - 655)
+
+# assign cutoff and apply
+sed_cutoff <- -0.15
+mu_mci$sediment <- paste0("<= ", sed_cutoff)
+mu_mci$sediment[mu_mci$mci_baseline_slope > sed_cutoff] <- paste0("> ", sed_cutoff)
+mu_mci$sedimentf <- factor(mu_mci$sediment, levels(factor(mu_mci$sediment))[c(2, 1)])
+levels(mu_mci$sedimentf)
+table(mu_mci$sedimentf)
+
+mu_mci <- mu_mci[mu_mci$mci_baseline_slope > sed_cutoff, ]
 
 ### validation plot  -----------------------------------------------------------------------------------
 
@@ -280,8 +282,10 @@ plot_error_metrics(x = mu_mci$chla_corr, y = mu_mci$chla_s2, # export 800 x 860
                    show_metrics = TRUE, 
                    #xaxt="n",
                    #yaxt="n",
-                   col = alpha("red", 0.4), 
-                   pch = 20) # col = alpha("black", 0.3), pch = 20
+                   col = alpha("black", 0.4), 
+                   #col = mu_mci$sedimentf,
+                   pch = 20)
+#legend("bottomright", legend = unique(mu_mci$sedimentf), col = c("black", "red"), border = NULL)
 #dev.off()
 cat(sprintf("S2 regression slope = %s; intercept = %s (Binding = 0.0004; -0.0021)\n%s images", 
         signif(slope.mci, digits = 2), signif(intercept.mci, digits = 2),
@@ -458,8 +462,10 @@ mu_mci_sort[1:20, c(185, 191:194)] # this no longer works right - what's it supp
 ## sediment -------------------------------
 table(mu_mci$sediment)
 boxplot(residual_chla ~ sediment, data = mu_mci,
-        xlab = "offset hour of day",
+        xlab = "baseline slope (low indicates sediment)",
         ylab = "chl a residual")
+text(1, 80, sprintf("n = %s", table(mu_mci$sediment)[1]))
+text(2, 80, sprintf("n = %s", table(mu_mci$sediment)[2]))
 
 ## month ----------------------------------
 # boxplot
