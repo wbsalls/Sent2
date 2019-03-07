@@ -247,11 +247,10 @@ mu_mci$mci_baseline_b6_b4 <- mu_mci$b6_1 - mu_mci$b4_1
 mu_mci$mci_baseline_slope <- mu_mci$mci_baseline_b6_b4 / (740 - 655)
 
 # assign cutoff and apply
-sed_cutoff <- -0.15
+sed_cutoff <- -0.15 # Binding recommendation: -0.15
 mu_mci$sediment <- paste0("<= ", sed_cutoff)
 mu_mci$sediment[mu_mci$mci_baseline_slope > sed_cutoff] <- paste0("> ", sed_cutoff)
 mu_mci$sedimentf <- factor(mu_mci$sediment, levels(factor(mu_mci$sediment))[c(2, 1)])
-levels(mu_mci$sedimentf)
 table(mu_mci$sedimentf)
 
 mu_mci <- mu_mci[mu_mci$mci_baseline_slope > sed_cutoff, ]
