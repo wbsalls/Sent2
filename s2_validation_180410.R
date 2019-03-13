@@ -117,6 +117,12 @@ length(mu_mci_raw$X.5) == length(unique(mu_mci_raw$X.5)) # unique
 
 mu_mci <- mu_mci[-which(mu_mci$X.5 %in% c(4888, 4889, 4890)), ]
 
+# for reset
+mu_mci_filtered <- mu_mci
+
+# RESET ----------------------------------------------------------------------------------------
+mu_mci <- mu_mci_filtered
+
 # offset time  -----------------------------------
 offset_min <- 0
 offset_max <- 0
@@ -129,7 +135,7 @@ mu_mci <- mu_mci[mu_mci$offset_days %in% offset_threshold, ]
 # season  -------------------------------------------------
 mu_mci$month <- as.numeric(substr(mu_mci$samp_localTime, 2, 3))
 table(mu_mci$month)
-mu_mci <- mu_mci[mu_mci$month %in% 5:7, ]
+mu_mci <- mu_mci[mu_mci$month %in% 6:8, ]
 
 # for reset
 mu_mci_filtered <- mu_mci
@@ -179,7 +185,7 @@ mu_mci_42 <- mu_mci
 
 # --------------------------------
 ## integrate depth duplicates (only done on set with n = 42 (same-day, filtered))
-
+'
 mu_mci <- mu_mci_42
 
 # get space-time duplicates
@@ -236,7 +242,7 @@ for (p in 1:nrow(dup_pairs)) {
     print(sprintf("averaging in situ values for X.5 = %s and %s", dup_pairs[p, 1], dup_pairs[p, 2]))
   }
 }
-
+'
 ## sediment
 # merge raw band values table
 raw_bands <- read.csv("mu_rawbands_3day.csv", stringsAsFactors = FALSE)
@@ -253,7 +259,7 @@ mu_mci$sediment[mu_mci$mci_baseline_slope > sed_cutoff] <- paste0("> ", sed_cuto
 mu_mci$sedimentf <- factor(mu_mci$sediment, levels(factor(mu_mci$sediment))[c(2, 1)])
 table(mu_mci$sedimentf)
 
-mu_mci <- mu_mci[mu_mci$mci_baseline_slope > sed_cutoff, ]
+#mu_mci <- mu_mci[mu_mci$mci_baseline_slope > sed_cutoff, ]
 
 ### validation plot  -----------------------------------------------------------------------------------
 
@@ -265,15 +271,16 @@ if (offset_min == offset_max) {
 }
 plot_error_metrics(x = mu_mci$chla_corr, y = mu_mci$chla_s2, # export 800 x 860
                    xname = "in situ chlorophyll-a (ug/l)", 
-                   yname = "S2-derived chlorophyll-a (from MCI L1C)", 
+                   yname = "S2-derived chlorophyll-a (ug/l, from MCI using L1C reflectance)", 
                    title = plot_title, 
                    #title = paste0(method_sub, ", ", plot_title), # if subsetting by method
                    equal_axes = TRUE, 
                    log_axes = "xy", 
-                   log_space = FALSE,
+                   log_space = TRUE,
                    plot_abline = FALSE,
+                   mape = FALSE,
                    rand_error = FALSE,
-                   regr_stats = TRUE,
+                   regr_stats = FALSE,
                    states = mu_mci$state,
                    lakes = mu_mci$comid,
                    xlim = c(0.05, max(mu_mci$chla_corr, mu_mci$chla_s2)),

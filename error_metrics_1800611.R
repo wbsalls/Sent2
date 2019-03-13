@@ -32,23 +32,10 @@ calc_mae <- function(observed, modeled, log_space = TRUE) {
   return(mmae)
 }
 
-calc_mape <- function(observed, modeled, log_space = TRUE) {
-
-  if (log_space == TRUE) {
-    # remove cases of observed = 1 since log10(1) = 0
-    if (sum(observed == 1) != 0) {
-      print(sprintf("Removing %s values equal to 1 for MAPE calculation", sum(observed == 1)))
-      modeled <- modeled[-which(observed == 1)]
-      observed <- observed[-which(observed == 1)]
-    }
-    mmape <- 10 ^ (sum(
-      abs(log10(modeled) - log10(observed)) / abs(log10(observed))
-    ) / length(observed))
-  } else {
+calc_mape <- function(observed, modeled) {
     mmape <- (sum(
       abs((modeled) - (observed)) / abs((observed))
     ) / length(observed))
-  }
   return(mmape * 100)
 }
 
@@ -85,7 +72,7 @@ calc_error_metrics <- function(x, y, log_space = TRUE, rtype = 2) {
                           int = m1.int,
                           r.sq = m1$rsquare,
                           MAE = calc_mae(x2, y2, log_space = log_space), 
-                          MAPE = calc_mape(x2, y2, log_space = log_space), 
+                          MAPE = calc_mape(x2, y2), 
                           bias = calc_bias(x2, y2, log_space = log_space), 
                           rand.err = calc_mae(x2, y2, log_space = log_space) - abs(calc_bias(x2, y2, log_space = log_space)), 
                           n = length(x2))
@@ -103,6 +90,7 @@ plot_error_metrics <- function(x, y,
                                equal_axes = FALSE, 
                                log_axes = "",
                                plot_abline = TRUE,
+                               mape = TRUE,
                                rand_error = TRUE,
                                regr_stats = TRUE,
                                states = NA, 
@@ -215,8 +203,8 @@ plot_error_metrics <- function(x, y,
   text(x = text_x, y = text_y, adj = c(0, 1), 
        paste0(#"y = ", signif(err_metr$slope, digits = 3), "x + ", signif(err_metr$int, digits = 3), "\n",
               "MAE = ", signif(err_metr$MAE, digits = 3), "\n", 
-              "MAPE = ", signif(err_metr$MAPE, digits = 3), "\n", 
               "bias = ", signif(err_metr$bias, digits = 3), "\n", 
+              if (mape == TRUE) {paste0("MAPE = ", signif(err_metr$MAPE, digits = 3), "\n")}, 
               if (rand_error == TRUE) {paste0("random error = ", signif(err_metr$rand.err, digits = 3), "\n")}, 
               if (regr_stats == TRUE) {paste0("slope = ", round(err_metr$slope, 2), "\n",
                                               "intercept = ", round(err_metr$int, 2), "\n",
