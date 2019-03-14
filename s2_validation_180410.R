@@ -465,6 +465,48 @@ mu_mci_sort <- mu_mci[order(-mu_mci$pct_error_chla), ]
 mu_mci_sort[1:20, c(185, 191:194)] # this no longer works right - what's it supposed to be??
 
 
+## solar angle
+plot(mu_mci$MEAN_SOLAR_ZENITH_ANGLE, mu_mci$residual_chla)
+
+# boxplot
+box_min <- 20
+box_max <- 47
+box_step <- 3
+mu_mci$solar_angle_interval <- cut(mu_mci$MEAN_SOLAR_ZENITH_ANGLE, seq(box_min, box_max, box_step))
+
+par(mfrow = c(2,1))
+barplot(table(mu_mci$solar_angle_interval), xlab = NULL, ylab = "frequency", xaxt = 'n') # ylab = NULL, yaxt = 'n'
+boxplot(residual_chla ~ solar_angle_interval, data = mu_mci,
+        las = 3,
+        xaxt = 'n',
+        xlab = "Solar Zenith Angle",
+        ylab = "chl a error (ug/l)")
+axis(side = 1, las = 3,
+     at = seq(from = 0.5, to = length(seq(box_min, box_max, box_step)) - 0.5, by = 1), 
+     seq(box_min, box_max, box_step))
+
+
+## sensor angle
+plot(mu_mci$MEAN_INCIDENCE_ZENITH_ANGLE_B4, mu_mci$residual_chla)
+
+box_min <- 20
+box_max <- 45
+box_step <- 5
+mu_mci$sensor_angle_interval <- cut(mu_mci$MEAN_INCIDENCE_ZENITH_ANGLE_B4, seq(box_min, box_max, box_step))
+
+par(mfrow = c(2,1))
+barplot(table(mu_mci$sensor_angle_interval), xlab = NULL, ylab = "frequency", xaxt = 'n') # ylab = NULL, yaxt = 'n'
+boxplot(residual_chla ~ sensor_angle_interval, data = mu_mci,
+        las = 3,
+        xaxt = 'n',
+        xlab = "Sensor Zenith Angle",
+        ylab = "chl a error (ug/l)")
+axis(side = 1, las = 3,
+     at = seq(from = 0.5, to = length(seq(box_min, box_max, box_step)) - 0.5, by = 1), 
+     seq(box_min, box_max, box_step))
+
+
+
 ## sediment -------------------------------
 table(mu_mci$sediment)
 boxplot(residual_chla ~ sediment, data = mu_mci,
