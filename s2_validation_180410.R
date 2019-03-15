@@ -135,7 +135,7 @@ mu_mci <- mu_mci[mu_mci$offset_days %in% offset_threshold, ]
 # season  -------------------------------------------------
 mu_mci$month <- as.numeric(substr(mu_mci$samp_localTime, 2, 3))
 table(mu_mci$month)
-mu_mci <- mu_mci[mu_mci$month %in% 6:8, ]
+#mu_mci <- mu_mci[mu_mci$month %in% 6:8, ]
 
 # for reset
 mu_mci_filtered <- mu_mci
@@ -456,7 +456,7 @@ par()$mfrow
 par(mfrow = c(2,1))
 par(mfrow = c(1,1))
 
-## residual vs. in situ value *************   interesting!   *******
+## residual vs. in situ value - what's happening with points above 1:1 line?
 plot(mu_mci$chla_corr, mu_mci$residual_chla, xlab = "in situ chlorophyll-a (ug/l)", ylab = "chl a error (ug/L)")
 
 ## check high error
@@ -466,9 +466,10 @@ mu_mci_sort[1:20, c(185, 191:194)] # this no longer works right - what's it supp
 
 
 ## solar angle
+
+# error ~ angle
 plot(mu_mci$MEAN_SOLAR_ZENITH_ANGLE, mu_mci$residual_chla)
 
-# boxplot
 box_min <- 20
 box_max <- 47
 box_step <- 3
@@ -484,14 +485,35 @@ boxplot(residual_chla ~ solar_angle_interval, data = mu_mci,
 axis(side = 1, las = 3,
      at = seq(from = 0.5, to = length(seq(box_min, box_max, box_step)) - 0.5, by = 1), 
      seq(box_min, box_max, box_step))
+par(mfrow = c(1,1))
 
+# angle ~ month
+plot(mu_mci$month, mu_mci$MEAN_SOLAR_ZENITH_ANGLE)
+table(mu_mci$month)
+
+box_min <- min(mu_mci$month)
+box_max <- max(mu_mci$month)
+box_step <- 1
+
+par(mfrow = c(2,1))
+barplot(table(mu_mci$month), xlab = NULL, ylab = "frequency", xaxt = 'n') # ylab = NULL, yaxt = 'n'
+boxplot(MEAN_SOLAR_ZENITH_ANGLE ~ month, data = mu_mci,
+        las = 3,
+        xaxt = 'n',
+        xlab = "Month",
+        ylab = "Solar Zenith Angle")
+axis(side = 1, las = 3,
+     at = seq(from = 1, to = length(seq(box_min, box_max, box_step)), by = 1), 
+     seq(box_min, box_max, box_step))
+par(mfrow = c(1,1))
 
 ## sensor angle
 plot(mu_mci$MEAN_INCIDENCE_ZENITH_ANGLE_B4, mu_mci$residual_chla)
 
-box_min <- 20
-box_max <- 45
-box_step <- 5
+summary(mu_mci$MEAN_INCIDENCE_ZENITH_ANGLE_B4)
+box_min <- 2
+box_max <- 11
+box_step <- 1
 mu_mci$sensor_angle_interval <- cut(mu_mci$MEAN_INCIDENCE_ZENITH_ANGLE_B4, seq(box_min, box_max, box_step))
 
 par(mfrow = c(2,1))
@@ -504,7 +526,7 @@ boxplot(residual_chla ~ sensor_angle_interval, data = mu_mci,
 axis(side = 1, las = 3,
      at = seq(from = 0.5, to = length(seq(box_min, box_max, box_step)) - 0.5, by = 1), 
      seq(box_min, box_max, box_step))
-
+par(mfrow = c(1,1))
 
 
 ## sediment -------------------------------
