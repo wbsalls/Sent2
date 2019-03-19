@@ -112,6 +112,24 @@ mu_mci <- mu_mci[which(mu_mci$ResultAnalyticalMethod.MethodIdentifierContext == 
 summary(mu_mci$chla_corr)
 mu_mci <- mu_mci[mu_mci$chla_corr <= 1000, ]
 
+## sediment
+# merge raw band values table
+raw_bands <- read.csv("mu_rawbands_3day.csv", stringsAsFactors = FALSE)
+mu_mci <- merge(mu_mci, raw_bands, by = "X.5", all.x = TRUE)
+
+# calculate slope
+mu_mci$mci_baseline_b6_b4 <- mu_mci$b6_1 - mu_mci$b4_1
+mu_mci$mci_baseline_slope <- mu_mci$mci_baseline_b6_b4 / (740 - 655)
+
+# assign cutoff and apply
+sed_cutoff <- -0.15 # Binding recommendation: -0.15
+mu_mci$sediment <- paste0("<= ", sed_cutoff)
+mu_mci$sediment[mu_mci$mci_baseline_slope > sed_cutoff] <- paste0("> ", sed_cutoff)
+mu_mci$sedimentf <- factor(mu_mci$sediment, levels(factor(mu_mci$sediment))[c(2, 1)])
+table(mu_mci$sedimentf)
+
+#mu_mci <- mu_mci[mu_mci$mci_baseline_slope > sed_cutoff, ]
+
 ## remove bad points identified in imagery
 length(mu_mci_raw$X.5) == length(unique(mu_mci_raw$X.5)) # unique
 
@@ -147,12 +165,19 @@ mu_mci <- mu_mci_filtered
 
 # choose 1) binding OR 2) cal-val
 
-s2_calc <- "binding" # <<<<<<<<<<< *** binding / split ***
+s2_calc <- "mollaee" # <<<<<<<<<<< *** binding / split ***
 
 if (s2_calc == "binding") {
   # 1) binding paper -------
   slope.mci <- 0.0004 # from Binding et al. 2013 - Erie
   intercept.mci <- -0.0021 # from Binding et al. 2013 - Erie
+  
+  
+} else if (s2_calc == "mollaee") {
+  # 1b) Mollaee thesis (p 77) -------
+  slope.mci <- 0.0001790292 # 1/2158 = 0.00046
+  intercept.mci <- -0.0018 # -3.9/2158 = -0.0018
+  
   
 } else if (s2_calc == "split") {
   
@@ -243,23 +268,6 @@ for (p in 1:nrow(dup_pairs)) {
   }
 }
 '
-## sediment
-# merge raw band values table
-raw_bands <- read.csv("mu_rawbands_3day.csv", stringsAsFactors = FALSE)
-mu_mci <- merge(mu_mci, raw_bands, by = "X.5", all.x = TRUE)
-
-# calculate slope
-mu_mci$mci_baseline_b6_b4 <- mu_mci$b6_1 - mu_mci$b4_1
-mu_mci$mci_baseline_slope <- mu_mci$mci_baseline_b6_b4 / (740 - 655)
-
-# assign cutoff and apply
-sed_cutoff <- -0.15 # Binding recommendation: -0.15
-mu_mci$sediment <- paste0("<= ", sed_cutoff)
-mu_mci$sediment[mu_mci$mci_baseline_slope > sed_cutoff] <- paste0("> ", sed_cutoff)
-mu_mci$sedimentf <- factor(mu_mci$sediment, levels(factor(mu_mci$sediment))[c(2, 1)])
-table(mu_mci$sedimentf)
-
-#mu_mci <- mu_mci[mu_mci$mci_baseline_slope > sed_cutoff, ]
 
 ### validation plot  -----------------------------------------------------------------------------------
 
@@ -275,7 +283,7 @@ plot_error_metrics(x = mu_mci$chla_corr, y = mu_mci$chla_s2, # export 800 x 860
                    title = plot_title, 
                    #title = paste0(method_sub, ", ", plot_title), # if subsetting by method
                    equal_axes = TRUE, 
-                   log_axes = "xy", 
+                   log_axes = "", 
                    log_space = TRUE,
                    plot_abline = FALSE,
                    mape = FALSE,
@@ -469,10 +477,11 @@ mu_mci_sort[1:20, c(185, 191:194)] # this no longer works right - what's it supp
 
 # error ~ angle
 plot(mu_mci$MEAN_SOLAR_ZENITH_ANGLE, mu_mci$residual_chla)
+summary(mu_mci$MEAN_SOLAR_ZENITH_ANGLE)
 
-box_min <- 20
-box_max <- 47
-box_step <- 3
+box_min <- 21
+box_max <- 45
+box_step <- 4
 mu_mci$solar_angle_interval <- cut(mu_mci$MEAN_SOLAR_ZENITH_ANGLE, seq(box_min, box_max, box_step))
 
 par(mfrow = c(2,1))
