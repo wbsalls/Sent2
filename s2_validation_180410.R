@@ -303,7 +303,7 @@ plot_error_metrics(x = mu_mci$chla_corr, y = mu_mci$chla_s2, # export 800 x 860
 #dev.off()
 cat(sprintf("S2 regression slope = %s; intercept = %s (Binding = 0.0004; -0.0021)\n%s images", 
         signif(slope.mci, digits = 2), signif(intercept.mci, digits = 2),
-        length(unique(mu_mci$PRODUCT_ID))))
+        length(unique(mu_mci$GRANULE_ID))))
 
 threshold_lty <- 2
 abline(h = 2, lty = threshold_lty, col = "blue")
@@ -321,7 +321,7 @@ abline(v = 30, lty = threshold_lty, col = "red")
 #plot(mu_mci$chla_corr, mu_mci$pct_error_chla)
 
 # write image list
-write.csv(unique(mu_mci[, c("PRODUCT_ID", "GRANULE_ID")]), "O:/PRIV/NERL_ORD_CYAN/Sentinel2/Images/composited/0day_may_jul/img_list.csv")
+write.csv(unique(mu_mci[, c("PRODUCT_ID", "GRANULE_ID")]), "O:/PRIV/NERL_ORD_CYAN/Sentinel2/Images/composited/0day/img_list.csv")
 
 # subset by CV  -------------------------------------------
 mci_val_colindex <- which(colnames(mu_mci) == "MCI_L1C"):which(colnames(mu_mci) == "MCI_val_9")

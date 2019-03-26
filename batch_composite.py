@@ -3,17 +3,17 @@ import arcpy, os, glob, csv
 from arcpy import env
 
 # read csv for image names
-csv_file = "O:\\PRIV\\NERL_ORD_CYAN\\Sentinel2\\Images\\composited\\0day_may_jul\\img_list.csv"
+csv_file = "O:\\PRIV\\NERL_ORD_CYAN\\Sentinel2\\Images\\composited\\0day\\img_list.csv"
 csv_reader = csv.reader(csv_file, delimiter=',')
 
 with open(csv_file) as csvfile:
     data = list(csv.reader(csvfile))
 
 # set workspace for image output
-env.workspace = "O:\\PRIV\\NERL_ORD_CYAN\\Sentinel2\\Images\\composited\\0day_may_jul\\composited"
+env.workspace = "O:\\PRIV\\NERL_ORD_CYAN\\Sentinel2\\Images\\composited\\0day\\composited"
 
 # perform composite for each image
-for row in range(1,14):
+for row in range(1,len(data)):
     print("Processing #" + str(row) + " at " + datetime.datetime.now().strftime("%Y-%m-%d %H:%M"))
     
     # assign get granule dir and set workspace there
