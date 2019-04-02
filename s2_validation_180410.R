@@ -121,14 +121,16 @@ mu_mci <- merge(mu_mci, raw_bands, by = "X.5", all.x = TRUE)
 mu_mci$mci_baseline_b6_b4 <- mu_mci$b6_1 - mu_mci$b4_1
 mu_mci$mci_baseline_slope <- mu_mci$mci_baseline_b6_b4 / (740 - 655)
 
-# assign cutoff and apply
-sed_cutoff <- -0.15 # Binding recommendation: -0.15
+# assign cutoff
+sed_cutoff <- -2 # Binding recommendation: retain only points > -0.15
 mu_mci$sediment <- paste0("<= ", sed_cutoff)
 mu_mci$sediment[mu_mci$mci_baseline_slope > sed_cutoff] <- paste0("> ", sed_cutoff)
 mu_mci$sedimentf <- factor(mu_mci$sediment, levels(factor(mu_mci$sediment))[c(2, 1)])
 table(mu_mci$sedimentf)
 
-#mu_mci <- mu_mci[mu_mci$mci_baseline_slope > sed_cutoff, ]
+# apply cutoff
+mu_mci <- mu_mci[mu_mci$mci_baseline_slope > sed_cutoff, ]
+
 
 ## remove bad points identified in imagery
 length(mu_mci_raw$X.5) == length(unique(mu_mci_raw$X.5)) # unique
@@ -283,7 +285,7 @@ plot_error_metrics(x = mu_mci$chla_corr, y = mu_mci$chla_s2, # export 800 x 860
                    title = plot_title, 
                    #title = paste0(method_sub, ", ", plot_title), # if subsetting by method
                    equal_axes = TRUE, 
-                   log_axes = "", 
+                   log_axes = "xy", 
                    log_space = TRUE,
                    plot_abline = FALSE,
                    mape = FALSE,
@@ -304,6 +306,8 @@ plot_error_metrics(x = mu_mci$chla_corr, y = mu_mci$chla_s2, # export 800 x 860
 cat(sprintf("S2 regression slope = %s; intercept = %s (Binding = 0.0004; -0.0021)\n%s images", 
         signif(slope.mci, digits = 2), signif(intercept.mci, digits = 2),
         length(unique(mu_mci$GRANULE_ID))))
+
+####
 
 threshold_lty <- 2
 abline(h = 2, lty = threshold_lty, col = "blue")

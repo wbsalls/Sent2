@@ -71,3 +71,13 @@ for (i in 5:nrow(imgs)) {
   pointLabel(coordinates(mu_i_proj), labels = as.character(mu_i_proj$pointID), col = "red")
   dev.off()
 }
+
+
+### SCRAPS
+imgs36 <- read.csv("O:/PRIV/NERL_ORD_CYAN/Sentinel2/Images/composited/0day/img_list.csv", stringsAsFactors = F)$GRANULE_ID
+
+imgs13 <- read.csv("O:/PRIV/NERL_ORD_CYAN/Sentinel2/Images/composited/0day_may_jul/img_list.csv", stringsAsFactors = F)$GRANULE_ID
+
+imgs13[imgs13 %in% imgs36]
+
+data.frame(imgs36, imgs36 %in% imgs13)

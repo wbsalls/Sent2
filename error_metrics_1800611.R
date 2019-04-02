@@ -213,6 +213,9 @@ plot_error_metrics <- function(x, y,
               add.text))
   
   if (show_metrics == TRUE){
-    print(err_metr)
+    err_metr_print <- rbind(calc_error_metrics(df$x, df$y, rtype = rtype_plot, log_space = FALSE), 
+                            calc_error_metrics(df$x, df$y, rtype = rtype_plot, log_space = TRUE))
+    rownames(err_metr_print) <- c("linear", "multiplicative")
+    print(err_metr_print)
   }
 }
