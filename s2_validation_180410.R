@@ -135,7 +135,7 @@ mu_mci <- mu_mci[mu_mci$mci_baseline_slope > sed_cutoff, ]
 ## remove bad points identified in imagery
 length(mu_mci_raw$X.5) == length(unique(mu_mci_raw$X.5)) # unique
 
-mu_mci <- mu_mci[-which(mu_mci$X.5 %in% c(4888, 4889, 4890)), ]
+mu_mci <- mu_mci[-which(mu_mci$X.5 %in% c(4888, 4889, 4890, 3275, 3656, 3673, 3674, 3678, 3689, 6976, 7680, 10334, 10335, 11768)), ]
 
 # for reset
 mu_mci_filtered <- mu_mci
