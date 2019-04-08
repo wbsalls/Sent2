@@ -136,7 +136,9 @@ mu_mci <- mu_mci[mu_mci$mci_baseline_slope > sed_cutoff, ]
 length(mu_mci_raw$X.5) == length(unique(mu_mci_raw$X.5)) # checking if unique: yes
 
 rm_imgry <- c(3275, 3656, 3673, 3674, 3678, 3689, 4888, 4889, 4890, 6976, 7680, 10334, 10335, 11768)
-#mu_mci <- mu_mci[-which(mu_mci$X.5 %in% rm_imgry), ]
+
+# perform removal
+mu_mci <- mu_mci[-which(mu_mci$X.5 %in% rm_imgry), ]
 
 # for reset
 mu_mci_filtered <- mu_mci
@@ -209,17 +211,38 @@ mu_mci <- mu_mci[mu_mci$chla_s2 >= 0, ]
 mu_mci$residual_chla <- abs(mu_mci$chla_s2 - mu_mci$chla_corr) # residual
 mu_mci$pct_error_chla <- (abs(mu_mci$chla_s2 - mu_mci$chla_corr) / mu_mci$chla_corr) * 100 # % error
 
-mu_mci_42 <- mu_mci
+mu_mci_pre_integrate <- mu_mci
 
-# --------------------------------
-## integrate depth duplicates (only done on set with n = 42 (same-day, filtered))
+# ----------------------------------------------------------------
+## integrate depth duplicates (only done on set with n = 111 (same-day, filtered, bad pts removed))
 
-mu_mci <- mu_mci_42
+mu_mci <- mu_mci_pre_integrate
+
+#
+for (r in 1:nrow(mu_mci)) {
+  concurrent <- mu_mci[which(mu_mci$LatitudeMeasure == mu_mci$LatitudeMeasure[r] & 
+                               mu_mci$LongitudeMeasure == mu_mci$LongitudeMeasure[r] & 
+                               mu_mci$samp_localDate == mu_mci$samp_localDate[r]), ]
+  # skip if only one row
+  if (nrow(concurrent == 1)) {
+    next
+  }
+  
+  # diff imgs, same point
+  if (length(unique(concurrent$GRANULE_ID)) > 1) {
+    
+    if (length(unique(concurrent$GRANULE_ID)))
+  }
+}
+
+
+
 
 # get space-time duplicates
 dup_fields <- data.frame(mu_mci$LatitudeMeasure, mu_mci$LongitudeMeasure, mu_mci$samp_localDate)
 dups <- which(duplicated(dup_fields))
 length(dups)
+sum(duplicated(mu_mci[dups, ])) # check if any cases have more than one duplicate
 
 # make dataframe of X.5 indices of duplicate pairs
 dup_pairs <- data.frame()
@@ -236,12 +259,6 @@ for (d in (dups)) {
 }
 dup_pairs
 
-# remove duplicate with non-surface depth
-mu_mci$depth_corr[which(mu_mci$X.5 == as.numeric(dup_pairs[3, ]))]
-dup_pairs[3, ]
-mu_mci <- mu_mci[-which(mu_mci$X.5 == dup_pairs[3, 2]), ]
-dup_pairs <- dup_pairs[-3, ]
-
 # average chl (either in situ or S2) for remaining duplicates (with same depth)
 mu_mci$depth_avg_comment <- NA # for recording averaging
 for (p in 1:nrow(dup_pairs)) {
@@ -249,6 +266,8 @@ for (p in 1:nrow(dup_pairs)) {
   chla_s2_2 <- mu_mci$chla_s2[which(mu_mci$X.5 == dup_pairs[p, 2])]
   chla_insitu_1 <- mu_mci$chla_corr[which(mu_mci$X.5 == dup_pairs[p, 1])]
   chla_insitu_2 <- mu_mci$chla_corr[which(mu_mci$X.5 == dup_pairs[p, 2])]
+  img_1 <- mu_mci$GRANULE_ID[which(mu_mci$X.5 == dup_pairs[p, 1])]
+  img_2 <- mu_mci$GRANULE_ID[which(mu_mci$X.5 == dup_pairs[p, 2])]
   
   # for cases of equal S2 chl: average in situ values, assign to first record, and delete second record
   if (chla_s2_1 == chla_s2_2) {
@@ -270,7 +289,16 @@ for (p in 1:nrow(dup_pairs)) {
     print(sprintf("averaging in situ values for X.5 = %s and %s", dup_pairs[p, 1], dup_pairs[p, 2]))
   }
 }
-'
+
+# remove duplicate with non-surface depth
+mu_mci$depth_corr[which(mu_mci$X.5 == as.numeric(dup_pairs[3, ]))]
+dup_pairs[3, ]
+mu_mci <- mu_mci[-which(mu_mci$X.5 == dup_pairs[3, 2]), ]
+dup_pairs <- dup_pairs[-3, ]
+
+
+## *** may need to recalculate error, and anything else that would be changed by combining rows ***
+
 
 ### validation plot  -----------------------------------------------------------------------------------
 
