@@ -31,7 +31,7 @@ mu_mci$samp_localTime <- chron(dates. = substr(mu_mci$samp_localTime, 2, 9),
                                times. = substr(mu_mci$samp_localTime, 11, 18))
 mu_mci$img_localTime <- chron(dates. = substr(mu_mci$img_localTime, 2, 9), 
                               times. = substr(mu_mci$img_localTime, 11, 18))
-mu_mci$samp_localDate <- substr(mu_mci$samp_localTime, 2,9)
+mu_mci$samp_localDate <- substr(mu_mci$samp_localTime, 2, 9)
 
 mu_mci$offset_hrs <- as.numeric(mu_mci$samp_localTime - mu_mci$img_localTime) * 24
 
@@ -133,9 +133,10 @@ mu_mci <- mu_mci[mu_mci$mci_baseline_slope > sed_cutoff, ]
 
 
 ## remove bad points identified in imagery
-length(mu_mci_raw$X.5) == length(unique(mu_mci_raw$X.5)) # unique
+length(mu_mci_raw$X.5) == length(unique(mu_mci_raw$X.5)) # checking if unique: yes
 
-mu_mci <- mu_mci[-which(mu_mci$X.5 %in% c(4888, 4889, 4890, 3275, 3656, 3673, 3674, 3678, 3689, 6976, 7680, 10334, 10335, 11768)), ]
+rm_imgry <- c(3275, 3656, 3673, 3674, 3678, 3689, 4888, 4889, 4890, 6976, 7680, 10334, 10335, 11768)
+#mu_mci <- mu_mci[-which(mu_mci$X.5 %in% rm_imgry), ]
 
 # for reset
 mu_mci_filtered <- mu_mci

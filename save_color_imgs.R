@@ -25,7 +25,7 @@ lat <- mu_mci$LatitudeMeasure # **
 mu_pts <- SpatialPointsDataFrame(coords = matrix(c(lon, lat), ncol = 2), 
                                  mu_mci, proj4string = CRS("+init=epsg:4326"))
 writeOGR(mu_pts[, -which(colnames(mu_pts@data) %in% c("samp_localTime", "img_localTime"))], 
-         "./geospatial", "mu_pts", driver = "ESRI Shapefile")
+         "./geospatial", "mu_pts_125", driver = "ESRI Shapefile")
 
 
 # write list of points
