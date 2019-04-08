@@ -167,7 +167,7 @@ mu_mci <- mu_mci_filtered
 
 # choose 1) binding OR 2) cal-val
 
-s2_calc <- "mollaee" # <<<<<<<<<<< *** binding / split ***
+s2_calc <- "binding" # <<<<<<<<<<< *** binding / split ***
 
 if (s2_calc == "binding") {
   # 1) binding paper -------
@@ -212,7 +212,7 @@ mu_mci_42 <- mu_mci
 
 # --------------------------------
 ## integrate depth duplicates (only done on set with n = 42 (same-day, filtered))
-'
+
 mu_mci <- mu_mci_42
 
 # get space-time duplicates
