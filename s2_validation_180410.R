@@ -126,7 +126,9 @@ sed_cutoff <- -2 # Binding recommendation: retain only points > -0.15
 mu_mci$sediment <- paste0("<= ", sed_cutoff)
 mu_mci$sediment[mu_mci$mci_baseline_slope > sed_cutoff] <- paste0("> ", sed_cutoff)
 mu_mci$sedimentf <- factor(mu_mci$sediment, levels(factor(mu_mci$sediment))[c(2, 1)])
+
 table(mu_mci$sedimentf)
+plot(mu_mci$mci_baseline_slope, rep(1, nrow(mu_mci)))
 
 # apply cutoff
 mu_mci <- mu_mci[mu_mci$mci_baseline_slope > sed_cutoff, ]
@@ -137,7 +139,7 @@ length(mu_mci_raw$X.5) == length(unique(mu_mci_raw$X.5)) # checking if unique: y
 
 rm_imgry <- c(3275, 3656, 3673, 3674, 3678, 3689, 4888, 4889, 4890, 6976, 7680, 10334, 10335, 11768)
 
-# perform removal
+# apply removal
 mu_mci <- mu_mci[-which(mu_mci$X.5 %in% rm_imgry), ]
 
 # for reset
@@ -152,10 +154,10 @@ offset_max <- 0
 offset_threshold <- offset_min:offset_max
 mu_mci <- mu_mci[mu_mci$offset_days %in% offset_threshold, ]
 
-# clouds  -------------------------------------------------
+## clouds
 #mu_mci <- mu_mci[mu_mci$CLOUDY_PIXEL_PERCENTAGE == 0, ]
 
-# season  -------------------------------------------------
+## season
 mu_mci$month <- as.numeric(substr(mu_mci$samp_localTime, 2, 3))
 table(mu_mci$month)
 #mu_mci <- mu_mci[mu_mci$month %in% 6:8, ]
@@ -207,37 +209,121 @@ sum(mu_mci$chla_s2 < 0)
 mu_mci <- mu_mci[mu_mci$chla_s2 >= 0, ]
 #mu_mci[mu_mci$chla_s2 < 0, ] <- 0 # set negatives to 0
 
-# calculate error
-mu_mci$residual_chla <- abs(mu_mci$chla_s2 - mu_mci$chla_corr) # residual
-mu_mci$pct_error_chla <- (abs(mu_mci$chla_s2 - mu_mci$chla_corr) / mu_mci$chla_corr) * 100 # % error
 
-mu_mci_pre_integrate <- mu_mci
+# for reset
+mu_mci_s2chla <- mu_mci
 
 # ----------------------------------------------------------------
-## integrate depth duplicates (only done on set with n = 111 (same-day, filtered, bad pts removed))
 
-mu_mci <- mu_mci_pre_integrate
+
+## integrate depth duplicates (only done on set with n = 111 (same-day, filtered, bad pts removed))
+# creates a new table with integrated records, and comments where integration occurred
+# retains the old table with comments
+
+# reset
+mu_mci <- mu_mci_s2chla
+
+mu_mci$integration_comment <- ""
+
+mu_mci_integrated <- data.frame()
+duplicate_checks <- data.frame()
 
 #
 for (r in 1:nrow(mu_mci)) {
-  concurrent <- mu_mci[which(mu_mci$LatitudeMeasure == mu_mci$LatitudeMeasure[r] & 
-                               mu_mci$LongitudeMeasure == mu_mci$LongitudeMeasure[r] & 
-                               mu_mci$samp_localDate == mu_mci$samp_localDate[r]), ]
-  # skip if only one row
-  if (nrow(concurrent == 1)) {
+  
+  # skip if it's a duplicate that has already been handled
+  if (mu_mci$integration_comment[r] == "REMOVED") {
     next
   }
   
-  # diff imgs, same point
-  if (length(unique(concurrent$GRANULE_ID)) > 1) {
+  # get index of all observations with same location and date
+  concurrent_index <- which(mu_mci$LatitudeMeasure == mu_mci$LatitudeMeasure[r] & 
+                              mu_mci$LongitudeMeasure == mu_mci$LongitudeMeasure[r] & 
+                              mu_mci$samp_localDate == mu_mci$samp_localDate[r])
+  concurrent <- mu_mci[concurrent_index, ]
+  
+  # if only one row (not duplicates), add to output
+  if (nrow(concurrent) == 1) {
+    mu_mci_integrated <- rbind(mu_mci_integrated, mu_mci[r, ])
+    next
+  }
+  
+  # if both satellite and in situ dup, add to output and flag
+  if (length(unique(concurrent$GRANULE_ID)) > 1 & length(unique(concurrent$bio_uniqueID)) > 1) {
+    mu_mci_integrated <- rbind(mu_mci_integrated, mu_mci[r, ])
+    mu_mci$integration_comment[r] <- paste0("in situ AND satellite duplicate with X.5 = ", toString(concurrent$X.5))
+    print(paste0("SKIPPING... has in situ AND satellite duplicates: mu_mci row #", r))
+    next
+  }
+  
+  # check if depth is the same
+  if (length(unique(concurrent$depth_corr)) == 1 &
+      length(unique(concurrent$topdepth_corr)) == 1 & 
+      length(unique(concurrent$botdepth_corr)) == 1 & 
+      length(unique(concurrent$ActivityRelativeDepthName)) == 1) {
+    same_depth <- TRUE
+  }
+  
+  ## integrating
+  # diff in situ sample, same img
+  if (length(unique(concurrent$bio_uniqueID)) > 1) {
     
-    if (length(unique(concurrent$GRANULE_ID)))
+    # as long as depth is the same, average in situ chl; otherwise, add to list to check
+    if (isTRUE(same_depth)) {
+      
+      mu_mci_integrated$integration_comment[nrow(mu_mci_integrated)] <- 
+        sprintf("avged in situ chl; original values: %s; original X.5: %s", 
+                toString(concurrent$chla_corr), toString(concurrent$X.5)) # add comment
+      
+      mu_mci_integrated <- rbind(mu_mci_integrated, mu_mci[r, ]) # add this row to output
+      mu_mci_integrated$chla_corr[nrow(mu_mci_integrated)] <- mean(concurrent$chla_corr) # set average chl
+      mu_mci$integration_comment[concurrent_index[2:length(concurrent_index)]] <- "REMOVED" # flag future obsevations to be skipped
+      
+    } else {
+      mu_mci_integrated <- rbind(mu_mci_integrated, mu_mci[r, ])
+      mu_mci$integration_comment[r] <- paste0("in situ duplicate with different depths - X.5:", toString(concurrent$X.5))
+      print(paste0("SKIPPING... in situ duplicate with different depths: mu_mci row #", r))
+      next
+    }
+  }
+  
+  # diff imgs, same in situ sample
+  else if (length(unique(concurrent$GRANULE_ID)) > 1) {
+    
+    # as long as depth is the same, average in S2 chl; otherwise, add to list to check
+    if (isTRUE(same_depth)) {
+      
+      mu_mci_integrated$integration_comment[nrow(mu_mci_integrated)] <-  
+        sprintf("avged in S2 chl; original values: %s; original X.5: %s", 
+                toString(concurrent$chla_s2), toString(concurrent$X.5)) # add comment
+      
+      mu_mci_integrated <- rbind(mu_mci_integrated, mu_mci[r, ]) # add this row to output
+      mu_mci_integrated$chla_corr[nrow(mu_mci_integrated)] <- mean(concurrent$chla_s2) # set average chl
+      mu_mci$integration_comment[concurrent_index[2:length(concurrent_index)]] <- "REMOVED" # flag future obsevations to be skipped
+      
+    } else {
+      mu_mci_integrated <- rbind(mu_mci_integrated, mu_mci[r, ])
+      mu_mci$integration_comment[r] <- paste0("img duplicate with different depths - X.5:", toString(concurrent$X.5))
+      print(paste0("SKIPPING... img duplicate with different depths: mu_mci row #", r))
+      next
+    }
+  }
+  
+  # if doesn't fit into either case, there's a problem
+  else {
+    mu_mci_integrated <- rbind(mu_mci_integrated, mu_mci[r, ])
+    mu_mci$integration_comment[r] <- "ISSUE - CHECK"
+    print(paste0("issue: mu_mci row #", r))
   }
 }
 
+# rename old and dew tables
+mu_mci_preintegrated <- mu_mci
+mu_mci <- mu_mci_integrated
 
+#######
 
-
+'
 # get space-time duplicates
 dup_fields <- data.frame(mu_mci$LatitudeMeasure, mu_mci$LongitudeMeasure, mu_mci$samp_localDate)
 dups <- which(duplicated(dup_fields))
@@ -295,9 +381,11 @@ mu_mci$depth_corr[which(mu_mci$X.5 == as.numeric(dup_pairs[3, ]))]
 dup_pairs[3, ]
 mu_mci <- mu_mci[-which(mu_mci$X.5 == dup_pairs[3, 2]), ]
 dup_pairs <- dup_pairs[-3, ]
+'
 
-
-## *** may need to recalculate error, and anything else that would be changed by combining rows ***
+### calculate error
+mu_mci$residual_chla <- abs(mu_mci$chla_s2 - mu_mci$chla_corr) # residual
+mu_mci$pct_error_chla <- (abs(mu_mci$chla_s2 - mu_mci$chla_corr) / mu_mci$chla_corr) * 100 # % error
 
 
 ### validation plot  -----------------------------------------------------------------------------------
@@ -333,8 +421,8 @@ plot_error_metrics(x = mu_mci$chla_corr, y = mu_mci$chla_s2, # export 800 x 860
 #legend("bottomright", legend = unique(mu_mci$sedimentf), col = c("black", "red"), border = NULL)
 #dev.off()
 cat(sprintf("S2 regression slope = %s; intercept = %s (Binding = 0.0004; -0.0021)\n%s images", 
-        signif(slope.mci, digits = 2), signif(intercept.mci, digits = 2),
-        length(unique(mu_mci$GRANULE_ID))))
+            signif(slope.mci, digits = 2), signif(intercept.mci, digits = 2),
+            length(unique(mu_mci$GRANULE_ID))))
 
 ####
 
