@@ -137,10 +137,12 @@ mu_mci <- mu_mci[mu_mci$mci_baseline_slope > sed_cutoff, ]
 ## remove bad points identified in imagery
 length(mu_mci_raw$X.5) == length(unique(mu_mci_raw$X.5)) # checking if unique: yes
 
-rm_imgry <- c(3275, 3656, 3673, 3674, 3678, 3689, 4888, 4889, 4890, 6976, 7680, 10334, 10335, 11768)
+img_comments <- read.csv("O:/PRIV/NERL_ORD_CYAN/Sentinel2/Images/composited/0day/ImageCheck_0day_comments.csv", stringsAsFactors = FALSE)
+
+x5_rm_img <- img_comments$point_IDX5[which(img_comments$tier %in% c("x", "3"))]
 
 # apply removal
-mu_mci <- mu_mci[-which(mu_mci$X.5 %in% rm_imgry), ]
+mu_mci <- mu_mci[-which(mu_mci$X.5 %in% x5_rm_img), ]
 
 # for reset
 mu_mci_filtered <- mu_mci
@@ -271,13 +273,14 @@ for (r in 1:nrow(mu_mci)) {
     # as long as depth is the same, average in situ chl; otherwise, add to list to check
     if (isTRUE(same_depth)) {
       
-      mu_mci_integrated$integration_comment[nrow(mu_mci_integrated)] <- 
+      mu_mci$integration_comment[r] <- 
         sprintf("avged in situ chl; original values: %s; original X.5: %s", 
                 toString(concurrent$chla_corr), toString(concurrent$X.5)) # add comment
       
       mu_mci_integrated <- rbind(mu_mci_integrated, mu_mci[r, ]) # add this row to output
       mu_mci_integrated$chla_corr[nrow(mu_mci_integrated)] <- mean(concurrent$chla_corr) # set average chl
-      mu_mci$integration_comment[concurrent_index[2:length(concurrent_index)]] <- "REMOVED" # flag future obsevations to be skipped
+      mu_mci$integration_comment[concurrent_index[2:length(concurrent_index)]] <- 
+        sprintf("REMOVED; in situ duplicate with %s", concurrent$X.5[1]) # flag future obsevations to be skipped
       
     } else {
       mu_mci_integrated <- rbind(mu_mci_integrated, mu_mci[r, ])
@@ -293,13 +296,14 @@ for (r in 1:nrow(mu_mci)) {
     # as long as depth is the same, average in S2 chl; otherwise, add to list to check
     if (isTRUE(same_depth)) {
       
-      mu_mci_integrated$integration_comment[nrow(mu_mci_integrated)] <-  
-        sprintf("avged in S2 chl; original values: %s; original X.5: %s", 
-                toString(concurrent$chla_s2), toString(concurrent$X.5)) # add comment
+      mu_mci$integration_comment[r] <-  
+        sprintf("avged S2 chl; original values: %s; original X.5: %s", 
+                toString(round(concurrent$chla_s2, 1)), toString(round(concurrent$X.5, 1))) # add comment
       
       mu_mci_integrated <- rbind(mu_mci_integrated, mu_mci[r, ]) # add this row to output
       mu_mci_integrated$chla_corr[nrow(mu_mci_integrated)] <- mean(concurrent$chla_s2) # set average chl
-      mu_mci$integration_comment[concurrent_index[2:length(concurrent_index)]] <- "REMOVED" # flag future obsevations to be skipped
+      mu_mci$integration_comment[concurrent_index[2:length(concurrent_index)]] <- 
+        sprintf("REMOVED; img duplicate with %s", concurrent$X.5[1]) # flag future obsevations to be skipped
       
     } else {
       mu_mci_integrated <- rbind(mu_mci_integrated, mu_mci[r, ])
@@ -317,71 +321,12 @@ for (r in 1:nrow(mu_mci)) {
   }
 }
 
-# rename old and dew tables
+# rename old and dew tables; write out to csv to checking
 mu_mci_preintegrated <- mu_mci
 mu_mci <- mu_mci_integrated
+write.csv(mu_mci_preintegrated, "mu_mci_preintegrated.csv")
+write.csv(mu_mci, "mu_mci_integrated.csv")
 
-#######
-
-'
-# get space-time duplicates
-dup_fields <- data.frame(mu_mci$LatitudeMeasure, mu_mci$LongitudeMeasure, mu_mci$samp_localDate)
-dups <- which(duplicated(dup_fields))
-length(dups)
-sum(duplicated(mu_mci[dups, ])) # check if any cases have more than one duplicate
-
-# make dataframe of X.5 indices of duplicate pairs
-dup_pairs <- data.frame()
-for (d in (dups)) {
-  for (m in 1:nrow(dup_fields)) {
-    if (all(dup_fields[m, ] == dup_fields[d, ])) {
-      if (d == m) {
-        next
-      }
-      dup_pairs <- rbind(dup_pairs, data.frame(a = mu_mci$X.5[m], b = mu_mci$X.5[d]))
-      print(c(m, d))
-    }
-  }
-}
-dup_pairs
-
-# average chl (either in situ or S2) for remaining duplicates (with same depth)
-mu_mci$depth_avg_comment <- NA # for recording averaging
-for (p in 1:nrow(dup_pairs)) {
-  chla_s2_1 <- mu_mci$chla_s2[which(mu_mci$X.5 == dup_pairs[p, 1])]
-  chla_s2_2 <- mu_mci$chla_s2[which(mu_mci$X.5 == dup_pairs[p, 2])]
-  chla_insitu_1 <- mu_mci$chla_corr[which(mu_mci$X.5 == dup_pairs[p, 1])]
-  chla_insitu_2 <- mu_mci$chla_corr[which(mu_mci$X.5 == dup_pairs[p, 2])]
-  img_1 <- mu_mci$GRANULE_ID[which(mu_mci$X.5 == dup_pairs[p, 1])]
-  img_2 <- mu_mci$GRANULE_ID[which(mu_mci$X.5 == dup_pairs[p, 2])]
-  
-  # for cases of equal S2 chl: average in situ values, assign to first record, and delete second record
-  if (chla_s2_1 == chla_s2_2) {
-    mean_chla_corr <- mean(c(chla_insitu_1, chla_insitu_2))
-    mu_mci$depth_avg_comment[which(mu_mci$X.5 == dup_pairs[p, 1])] <- 
-      sprintf("avged in situ chl; original values: %s from this record, and %s from from X.5 = %s", chla_insitu_1, chla_insitu_2, dup_pairs[p, 2])
-    mu_mci$chla_corr[which(mu_mci$X.5 == dup_pairs[p, 1])] <- mean_chla_corr
-    mu_mci <- mu_mci[-which(mu_mci$X.5 == dup_pairs[p, 2]), ]
-    print(sprintf("averaging in situ values for X.5 = %s and %s", dup_pairs[p, 1], dup_pairs[p, 2]))
-  }
-  
-  # for cases of equal in situ chl: average s2 values, assign to first record, and delete second record
-  if (chla_insitu_1 == chla_insitu_2) {
-    mean_chla_corr <- mean(c(chla_s2_1, chla_s2_2))
-    mu_mci$depth_avg_comment[which(mu_mci$X.5 == dup_pairs[p, 1])] <- 
-      sprintf("avged S2 chl; original values: %s from this record, and %s from from X.5 = %s", chla_s2_1, chla_s2_2, dup_pairs[p, 2])
-    mu_mci$chla_s2[which(mu_mci$X.5 == dup_pairs[p, 1])] <- mean_chla_corr
-    mu_mci <- mu_mci[-which(mu_mci$X.5 == dup_pairs[p, 2]), ]
-    print(sprintf("averaging in situ values for X.5 = %s and %s", dup_pairs[p, 1], dup_pairs[p, 2]))
-  }
-}
-
-# remove duplicate with non-surface depth
-mu_mci$depth_corr[which(mu_mci$X.5 == as.numeric(dup_pairs[3, ]))]
-dup_pairs[3, ]
-mu_mci <- mu_mci[-which(mu_mci$X.5 == dup_pairs[3, 2]), ]
-dup_pairs <- dup_pairs[-3, ]
-'
 
 ### calculate error
 mu_mci$residual_chla <- abs(mu_mci$chla_s2 - mu_mci$chla_corr) # residual
