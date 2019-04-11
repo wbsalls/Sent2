@@ -174,7 +174,7 @@ mu_mci <- mu_mci_filtered
 
 # choose 1) binding OR 2) cal-val
 
-s2_calc <- "binding" # <<<<<<<<<<< *** binding / split ***
+s2_calc <- "binding" # <<<<<<<<<<< *** binding / mollaee / custom / split ***
 
 if (s2_calc == "binding") {
   # 1) binding paper -------
@@ -187,9 +187,12 @@ if (s2_calc == "binding") {
   slope.mci <- 0.0001790292 # 1/2158 = 0.00046
   intercept.mci <- -0.0018 # -3.9/2158 = -0.0018
   
+} else if (s2_calc == "custom") {
+  # 1c) custom -------
+  slope.mci <- 0.0004 * 0.479 # from Binding et al. 2013 - Erie, times correction factor
+  intercept.mci <- -0.0021 # from Binding et al. 2013 - Erie
   
 } else if (s2_calc == "split") {
-  
   # 2) cal-val split -------
   set.seed(1)
   index.selected <- sample(1:nrow(mu_mci), size = floor(nrow(mu_mci) * 0.8), replace = FALSE)
@@ -229,12 +232,14 @@ mu_mci$integration_comment <- ""
 
 mu_mci_integrated <- data.frame()
 duplicate_checks <- data.frame()
+ndups <- 0
 
 #
 for (r in 1:nrow(mu_mci)) {
   
   # skip if it's a duplicate that has already been handled
-  if (mu_mci$integration_comment[r] == "REMOVED") {
+  if (grepl("REMOVED", mu_mci$integration_comment[r])) {
+    ndups <- c(ndups + 1)
     next
   }
   
@@ -301,7 +306,7 @@ for (r in 1:nrow(mu_mci)) {
                 toString(round(concurrent$chla_s2, 1)), toString(round(concurrent$X.5, 1))) # add comment
       
       mu_mci_integrated <- rbind(mu_mci_integrated, mu_mci[r, ]) # add this row to output
-      mu_mci_integrated$chla_corr[nrow(mu_mci_integrated)] <- mean(concurrent$chla_s2) # set average chl
+      mu_mci_integrated$chla_s2[nrow(mu_mci_integrated)] <- mean(concurrent$chla_s2) # set average chl
       mu_mci$integration_comment[concurrent_index[2:length(concurrent_index)]] <- 
         sprintf("REMOVED; img duplicate with %s", concurrent$X.5[1]) # flag future obsevations to be skipped
       
@@ -324,8 +329,9 @@ for (r in 1:nrow(mu_mci)) {
 # rename old and dew tables; write out to csv to checking
 mu_mci_preintegrated <- mu_mci
 mu_mci <- mu_mci_integrated
-write.csv(mu_mci_preintegrated, "mu_mci_preintegrated.csv")
-write.csv(mu_mci, "mu_mci_integrated.csv")
+sprintf("%s/%s duplicates removed", nrow(mu_mci_preintegrated) - nrow(mu_mci), ndups) # show number of duplicates removed
+#write.csv(mu_mci_preintegrated, "mu_mci_preintegrated.csv")
+#write.csv(mu_mci, "mu_mci_integrated.csv")
 
 
 ### calculate error
@@ -347,7 +353,7 @@ plot_error_metrics(x = mu_mci$chla_corr, y = mu_mci$chla_s2, # export 800 x 860
                    title = plot_title, 
                    #title = paste0(method_sub, ", ", plot_title), # if subsetting by method
                    equal_axes = TRUE, 
-                   log_axes = "xy", 
+                   log_axes = "xy", # xy
                    log_space = TRUE,
                    plot_abline = FALSE,
                    mape = FALSE,
@@ -368,6 +374,8 @@ plot_error_metrics(x = mu_mci$chla_corr, y = mu_mci$chla_s2, # export 800 x 860
 cat(sprintf("S2 regression slope = %s; intercept = %s (Binding = 0.0004; -0.0021)\n%s images", 
             signif(slope.mci, digits = 2), signif(intercept.mci, digits = 2),
             length(unique(mu_mci$GRANULE_ID))))
+print("make sure you checked duplicate files for this batch of validation points!!")
+#text(x = mu_mci$chla_corr, y = mu_mci$chla_s2, labels = 1:nrow(mu_mci))
 
 ####
 
