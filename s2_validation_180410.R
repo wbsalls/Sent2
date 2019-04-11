@@ -112,50 +112,6 @@ mu_mci <- mu_mci[which(mu_mci$ResultAnalyticalMethod.MethodIdentifierContext == 
 summary(mu_mci$chla_corr)
 mu_mci <- mu_mci[mu_mci$chla_corr <= 1000, ]
 
-## sediment
-# merge raw band values table
-raw_bands <- read.csv("mu_rawbands_3day.csv", stringsAsFactors = FALSE)
-mu_mci <- merge(mu_mci, raw_bands, by = "X.5", all.x = TRUE)
-
-# calculate slope
-mu_mci$mci_baseline_b6_b4 <- mu_mci$b6_1 - mu_mci$b4_1
-mu_mci$mci_baseline_slope <- mu_mci$mci_baseline_b6_b4 / (740 - 655)
-
-# assign cutoff
-sed_cutoff <- -2 # Binding recommendation: retain only points > -0.15
-mu_mci$sediment <- paste0("<= ", sed_cutoff)
-mu_mci$sediment[mu_mci$mci_baseline_slope > sed_cutoff] <- paste0("> ", sed_cutoff)
-mu_mci$sedimentf <- factor(mu_mci$sediment, levels(factor(mu_mci$sediment))[c(2, 1)])
-
-table(mu_mci$sedimentf)
-plot(mu_mci$mci_baseline_slope, rep(1, nrow(mu_mci)))
-
-# apply cutoff
-mu_mci <- mu_mci[mu_mci$mci_baseline_slope > sed_cutoff, ]
-
-
-## remove bad points identified in imagery
-length(mu_mci_raw$X.5) == length(unique(mu_mci_raw$X.5)) # checking if unique: yes
-
-img_comments <- read.csv("O:/PRIV/NERL_ORD_CYAN/Sentinel2/Images/composited/0day/ImageCheck_0day_comments.csv", stringsAsFactors = FALSE)
-
-x5_rm_img <- img_comments$point_IDX5[which(img_comments$tier %in% c("x", "3"))]
-
-# apply removal
-mu_mci <- mu_mci[-which(mu_mci$X.5 %in% x5_rm_img), ]
-
-# for reset
-mu_mci_filtered <- mu_mci
-
-# RESET ----------------------------------------------------------------------------------------
-mu_mci <- mu_mci_filtered
-
-# offset time  -----------------------------------
-offset_min <- 0
-offset_max <- 0
-offset_threshold <- offset_min:offset_max
-mu_mci <- mu_mci[mu_mci$offset_days %in% offset_threshold, ]
-
 ## clouds
 #mu_mci <- mu_mci[mu_mci$CLOUDY_PIXEL_PERCENTAGE == 0, ]
 
@@ -164,7 +120,13 @@ mu_mci$month <- as.numeric(substr(mu_mci$samp_localTime, 2, 3))
 table(mu_mci$month)
 #mu_mci <- mu_mci[mu_mci$month %in% 6:8, ]
 
-# for reset
+## offset time
+offset_min <- 0
+offset_max <- 0
+offset_threshold <- offset_min:offset_max
+mu_mci <- mu_mci[mu_mci$offset_days %in% offset_threshold, ]
+
+## for reset
 mu_mci_filtered <- mu_mci
 
 
@@ -189,7 +151,7 @@ if (s2_calc == "binding") {
   
 } else if (s2_calc == "custom") {
   # 1c) custom -------
-  slope.mci <- 0.0004 * 0.479 # from Binding et al. 2013 - Erie, times correction factor
+  slope.mci <- 0.0004 * 0.5 # from Binding et al. 2013 - Erie, times correction factor from slope
   intercept.mci <- -0.0021 # from Binding et al. 2013 - Erie
   
 } else if (s2_calc == "split") {
@@ -310,6 +272,11 @@ for (r in 1:nrow(mu_mci)) {
       mu_mci$integration_comment[concurrent_index[2:length(concurrent_index)]] <- 
         sprintf("REMOVED; img duplicate with %s", concurrent$X.5[1]) # flag future obsevations to be skipped
       
+      # print alert if S2 chla values are different - may indicate cloud in one image
+      if (sd(concurrent$chla_s2) > 1) {
+        print(sprintf("S2 chla SD > 1!! CHECK %s", toString(concurrent$X.5)))
+      }
+      
     } else {
       mu_mci_integrated <- rbind(mu_mci_integrated, mu_mci[r, ])
       mu_mci$integration_comment[r] <- paste0("img duplicate with different depths - X.5:", toString(concurrent$X.5))
@@ -326,17 +293,64 @@ for (r in 1:nrow(mu_mci)) {
   }
 }
 
-# rename old and dew tables; write out to csv to checking
+# rename old and new tables
 mu_mci_preintegrated <- mu_mci
 mu_mci <- mu_mci_integrated
 sprintf("%s/%s duplicates removed", nrow(mu_mci_preintegrated) - nrow(mu_mci), ndups) # show number of duplicates removed
-#write.csv(mu_mci_preintegrated, "mu_mci_preintegrated.csv")
-#write.csv(mu_mci, "mu_mci_integrated.csv")
 
 
-### calculate error
+# calculate error
 mu_mci$residual_chla <- abs(mu_mci$chla_s2 - mu_mci$chla_corr) # residual
 mu_mci$pct_error_chla <- (abs(mu_mci$chla_s2 - mu_mci$chla_corr) / mu_mci$chla_corr) * 100 # % error
+
+# write out to csv for checking
+write.csv(mu_mci_preintegrated, "mu_mci_preintegrated.csv")
+write.csv(mu_mci, "mu_mci_integrated.csv")
+
+
+## remove bad points identified in imagery
+length(mu_mci_raw$X.5) == length(unique(mu_mci_raw$X.5)) # checking if unique: yes
+
+img_comments <- read.csv("O:/PRIV/NERL_ORD_CYAN/Sentinel2/Images/composited/0day/ImageCheck_0day_comments.csv", stringsAsFactors = FALSE)
+
+mu_mci <- merge(mu_mci, img_comments[, which(colnames(img_comments) %in% c("point_IDX5", "tier", "glint"))],
+                by.x = "X.5", by.y = "point_IDX5", all.x = TRUE, all.y = FALSE)
+
+# apply removal
+mu_mci <- mu_mci[which(mu_mci$tier %in% c("1", "2")), ]
+
+mu_mci_presed <- mu_mci
+
+
+## sediment -------------
+mu_mci <- mu_mci_presed
+
+# merge raw band values table
+raw_bands <- read.csv("mu_rawbands_3day.csv", stringsAsFactors = FALSE)
+mu_mci <- merge(mu_mci, raw_bands, by = "X.5", all.x = TRUE)
+
+# calculate slope
+mu_mci$mci_baseline_b6_b4 <- mu_mci$b6_1 - mu_mci$b4_1
+mu_mci$mci_baseline_slope <- mu_mci$mci_baseline_b6_b4 / (740 - 655)
+
+plot(mu_mci$mci_baseline_slope, rep(1, nrow(mu_mci)))
+plot(mu_mci$mci_baseline_slope, mu_mci$residual_chla)
+
+# assign cutoff
+sed_cutoff <- -4 # Binding recommendation: retain only points that are > -0.15
+mu_mci$sediment <- paste0("<= ", sed_cutoff)
+mu_mci$sediment[mu_mci$mci_baseline_slope > sed_cutoff] <- paste0("> ", sed_cutoff)
+mu_mci$sedimentf <- factor(mu_mci$sediment, levels(factor(mu_mci$sediment))[c(2, 1)])
+
+table(mu_mci$sedimentf)
+
+# apply cutoff
+print(sprintf("%s points removed", sum(table(mu_mci$sedimentf)[2])))
+mu_mci <- mu_mci[mu_mci$mci_baseline_slope > sed_cutoff, ]
+# ------
+
+# write csv of final validation set
+write.csv(mu_mci, sprintf("mu_mci_finalset_%s.csv", Sys.Date()))
 
 
 ### validation plot  -----------------------------------------------------------------------------------
@@ -361,7 +375,7 @@ plot_error_metrics(x = mu_mci$chla_corr, y = mu_mci$chla_s2, # export 800 x 860
                    regr_stats = FALSE,
                    states = mu_mci$state,
                    lakes = mu_mci$comid,
-                   xlim = c(0.05, max(mu_mci$chla_corr, mu_mci$chla_s2)),
+                   xlim = c(0.05, max(mu_mci$chla_corr, mu_mci$chla_s2)), # min 0.05
                    ylim = c(0.05, max(mu_mci$chla_corr, mu_mci$chla_s2)),
                    show_metrics = TRUE, 
                    #xaxt="n",
