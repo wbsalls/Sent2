@@ -221,7 +221,7 @@ for (r in 1:nrow(mu_mci)) {
   if (length(unique(concurrent$GRANULE_ID)) > 1 & length(unique(concurrent$bio_uniqueID)) > 1) {
     mu_mci_integrated <- rbind(mu_mci_integrated, mu_mci[r, ])
     mu_mci$integration_comment[r] <- paste0("in situ AND satellite duplicate with X.5 = ", toString(concurrent$X.5))
-    print(paste0("SKIPPING... has in situ AND satellite duplicates: mu_mci row #", r))
+    print(sprintf("SKIPPING... has in situ AND satellite duplicates: mu_mci row #%s, X.5 %s", r, toString(concurrent$X.5)))
     next
   }
   
@@ -231,6 +231,8 @@ for (r in 1:nrow(mu_mci)) {
       length(unique(concurrent$botdepth_corr)) == 1 & 
       length(unique(concurrent$ActivityRelativeDepthName)) == 1) {
     same_depth <- TRUE
+  } else {
+    same_depth <- FALSE
   }
   
   ## integrating
@@ -250,9 +252,9 @@ for (r in 1:nrow(mu_mci)) {
         sprintf("REMOVED; in situ duplicate with %s", concurrent$X.5[1]) # flag future obsevations to be skipped
       
     } else {
+      mu_mci$integration_comment[r] <- paste0("in situ duplicate with different depths - X.5: ", toString(concurrent$X.5))
+      print(sprintf("SKIPPING... in situ duplicate with different depths: mu_mci row #%s, X.5 %s", r, toString(concurrent$X.5)))
       mu_mci_integrated <- rbind(mu_mci_integrated, mu_mci[r, ])
-      mu_mci$integration_comment[r] <- paste0("in situ duplicate with different depths - X.5:", toString(concurrent$X.5))
-      print(paste0("SKIPPING... in situ duplicate with different depths: mu_mci row #", r))
       next
     }
   }
@@ -278,9 +280,9 @@ for (r in 1:nrow(mu_mci)) {
       }
       
     } else {
+      mu_mci$integration_comment[r] <- paste0("img duplicate with different depths - X.5: ", toString(concurrent$X.5))
+      print(sprintf("SKIPPING... img duplicate with different depths: mu_mci row #%s, X.5 %s", r, toString(concurrent$X.5)))
       mu_mci_integrated <- rbind(mu_mci_integrated, mu_mci[r, ])
-      mu_mci$integration_comment[r] <- paste0("img duplicate with different depths - X.5:", toString(concurrent$X.5))
-      print(paste0("SKIPPING... img duplicate with different depths: mu_mci row #", r))
       next
     }
   }
@@ -298,14 +300,46 @@ mu_mci_preintegrated <- mu_mci
 mu_mci <- mu_mci_integrated
 sprintf("%s/%s duplicates removed", nrow(mu_mci_preintegrated) - nrow(mu_mci), ndups) # show number of duplicates removed
 
+# write out to csv for checking
+write.csv(mu_mci_preintegrated, "mu_mci_preintegrated.csv")
+write.csv(mu_mci, "mu_mci_integrated.csv")
+
+
+# >>>> revise mu_mci_integrated.csv if needed <<<<
+# re-load revised data
+mu_mci <- read.csv("mu_mci_integrated_MANUAL.csv", stringsAsFactors = FALSE)
+
 
 # calculate error
 mu_mci$residual_chla <- abs(mu_mci$chla_s2 - mu_mci$chla_corr) # residual
 mu_mci$pct_error_chla <- (abs(mu_mci$chla_s2 - mu_mci$chla_corr) / mu_mci$chla_corr) * 100 # % error
 
-# write out to csv for checking
-write.csv(mu_mci_preintegrated, "mu_mci_preintegrated.csv")
-write.csv(mu_mci, "mu_mci_integrated.csv")
+# recalculate in situ chla range and trophic level in case it changed with integrating
+chl_rangeFn <- function(x) {
+  if (x <= 15) {
+    return("0-15")
+  } else if (x <= 50) {
+    return("15-50")
+  } else if (x <= 200) {
+    return("50-200")
+  } else {
+    return("> 200")
+  }
+}
+mu_mci$chl_range <- sapply(mu_mci$chla_corr, chl_rangeFn)
+
+chl_eutrFn <- function(x) {
+  if (x < 2) {
+    return("oligotrophic")
+  } else if (x <= 7) {
+    return("mesotrophic")
+  } else if (x <= 30) {
+    return("eutrophic")
+  } else {
+    return("hypereutrophic")
+  }
+}
+mu_mci$chl_eutr <- sapply(mu_mci$chla_corr, chl_eutrFn)
 
 
 ## remove bad points identified in imagery
@@ -315,6 +349,9 @@ img_comments <- read.csv("O:/PRIV/NERL_ORD_CYAN/Sentinel2/Images/composited/0day
 
 mu_mci <- merge(mu_mci, img_comments[, which(colnames(img_comments) %in% c("point_IDX5", "tier", "glint"))],
                 by.x = "X.5", by.y = "point_IDX5", all.x = TRUE, all.y = FALSE)
+
+# investigate file to see make sure img comments weren't lost in duplicates
+#write.csv(mu_mci, "mu_mci_imgComments.csv")
 
 # apply removal
 mu_mci <- mu_mci[which(mu_mci$tier %in% c("1", "2")), ]
@@ -385,6 +422,7 @@ plot_error_metrics(x = mu_mci$chla_corr, y = mu_mci$chla_s2, # export 800 x 860
                    pch = 20)
 #legend("bottomright", legend = unique(mu_mci$sedimentf), col = c("black", "red"), border = NULL)
 #dev.off()
+print(sprintf("S2 -> chl relationship: *** %s ***", s2_calc))
 cat(sprintf("S2 regression slope = %s; intercept = %s (Binding = 0.0004; -0.0021)\n%s images", 
             signif(slope.mci, digits = 2), signif(intercept.mci, digits = 2),
             length(unique(mu_mci$GRANULE_ID))))
