@@ -19,10 +19,12 @@ source("/Users/wilsonsalls/Desktop/Git/Sent2/error_metrics_1800611.R")
 setwd("O:/PRIV/NERL_ORD_CYAN/Sentinel2/Validation/681_imgs")
 setwd("/Users/wilsonsalls/Desktop/EPA/Sentinel2/Validation/681_imgs")
 
+opar <- par() # grab original par settings for plotting later
+
 mu_mci_raw <- read.csv("validation_S2_682imgs_MCI_L1C_2018-11-21.csv", stringsAsFactors = FALSE)
 mu_mci <- mu_mci_raw
 
-## formatting, pre-filtering -------------------------------------------
+## formatting, prep -------------------------------------------
 # rename MCI column
 colnames(mu_mci)[which(colnames(mu_mci) == "MCI_val_1")] <- "MCI_L1C"
 
@@ -63,7 +65,7 @@ mu_mci$MCI_L1C <- mu_mci$mci_single # mci_single OR mci_mean
 mu_mci_prefilter <- mu_mci
 
 
-## filter ---------------------------------------------------------------------------------------
+## cleaning ---------------------------------------------------------------------------------------
 mu_mci <- mu_mci_prefilter # reset
 
 ## remove NA MCI
@@ -101,9 +103,6 @@ min(mu_mci$MCI_L1C)
 sum(mu_mci$MCI_L1C < -0.01)
 #mu_mci <- mu_mci[mu_mci$MCI_L1C > -0.01, ] # not relevant if removing negative S2 chl since intercept is -0.0021
 
-## shore dist
-mu_mci <- mu_mci[mu_mci$dist_shore_m > 30, ]
-
 ## method
 method_sub <- "APHA" # APHA USEPA USGS
 mu_mci <- mu_mci[which(mu_mci$ResultAnalyticalMethod.MethodIdentifierContext == method_sub), ]
@@ -112,27 +111,13 @@ mu_mci <- mu_mci[which(mu_mci$ResultAnalyticalMethod.MethodIdentifierContext == 
 summary(mu_mci$chla_corr)
 mu_mci <- mu_mci[mu_mci$chla_corr <= 1000, ]
 
-## clouds
-#mu_mci <- mu_mci[mu_mci$CLOUDY_PIXEL_PERCENTAGE == 0, ]
-
-## season
-mu_mci$month <- as.numeric(substr(mu_mci$samp_localTime, 2, 3))
-table(mu_mci$month)
-#mu_mci <- mu_mci[mu_mci$month %in% 6:8, ]
-
-## offset time
-offset_min <- 0
-offset_max <- 0
-offset_threshold <- offset_min:offset_max
-mu_mci <- mu_mci[mu_mci$offset_days %in% offset_threshold, ]
-
 ## for reset
-mu_mci_filtered <- mu_mci
+mu_mci_cleaned <- mu_mci
 
 
 ## calc chl a from MCI  ---------------------------------------------------------------------------------------------------
 
-mu_mci <- mu_mci_filtered
+mu_mci <- mu_mci_cleaned
 
 # choose 1) binding OR 2) cal-val
 
@@ -301,13 +286,13 @@ mu_mci <- mu_mci_integrated
 sprintf("%s/%s duplicates removed", nrow(mu_mci_preintegrated) - nrow(mu_mci), ndups) # show number of duplicates removed
 
 # write out to csv for checking
-write.csv(mu_mci_preintegrated, "mu_mci_preintegrated.csv")
-write.csv(mu_mci, "mu_mci_integrated.csv")
+#write.csv(mu_mci_preintegrated, "mu_mci_preintegrated.csv")
+#write.csv(mu_mci, "mu_mci_integrated.csv")
 
 
 # >>>> revise mu_mci_integrated.csv if needed <<<<
 # re-load revised data
-mu_mci <- read.csv("mu_mci_integrated_MANUAL.csv", stringsAsFactors = FALSE)
+#mu_mci <- read.csv("mu_mci_integrated_MANUAL.csv", stringsAsFactors = FALSE)
 
 
 # calculate error
@@ -356,12 +341,32 @@ mu_mci <- merge(mu_mci, img_comments[, which(colnames(img_comments) %in% c("poin
 # apply removal
 mu_mci <- mu_mci[which(mu_mci$tier %in% c("1", "2")), ]
 
-mu_mci_presed <- mu_mci
+mu_mci_prefilter <- mu_mci
+
+
+## additional criteria ------------------------------------------------------------------------------------
+
+mu_mci <- mu_mci_prefilter
+
+## clouds
+#mu_mci <- mu_mci[mu_mci$CLOUDY_PIXEL_PERCENTAGE == 0, ]
+
+## season
+mu_mci$month <- as.numeric(substr(mu_mci$samp_localTime, 2, 3))
+table(mu_mci$month)
+#mu_mci <- mu_mci[mu_mci$month %in% 6:8, ]
+
+## shore dist
+mu_mci <- mu_mci[mu_mci$dist_shore_m > 30, ]
+
+## offset time
+offset_min <- 0
+offset_max <- 0
+offset_threshold <- offset_min:offset_max
+mu_mci <- mu_mci[mu_mci$offset_days %in% offset_threshold, ]
 
 
 ## sediment -------------
-mu_mci <- mu_mci_presed
-
 # merge raw band values table
 raw_bands <- read.csv("mu_rawbands_3day.csv", stringsAsFactors = FALSE)
 mu_mci <- merge(mu_mci, raw_bands, by = "X.5", all.x = TRUE)
@@ -698,19 +703,26 @@ abline(v = 30, lty = 2)
 #rect(0, 0, 30, 350, border = NULL, col = alpha("orange", alpha = 0.5))
 
 # boxplot
-mu_mci$dist_shore_m_interval <- cut(mu_mci$dist_shore_m, seq(0, 2000, 50))
+max_depth_boxplot <- 1500
+slice_boxplot <- 50
+mu_mci$dist_shore_m_interval <- cut(mu_mci$dist_shore_m, seq(0, max_depth_boxplot, slice_boxplot))
 
 par(mfrow = c(2,1))
-barplot(table(mu_mci$dist_shore_m_interval), xlab = "distance from shore (m)", ylab = "frequency")
+#layout(matrix(c(1,2,2), nrow = 4, ncol = 1, byrow = TRUE))
+par(mar = c(0.5, 4.1, 10, 2.1)) # par(mar = c(bottom, left, top, right))
+barplot(table(mu_mci$dist_shore_m_interval), ylab = "frequency", names.arg = FALSE)
 #barplot(table(mu_mci$dist_shore_m_interval), xlab = NULL, ylab = NULL, xaxt = 'n', yaxt = 'n')
-boxplot(residual_chla ~ dist_shore_m_interval, data = mu_mci,
+par(mar = c(5.1, 4.1, 0, 2.1))
+boxplot(mu_mci$pct_error_chla ~ dist_shore_m_interval, data = mu_mci,
         las = 3,
         xaxt = 'n',
         xlab = "distance from shore (m)",
         ylab = "chl a error (ug/l)")
 axis(side = 1, las = 3,
-     at = seq(from = 0.5, to = 40.5, by = 1), 
-     labels = c(rbind(seq(from = 0, to = 2000, by = 100), ""))[1:41])
+     at = seq(from = 0.5, to = max_depth_boxplot / slice_boxplot + 0.5, by = 1), 
+     labels = c(rbind(seq(from = 0, to = max_depth_boxplot, by = slice_boxplot * 2), ""))[1:(max_depth_boxplot / slice_boxplot + 1)])
+
+par(opar)
 
 ## offset days ---------------
 plot(mu_mci$offset_days, mu_mci$residual_chla)
