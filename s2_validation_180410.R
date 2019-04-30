@@ -111,6 +111,12 @@ mu_mci <- mu_mci[which(mu_mci$ResultAnalyticalMethod.MethodIdentifierContext == 
 summary(mu_mci$chla_corr)
 mu_mci <- mu_mci[mu_mci$chla_corr <= 1000, ]
 
+## offset time
+offset_min <- 0
+offset_max <- 0
+offset_threshold <- offset_min:offset_max
+mu_mci <- mu_mci[mu_mci$offset_days %in% offset_threshold, ]
+
 ## for reset
 mu_mci_cleaned <- mu_mci
 
@@ -359,12 +365,6 @@ table(mu_mci$month)
 ## shore dist
 mu_mci <- mu_mci[mu_mci$dist_shore_m > 30, ]
 
-## offset time
-offset_min <- 0
-offset_max <- 0
-offset_threshold <- offset_min:offset_max
-mu_mci <- mu_mci[mu_mci$offset_days %in% offset_threshold, ]
-
 
 ## sediment -------------
 # merge raw band values table
@@ -372,23 +372,19 @@ raw_bands <- read.csv("mu_rawbands_3day.csv", stringsAsFactors = FALSE)
 mu_mci <- merge(mu_mci, raw_bands, by = "X.5", all.x = TRUE)
 
 # calculate slope
-mu_mci$mci_baseline_b6_b4 <- mu_mci$b6_1 - mu_mci$b4_1
-mu_mci$mci_baseline_slope <- mu_mci$mci_baseline_b6_b4 / (740 - 655)
+mu_mci$mci_baseline_slope <- (mu_mci$b6_1 - mu_mci$b4_1) / (740 - 655)
 
-plot(mu_mci$mci_baseline_slope, rep(1, nrow(mu_mci)))
+#plot(mu_mci$mci_baseline_slope, rep(1, nrow(mu_mci)))
 plot(mu_mci$mci_baseline_slope, mu_mci$residual_chla)
 
-# assign cutoff
+# assign and apply cutoff
 sed_cutoff <- -4 # Binding recommendation: retain only points that are > -0.15
-mu_mci$sediment <- paste0("<= ", sed_cutoff)
-mu_mci$sediment[mu_mci$mci_baseline_slope > sed_cutoff] <- paste0("> ", sed_cutoff)
-mu_mci$sedimentf <- factor(mu_mci$sediment, levels(factor(mu_mci$sediment))[c(2, 1)])
+sprintf("%s/%s points retained (removing %s)", 
+        sum(mu_mci$mci_baseline_slope > -4), 
+        nrow(mu_mci), nrow(mu_mci) - sum(mu_mci$mci_baseline_slope > -4))
 
-table(mu_mci$sedimentf)
-
-# apply cutoff
-print(sprintf("%s points removed", sum(table(mu_mci$sedimentf)[2])))
 mu_mci <- mu_mci[mu_mci$mci_baseline_slope > sed_cutoff, ]
+
 # ------
 
 # write csv of final validation set
