@@ -384,7 +384,7 @@ sed_cutoff <- -4 # Binding recommendation: retain only points that are > -0.15
 
 mu_mci$sediment <- "sediment"
 mu_mci$sediment[mu_mci$mci_baseline_slope > sed_cutoff] <- "no sediment flag"
-mu_mci$sedimentf <- factor(mu_mci$sediment, levels(factor(mu_mci$sediment))[c(2, 1)])
+mu_mci$sediment <- factor(mu_mci$sediment, levels(factor(mu_mci$sediment))[c(2, 1)])
 
 sprintf("%s/%s points retained (removing %s)", 
         sum(mu_mci$mci_baseline_slope > -4), 
@@ -396,7 +396,7 @@ mu_mci <- mu_mci[mu_mci$mci_baseline_slope > sed_cutoff, ]
 # ------
 
 # write csv of final validation set
-write.csv(mu_mci, sprintf("mu_mci_finalset_%s.csv", Sys.Date()))
+#write.csv(mu_mci, sprintf("mu_mci_finalset_%s.csv", Sys.Date()))
 
 
 ### validation plot  -----------------------------------------------------------------------------------
@@ -676,6 +676,12 @@ par(mfrow = c(1,1))
 
 ## sediment -------------------------------
 table(mu_mci$sediment)
+
+plot(mu_mci$mci_baseline_slope, mu_mci$residual_chla, 
+     pch = 20, xlab = "MCI baseline slope", ylab = "chl a error (ug/l)")
+abline(v = -4, lty = 3)
+#
+
 boxplot(residual_chla ~ sediment, data = mu_mci,
         xlab = "baseline slope (low indicates sediment)",
         ylab = "chl a residual")
