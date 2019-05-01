@@ -171,7 +171,7 @@ mu_mci <- mu_mci[mu_mci$chla_s2 >= 0, ]
 # for reset
 mu_mci_s2chla <- mu_mci
 
-# ----------------------------------------------------------------
+# ------------------------------------------------------------------
 
 
 ## integrate depth duplicates (only done on set with n = 111 (same-day, filtered, bad pts removed))
@@ -210,8 +210,8 @@ for (r in 1:nrow(mu_mci)) {
   
   # if both satellite and in situ dup, add to output and flag
   if (length(unique(concurrent$GRANULE_ID)) > 1 & length(unique(concurrent$bio_uniqueID)) > 1) {
-    mu_mci_integrated <- rbind(mu_mci_integrated, mu_mci[r, ])
     mu_mci$integration_comment[r] <- paste0("in situ AND satellite duplicate with X.5 = ", toString(concurrent$X.5))
+    mu_mci_integrated <- rbind(mu_mci_integrated, mu_mci[r, ])
     print(sprintf("SKIPPING... has in situ AND satellite duplicates: mu_mci row #%s, X.5 %s", r, toString(concurrent$X.5)))
     next
   }
@@ -293,13 +293,13 @@ sprintf("%s/%s duplicates removed", nrow(mu_mci_preintegrated) - nrow(mu_mci), n
 
 # write out to csv for checking
 #write.csv(mu_mci_preintegrated, "mu_mci_preintegrated.csv")
-#write.csv(mu_mci, "mu_mci_integrated.csv")
+#write.csv(mu_mci, sprintf("mu_mci_integrated_%s.csv", Sys.Date()))
 
-
-# >>>> revise mu_mci_integrated.csv if needed <<<<
+# >>>> revise mu_mci_integrated.csv if needed; rename file: add "MANUAL" add end <<<<
 # re-load revised data
-#mu_mci <- read.csv("mu_mci_integrated_MANUAL.csv", stringsAsFactors = FALSE)
+mu_mci <- read.csv("mu_mci_integrated_2019-05-01_MANUAL.csv", stringsAsFactors = FALSE)
 
+# ------------------------------------------------------------------
 
 # calculate error
 mu_mci$residual_chla <- abs(mu_mci$chla_s2 - mu_mci$chla_corr) # residual
@@ -345,6 +345,7 @@ mu_mci <- merge(mu_mci, img_comments[, which(colnames(img_comments) %in% c("poin
 #write.csv(mu_mci, "mu_mci_imgComments.csv")
 
 # apply removal
+print(sprintf("removing %s bad imagery points", sum(!(mu_mci$tier %in% c("1", "2")))))
 mu_mci <- mu_mci[which(mu_mci$tier %in% c("1", "2")), ]
 
 mu_mci_prefilter <- mu_mci
@@ -363,7 +364,8 @@ table(mu_mci$month)
 #mu_mci <- mu_mci[mu_mci$month %in% 6:8, ]
 
 ## shore dist
-mu_mci <- mu_mci[mu_mci$dist_shore_m > 30, ]
+sum(mu_mci$dist_shore_m < 30)
+mu_mci <- mu_mci[mu_mci$dist_shore_m >= 30, ]
 
 
 ## sediment -------------
@@ -377,12 +379,18 @@ mu_mci$mci_baseline_slope <- (mu_mci$b6_1 - mu_mci$b4_1) / (740 - 655)
 #plot(mu_mci$mci_baseline_slope, rep(1, nrow(mu_mci)))
 plot(mu_mci$mci_baseline_slope, mu_mci$residual_chla)
 
-# assign and apply cutoff
+# assign cutoff
 sed_cutoff <- -4 # Binding recommendation: retain only points that are > -0.15
+
+mu_mci$sediment <- "sediment"
+mu_mci$sediment[mu_mci$mci_baseline_slope > sed_cutoff] <- "no sediment flag"
+mu_mci$sedimentf <- factor(mu_mci$sediment, levels(factor(mu_mci$sediment))[c(2, 1)])
+
 sprintf("%s/%s points retained (removing %s)", 
         sum(mu_mci$mci_baseline_slope > -4), 
         nrow(mu_mci), nrow(mu_mci) - sum(mu_mci$mci_baseline_slope > -4))
 
+# apply cutoff
 mu_mci <- mu_mci[mu_mci$mci_baseline_slope > sed_cutoff, ]
 
 # ------
@@ -401,8 +409,9 @@ if (offset_min == offset_max) {
 }
 plot_error_metrics(x = mu_mci$chla_corr, y = mu_mci$chla_s2, # export 800 x 860
                    xname = "in situ chlorophyll-a (ug/l)", 
-                   yname = "S2-derived chlorophyll-a (ug/l, from MCI using L1C reflectance)", 
-                   title = plot_title, 
+                   yname = "S2-derived chlorophyll-a (ug/l)", 
+                   #yname = "S2-derived chlorophyll-a (ug/l, from MCI using L1C reflectance)", 
+                   #title = plot_title, 
                    #title = paste0(method_sub, ", ", plot_title), # if subsetting by method
                    equal_axes = TRUE, 
                    log_axes = "xy", # xy
@@ -424,7 +433,7 @@ plot_error_metrics(x = mu_mci$chla_corr, y = mu_mci$chla_s2, # export 800 x 860
 #legend("bottomright", legend = unique(mu_mci$sedimentf), col = c("black", "red"), border = NULL)
 #dev.off()
 print(sprintf("S2 -> chl relationship: *** %s ***", s2_calc))
-cat(sprintf("S2 regression slope = %s; intercept = %s (Binding = 0.0004; -0.0021)\n%s images", 
+cat(sprintf("S2 regression slope = %s; intercept = %s (Binding = 0.0004; -0.0021)\n%s images\n", 
             signif(slope.mci, digits = 2), signif(intercept.mci, digits = 2),
             length(unique(mu_mci$GRANULE_ID))))
 print("make sure you checked duplicate files for this batch of validation points!!")
@@ -699,7 +708,7 @@ abline(v = 30, lty = 2)
 #rect(0, 0, 30, 350, border = NULL, col = alpha("orange", alpha = 0.5))
 
 # boxplot
-max_depth_boxplot <- 1500
+max_depth_boxplot <- 1400
 slice_boxplot <- 50
 mu_mci$dist_shore_m_interval <- cut(mu_mci$dist_shore_m, seq(0, max_depth_boxplot, slice_boxplot))
 
