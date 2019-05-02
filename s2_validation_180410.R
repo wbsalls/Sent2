@@ -15,6 +15,7 @@ library(dplyr)
 
 source("C:/Users/WSalls/Desktop/Git/Sent2/error_metrics_1800611.R")
 source("/Users/wilsonsalls/Desktop/Git/Sent2/error_metrics_1800611.R")
+source()
 
 setwd("O:/PRIV/NERL_ORD_CYAN/Sentinel2/Validation/681_imgs")
 setwd("/Users/wilsonsalls/Desktop/EPA/Sentinel2/Validation/681_imgs")
@@ -295,6 +296,8 @@ sprintf("%s/%s duplicates removed", nrow(mu_mci_preintegrated) - nrow(mu_mci), n
 #write.csv(mu_mci_preintegrated, "mu_mci_preintegrated.csv")
 #write.csv(mu_mci, sprintf("mu_mci_integrated_%s.csv", Sys.Date()))
 
+# ------------------------------------------------------------------
+
 # >>>> revise mu_mci_integrated.csv if needed; rename file: add "MANUAL" add end <<<<
 # re-load revised data
 mu_mci <- read.csv("mu_mci_integrated_2019-05-01_MANUAL.csv", stringsAsFactors = FALSE)
@@ -302,8 +305,10 @@ mu_mci <- read.csv("mu_mci_integrated_2019-05-01_MANUAL.csv", stringsAsFactors =
 # ------------------------------------------------------------------
 
 # calculate error
-mu_mci$residual_chla <- abs(mu_mci$chla_s2 - mu_mci$chla_corr) # residual
-mu_mci$pct_error_chla <- (abs(mu_mci$chla_s2 - mu_mci$chla_corr) / mu_mci$chla_corr) * 100 # % error
+mu_mci$error_chla <- (mu_mci$chla_s2 - mu_mci$chla_corr) # error
+mu_mci$error_chla_abs <- abs(mu_mci$error_chla) # abs error
+mu_mci$pct_error_chla <- ((mu_mci$chla_s2 - mu_mci$chla_corr) / mu_mci$chla_corr) * 100 # % error
+mu_mci$pct_error_chla_abs <- abs(mu_mci$pct_error_chla) # abs error
 
 # recalculate in situ chla range and trophic level in case it changed with integrating
 chl_rangeFn <- function(x) {
@@ -377,7 +382,7 @@ mu_mci <- merge(mu_mci, raw_bands, by = "X.5", all.x = TRUE)
 mu_mci$mci_baseline_slope <- (mu_mci$b6_1 - mu_mci$b4_1) / (740 - 655)
 
 #plot(mu_mci$mci_baseline_slope, rep(1, nrow(mu_mci)))
-plot(mu_mci$mci_baseline_slope, mu_mci$residual_chla)
+#plot(mu_mci$mci_baseline_slope, mu_mci$error_chla)
 
 # assign cutoff
 sed_cutoff <- -4 # Binding recommendation: retain only points that are > -0.15
@@ -453,8 +458,8 @@ abline(v = 30, lty = threshold_lty, col = "red")
 ##
 
 #plot(mu_mci$chla_corr, mu_mci$chla_s2, xlim = c(0, 415), ylim = c(0, 415), xlab = "in situ chlorophyll-a (ug/l)", ylab = "S2-derived chlorophyll-a (from MCI L1C)")
-#plot(mu_mci$chla_corr, mu_mci$residual_chla)
-#plot(mu_mci$chla_corr, mu_mci$pct_error_chla)
+#plot(mu_mci$chla_corr, mu_mci$error_chla)
+#plot(mu_mci$chla_corr, mu_mci$pct_error_chla_abs)
 
 # write image list
 write.csv(unique(mu_mci[, c("PRODUCT_ID", "GRANULE_ID")]), "O:/PRIV/NERL_ORD_CYAN/Sentinel2/Images/composited/0day/img_list.csv")
@@ -500,8 +505,288 @@ if (offset_min == offset_max) {
 }
 plot(mu_mci_pts_proj, pch = 20, col = alpha("black", 0.2), add=TRUE)
 
-# ------------------------------------------------------------------
 
+# investigate patterns ---------------------------------------------------------------------------------------------------------
+par()$mfrow
+par(mfrow = c(2,1))
+par(mfrow = c(1,1))
+
+## residual vs. in situ value - what's happening with points above 1:1 line?
+plot(mu_mci$chla_corr, mu_mci$error_chla, xlab = "in situ chlorophyll-a (ug/l)", ylab = "chl a error (ug/L)")
+
+## check high error
+mu_mci_sort <- mu_mci[order(-mu_mci$error_chla), ]
+mu_mci_sort <- mu_mci[order(-mu_mci$pct_error_chla_abs), ]
+mu_mci_sort[1:20, c(185, 191:194)] # this no longer works right - what's it supposed to be??
+
+
+## sediment -------------------------------
+table(mu_mci$sediment)
+
+plot(mu_mci$mci_baseline_slope, mu_mci$error_chla, 
+     pch = 20, xlab = "MCI baseline slope", ylab = "S2 chl a absolute error (ug/l)")
+abline(v = -4, lty = 3)
+
+plot(mu_mci$mci_baseline_slope, mu_mci$chla_s2 - mu_mci$chla_corr,
+     pch = 20, xlab = "MCI baseline slope", ylab = "S2 chl a error (ug/l)")
+abline(v = -4, lty = 3)
+abline(h=0)
+#
+
+boxplot(error_chla ~ sediment, data = mu_mci,
+        xlab = "baseline slope (low indicates sediment)",
+        ylab = "chl a residual")
+text(1, 80, sprintf("n = %s", table(mu_mci$sediment)[1]))
+text(2, 80, sprintf("n = %s", table(mu_mci$sediment)[2]))
+
+
+## shore dist ----------------------------------
+plot(mu_mci$dist_shore_m, mu_mci$error_chla, 
+     xlim = c(0, 2000), # try removing this too
+     #ylim = c(0, 200),
+     xlab = "distance from shore (m)",
+     ylab = "chl a error (ug/L)",
+     pch = 20,
+     col = alpha("black", alpha = 0.4))
+abline(v = 30, lty = 2)
+#rect(0, 0, 30, 350, border = NULL, col = alpha("orange", alpha = 0.5))
+
+# boxplot 1000 x 700
+max_depth_boxplot <- 1400
+slice_boxplot <- 50
+mu_mci$dist_shore_m_interval <- cut(mu_mci$dist_shore_m, seq(0, max_depth_boxplot, slice_boxplot))
+
+par(mfrow = c(2,1))
+#layout(matrix(c(1,2,2), nrow = 4, ncol = 1, byrow = TRUE))
+par(mar = c(0.5, 4.1, 10, 2.1)) # par(mar = c(bottom, left, top, right))
+barplot(table(mu_mci$dist_shore_m_interval), ylab = "freq", names.arg = FALSE)
+#barplot(table(mu_mci$dist_shore_m_interval), xlab = NULL, ylab = NULL, xaxt = 'n', yaxt = 'n')
+par(mar = c(5.1, 4.1, 0.5, 2.1))
+boxplot(mu_mci$pct_error_chla_abs ~ dist_shore_m_interval, data = mu_mci,
+        las = 3,
+        xaxt = 'n',
+        xlab = "distance from shore (m)",
+        ylab = "S2 chl a abs pct err (ug/l)")
+axis(side = 1, las = 3,
+     at = seq(from = 0.5, to = max_depth_boxplot / slice_boxplot + 0.5, by = 1), 
+     labels = c(rbind(seq(from = 0, to = max_depth_boxplot, by = slice_boxplot * 2), ""))[1:(max_depth_boxplot / slice_boxplot + 1)])
+
+par(opar)
+
+
+## image characteristics -------------------------
+
+## glint ---------
+boxplot(error_chla ~ glint, data = mu_mci,
+        ylab = "chl a residual",
+        xlab = "Satellite")
+
+
+## solar angle ---------
+
+# error ~ angle
+plot(mu_mci$MEAN_SOLAR_ZENITH_ANGLE, mu_mci$error_chla)
+summary(mu_mci$MEAN_SOLAR_ZENITH_ANGLE)
+
+box_min <- 21
+box_max <- 45
+box_step <- 4
+mu_mci$solar_angle_interval <- cut(mu_mci$MEAN_SOLAR_ZENITH_ANGLE, seq(box_min, box_max, box_step))
+
+par(mfrow = c(2,1))
+barplot(table(mu_mci$solar_angle_interval), xlab = NULL, ylab = "frequency", xaxt = 'n') # ylab = NULL, yaxt = 'n'
+boxplot(error_chla ~ solar_angle_interval, data = mu_mci,
+        las = 3,
+        xaxt = 'n',
+        xlab = "Solar Zenith Angle",
+        ylab = "chl a error (ug/l)")
+axis(side = 1, las = 3,
+     at = seq(from = 0.5, to = length(seq(box_min, box_max, box_step)) - 0.5, by = 1), 
+     seq(box_min, box_max, box_step))
+par(mfrow = c(1,1))
+
+# angle ~ month
+plot(mu_mci$month, mu_mci$MEAN_SOLAR_ZENITH_ANGLE)
+table(mu_mci$month)
+
+box_min <- min(mu_mci$month)
+box_max <- max(mu_mci$month)
+box_step <- 1
+
+par(mfrow = c(2,1))
+barplot(table(mu_mci$month), xlab = NULL, ylab = "frequency", xaxt = 'n') # ylab = NULL, yaxt = 'n'
+boxplot(MEAN_SOLAR_ZENITH_ANGLE ~ month, data = mu_mci,
+        las = 3,
+        xaxt = 'n',
+        xlab = "Month",
+        ylab = "Solar Zenith Angle")
+axis(side = 1, las = 3,
+     at = seq(from = 1, to = length(seq(box_min, box_max, box_step)), by = 1), 
+     seq(box_min, box_max, box_step))
+par(mfrow = c(1,1))
+
+## sensor angle ---------
+plot(mu_mci$MEAN_INCIDENCE_ZENITH_ANGLE_B4, mu_mci$error_chla)
+
+summary(mu_mci$MEAN_INCIDENCE_ZENITH_ANGLE_B4)
+box_min <- 2
+box_max <- 11
+box_step <- 1
+mu_mci$sensor_angle_interval <- cut(mu_mci$MEAN_INCIDENCE_ZENITH_ANGLE_B4, seq(box_min, box_max, box_step))
+
+par(mfrow = c(2,1))
+barplot(table(mu_mci$sensor_angle_interval), xlab = NULL, ylab = "frequency", xaxt = 'n') # ylab = NULL, yaxt = 'n'
+boxplot(error_chla ~ sensor_angle_interval, data = mu_mci,
+        las = 3,
+        xaxt = 'n',
+        xlab = "Sensor Zenith Angle",
+        ylab = "chl a error (ug/l)")
+axis(side = 1, las = 3,
+     at = seq(from = 0.5, to = length(seq(box_min, box_max, box_step)) - 0.5, by = 1), 
+     seq(box_min, box_max, box_step))
+par(mfrow = c(1,1))
+
+
+## month ----------------------------------
+# boxplot
+par(mfrow = c(2,1))
+barplot(table(mu_mci$month), xlab = NULL, ylab = "frequency")
+boxplot(error_chla ~ month, data = mu_mci,
+        las = 3,
+        xaxt = 'n',
+        xlab = "month",
+        ylab = "chl a error (ug/l)")
+axis(side = 1,
+     at = seq(from = 1, to = length(unique(mu_mci$month)), by = 1), 
+     labels = sort(unique(mu_mci$month)))
+par(mfrow = c(1,1))
+
+
+## offset days ---------------
+plot(mu_mci$offset_days, mu_mci$error_chla)
+plot(mu_mci$offset_hrs, mu_mci$error_chla)
+
+plot(abs(mu_mci$offset_hrs), mu_mci$error_chla, 
+     #ylim = c(0, 200),
+     xlab = "time offset (hours)",
+     ylab = "chl a residual (ug/L)",
+     pch = 20,
+     col = alpha("black", alpha = 0.4))
+
+par(mfrow = c(2,1))
+barplot(table(mu_mci$offset_days), xlab = "offset days", ylab = "frequency")
+boxplot(error_chla ~ offset_days, data = mu_mci,
+        xlab = "offset days",
+        ylab = "chl a residual")
+
+## hour of day ---------------
+mu_mci$offset_hrs_day <- (mu_mci$offset_hrs + 12) %% 24 - 12
+mu_mci_hrs <- mu_mci[which(abs(mu_mci$offset_hrs_day) < 10), ]
+#mu_mci_hrs <- mu_mci
+
+# boxplot 1500 x 900
+par(mfrow = c(2,1))
+mu_mci$offset_hrs_day_interval <- cut(mu_mci$offset_hrs_day, seq(-12, 12, 0.5))
+barplot(table(mu_mci$offset_hrs_day_interval), xlab = "offset hour of day", ylab = "frequency")
+boxplot(error_chla ~ offset_hrs_day_interval, data = mu_mci,
+        xlab = "offset hour of day",
+        ylab = "chl a residual")
+
+# quadratic model
+hrs <- mu_mci_hrs$offset_hrs_day
+hrs2 <- mu_mci_hrs$offset_hrs_day ^ 2
+qmod <- lm(mu_mci_hrs$error_chla ~ hrs + hrs2)
+summary(qmod)
+
+timevalues <- seq(-12, 12, 0.1)
+predictedcounts <- predict(qmod, list(hrs=timevalues, hrs2=timevalues^2))
+
+plot(mu_mci_hrs$offset_hrs_day, mu_mci_hrs$error_chla, xlim = c(-12, 12))
+lines(timevalues, predictedcounts, col = "darkgreen", lwd = 3)
+
+
+## method ---------------
+boxplot(error_chla ~ ResultAnalyticalMethod.MethodIdentifierContext, data = mu_mci,
+        ylab = "chl a residual",
+        xlab = "Method Identifier Context")
+text(0.7, 150, paste0("n = ", table(mu_mci$ResultAnalyticalMethod.MethodIdentifierContext)[1]))
+text(1.7, 150, paste0("n = ", table(mu_mci$ResultAnalyticalMethod.MethodIdentifierContext)[2]))
+text(2.7, 150, paste0("n = ", table(mu_mci$ResultAnalyticalMethod.MethodIdentifierContext)[3]))
+
+# shore dist vs method
+boxplot(dist_shore_m ~ ResultAnalyticalMethod.MethodIdentifierContext, data = mu_mci,
+        ylab = "distance from shore (m)",
+        xlab = "Method Identifier Context")
+text(0.7, 14000, paste0("n = ", table(mu_mci$ResultAnalyticalMethod.MethodIdentifierContext)[1]))
+text(1.7, 14000, paste0("n = ", table(mu_mci$ResultAnalyticalMethod.MethodIdentifierContext)[2]))
+text(2.7, 14000, paste0("n = ", table(mu_mci$ResultAnalyticalMethod.MethodIdentifierContext)[3]))
+
+par(mfrow = c(2,1))
+barplot(table(mu_mci[which(mu_mci$ResultAnalyticalMethod.MethodIdentifierContext == "APHA"), ]$dist_shore_m_interval), xlab = "distance from shore (m)", ylab = "frequency", main = "APHA")
+boxplot(error_chla ~ dist_shore_m_interval, data = mu_mci[which(mu_mci$ResultAnalyticalMethod.MethodIdentifierContext == "APHA"), ],
+        xlab = "distance from shore (m)",
+        ylab = "chl a residual")
+
+barplot(table(mu_mci[which(mu_mci$ResultAnalyticalMethod.MethodIdentifierContext == "USEPA"), ]$dist_shore_m_interval), xlab = "distance from shore (m)", ylab = "frequency", main = "USEPA")
+boxplot(error_chla ~ dist_shore_m_interval, data = mu_mci[which(mu_mci$ResultAnalyticalMethod.MethodIdentifierContext == "USEPA"), ],
+        xlab = "distance from shore (m)",
+        ylab = "chl a residual")
+
+barplot(table(mu_mci[which(mu_mci$ResultAnalyticalMethod.MethodIdentifierContext == "USGS"), ]$dist_shore_m_interval), xlab = "distance from shore (m)", ylab = "frequency", main = "USGS")
+boxplot(error_chla ~ dist_shore_m_interval, data = mu_mci[which(mu_mci$ResultAnalyticalMethod.MethodIdentifierContext == "USGS"), ],
+        xlab = "distance from shore (m)",
+        ylab = "chl a residual")
+
+mu_method <- mu_mci[which(mu_mci$ResultAnalyticalMethod.MethodIdentifierContext == "APHA"), ]
+plot(mu_method$dist_shore_m, mu_method$error_chla)
+
+m_usgs <- lm(error_chla ~ dist_shore_m, mu_usgs)
+
+## satellite ---------------
+boxplot(error_chla ~ SPACECRAFT_NAME, data = mu_mci,
+        ylab = "chl a residual",
+        xlab = "Satellite")
+text(0.7, 150, paste0("n = ", table(mu_mci$SPACECRAFT_NAME)[1]))
+text(1.7, 150, paste0("n = ", table(mu_mci$SPACECRAFT_NAME)[2]))
+
+
+## plot error by factor variables ---------------
+
+library(vioplot)
+
+plot_error_byfactor <- function(data, var_name, plotvalue_name) {
+  var_values <- unique(data[, which(colnames(data) == var_name)])
+  
+  expr_vio <- vioplot(data[which(data[col])])
+  
+  for (v in 1:length(values)) {
+    
+  }
+  
+  
+  vioplot()  
+}
+
+eval(parse(text = "plot(1, 2)"))
+
+factor_tab <- table(mu_mci$ResultAnalyticalMethod.MethodIdentifierContext)
+factor_vals <- names(factor_tab)
+sum(is.na((mu_mci$ResultAnalyticalMethod.MethodIdentifierContext)))
+
+vioplot(mu_mci$error_chla[which(mu_mci$ResultAnalyticalMethod.MethodIdentifierContext == factor_vals[1])],
+        mu_mci$error_chla[which(mu_mci$ResultAnalyticalMethod.MethodIdentifierContext == factor_vals[2])],
+        mu_mci$error_chla[which(mu_mci$ResultAnalyticalMethod.MethodIdentifierContext == factor_vals[3])],
+        mu_mci$error_chla[which(is.na(mu_mci$ResultAnalyticalMethod.MethodIdentifierContext))],
+        names = c(
+          paste0(factor_vals[1], "\n", factor_tab[1]),
+          paste0(factor_vals[2], "\n", factor_tab[2]),
+          paste0(factor_vals[3], "\n", factor_tab[3]),
+          "NA\n10"),
+        col = "lightblue")
+
+
+
+## other validation plotting ---------------------------------------------------------------------------------------
 
 # mci vs chl-a
 '
@@ -593,269 +878,6 @@ plot(mu_mci$chla_corr, mu_mci$MCI_L1C, col = topo.colors(n = 11, alpha = 0.5), p
 legend(195, 0.045, levels(mu_mci$offset_days_factor), col = topo.colors(11, alpha = 0.5), pch = 16)
 plot(mu_mci$chla_corr[mu_mci$offset_days %in% 0:3], mu_mci$MCI_L1C[mu_mci$offset_days %in% 0:3], 
      col = topo.colors(n = 11, alpha = 0.5), pch = 16, xlim = c(0, 210)) # doesn't work
-
-
-# investigate patterns ---------------------------------------------------------------------------
-par()$mfrow
-par(mfrow = c(2,1))
-par(mfrow = c(1,1))
-
-## residual vs. in situ value - what's happening with points above 1:1 line?
-plot(mu_mci$chla_corr, mu_mci$residual_chla, xlab = "in situ chlorophyll-a (ug/l)", ylab = "chl a error (ug/L)")
-
-## check high error
-mu_mci_sort <- mu_mci[order(-mu_mci$residual_chla), ]
-mu_mci_sort <- mu_mci[order(-mu_mci$pct_error_chla), ]
-mu_mci_sort[1:20, c(185, 191:194)] # this no longer works right - what's it supposed to be??
-
-
-## solar angle
-
-# error ~ angle
-plot(mu_mci$MEAN_SOLAR_ZENITH_ANGLE, mu_mci$residual_chla)
-summary(mu_mci$MEAN_SOLAR_ZENITH_ANGLE)
-
-box_min <- 21
-box_max <- 45
-box_step <- 4
-mu_mci$solar_angle_interval <- cut(mu_mci$MEAN_SOLAR_ZENITH_ANGLE, seq(box_min, box_max, box_step))
-
-par(mfrow = c(2,1))
-barplot(table(mu_mci$solar_angle_interval), xlab = NULL, ylab = "frequency", xaxt = 'n') # ylab = NULL, yaxt = 'n'
-boxplot(residual_chla ~ solar_angle_interval, data = mu_mci,
-        las = 3,
-        xaxt = 'n',
-        xlab = "Solar Zenith Angle",
-        ylab = "chl a error (ug/l)")
-axis(side = 1, las = 3,
-     at = seq(from = 0.5, to = length(seq(box_min, box_max, box_step)) - 0.5, by = 1), 
-     seq(box_min, box_max, box_step))
-par(mfrow = c(1,1))
-
-# angle ~ month
-plot(mu_mci$month, mu_mci$MEAN_SOLAR_ZENITH_ANGLE)
-table(mu_mci$month)
-
-box_min <- min(mu_mci$month)
-box_max <- max(mu_mci$month)
-box_step <- 1
-
-par(mfrow = c(2,1))
-barplot(table(mu_mci$month), xlab = NULL, ylab = "frequency", xaxt = 'n') # ylab = NULL, yaxt = 'n'
-boxplot(MEAN_SOLAR_ZENITH_ANGLE ~ month, data = mu_mci,
-        las = 3,
-        xaxt = 'n',
-        xlab = "Month",
-        ylab = "Solar Zenith Angle")
-axis(side = 1, las = 3,
-     at = seq(from = 1, to = length(seq(box_min, box_max, box_step)), by = 1), 
-     seq(box_min, box_max, box_step))
-par(mfrow = c(1,1))
-
-## sensor angle
-plot(mu_mci$MEAN_INCIDENCE_ZENITH_ANGLE_B4, mu_mci$residual_chla)
-
-summary(mu_mci$MEAN_INCIDENCE_ZENITH_ANGLE_B4)
-box_min <- 2
-box_max <- 11
-box_step <- 1
-mu_mci$sensor_angle_interval <- cut(mu_mci$MEAN_INCIDENCE_ZENITH_ANGLE_B4, seq(box_min, box_max, box_step))
-
-par(mfrow = c(2,1))
-barplot(table(mu_mci$sensor_angle_interval), xlab = NULL, ylab = "frequency", xaxt = 'n') # ylab = NULL, yaxt = 'n'
-boxplot(residual_chla ~ sensor_angle_interval, data = mu_mci,
-        las = 3,
-        xaxt = 'n',
-        xlab = "Sensor Zenith Angle",
-        ylab = "chl a error (ug/l)")
-axis(side = 1, las = 3,
-     at = seq(from = 0.5, to = length(seq(box_min, box_max, box_step)) - 0.5, by = 1), 
-     seq(box_min, box_max, box_step))
-par(mfrow = c(1,1))
-
-
-## sediment -------------------------------
-table(mu_mci$sediment)
-
-plot(mu_mci$mci_baseline_slope, mu_mci$residual_chla, 
-     pch = 20, xlab = "MCI baseline slope", ylab = "chl a error (ug/l)")
-abline(v = -4, lty = 3)
-#
-
-boxplot(residual_chla ~ sediment, data = mu_mci,
-        xlab = "baseline slope (low indicates sediment)",
-        ylab = "chl a residual")
-text(1, 80, sprintf("n = %s", table(mu_mci$sediment)[1]))
-text(2, 80, sprintf("n = %s", table(mu_mci$sediment)[2]))
-
-## month ----------------------------------
-# boxplot
-par(mfrow = c(2,1))
-barplot(table(mu_mci$month), xlab = NULL, ylab = "frequency")
-boxplot(residual_chla ~ month, data = mu_mci,
-        las = 3,
-        xaxt = 'n',
-        xlab = "month",
-        ylab = "chl a error (ug/l)")
-axis(side = 1,
-     at = seq(from = 1, to = length(unique(mu_mci$month)), by = 1), 
-     labels = sort(unique(mu_mci$month)))
-par(mfrow = c(1,1))
-
-## shore dist ----------------------------------
-plot(mu_mci$dist_shore_m, mu_mci$residual_chla, 
-     xlim = c(0, 2000), # try removing this too
-     #ylim = c(0, 200),
-     xlab = "distance from shore (m)",
-     ylab = "chl a error (ug/L)",
-     pch = 20,
-     col = alpha("black", alpha = 0.4))
-abline(v = 30, lty = 2)
-#rect(0, 0, 30, 350, border = NULL, col = alpha("orange", alpha = 0.5))
-
-# boxplot
-max_depth_boxplot <- 1400
-slice_boxplot <- 50
-mu_mci$dist_shore_m_interval <- cut(mu_mci$dist_shore_m, seq(0, max_depth_boxplot, slice_boxplot))
-
-par(mfrow = c(2,1))
-#layout(matrix(c(1,2,2), nrow = 4, ncol = 1, byrow = TRUE))
-par(mar = c(0.5, 4.1, 10, 2.1)) # par(mar = c(bottom, left, top, right))
-barplot(table(mu_mci$dist_shore_m_interval), ylab = "frequency", names.arg = FALSE)
-#barplot(table(mu_mci$dist_shore_m_interval), xlab = NULL, ylab = NULL, xaxt = 'n', yaxt = 'n')
-par(mar = c(5.1, 4.1, 0, 2.1))
-boxplot(mu_mci$pct_error_chla ~ dist_shore_m_interval, data = mu_mci,
-        las = 3,
-        xaxt = 'n',
-        xlab = "distance from shore (m)",
-        ylab = "chl a error (ug/l)")
-axis(side = 1, las = 3,
-     at = seq(from = 0.5, to = max_depth_boxplot / slice_boxplot + 0.5, by = 1), 
-     labels = c(rbind(seq(from = 0, to = max_depth_boxplot, by = slice_boxplot * 2), ""))[1:(max_depth_boxplot / slice_boxplot + 1)])
-
-par(opar)
-
-## offset days ---------------
-plot(mu_mci$offset_days, mu_mci$residual_chla)
-plot(mu_mci$offset_hrs, mu_mci$residual_chla)
-
-plot(abs(mu_mci$offset_hrs), mu_mci$residual_chla, 
-     #ylim = c(0, 200),
-     xlab = "time offset (hours)",
-     ylab = "chl a residual (ug/L)",
-     pch = 20,
-     col = alpha("black", alpha = 0.4))
-
-par(mfrow = c(2,1))
-barplot(table(mu_mci$offset_days), xlab = "offset days", ylab = "frequency")
-boxplot(residual_chla ~ offset_days, data = mu_mci,
-        xlab = "offset days",
-        ylab = "chl a residual")
-
-## hour of day ---------------
-mu_mci$offset_hrs_day <- (mu_mci$offset_hrs + 12) %% 24 - 12
-mu_mci_hrs <- mu_mci[which(abs(mu_mci$offset_hrs_day) < 10), ]
-#mu_mci_hrs <- mu_mci
-
-# boxplot 1500 x 900
-par(mfrow = c(2,1))
-mu_mci$offset_hrs_day_interval <- cut(mu_mci$offset_hrs_day, seq(-12, 12, 0.5))
-barplot(table(mu_mci$offset_hrs_day_interval), xlab = "offset hour of day", ylab = "frequency")
-boxplot(residual_chla ~ offset_hrs_day_interval, data = mu_mci,
-        xlab = "offset hour of day",
-        ylab = "chl a residual")
-
-# quadratic model
-hrs <- mu_mci_hrs$offset_hrs_day
-hrs2 <- mu_mci_hrs$offset_hrs_day ^ 2
-qmod <- lm(mu_mci_hrs$residual_chla ~ hrs + hrs2)
-summary(qmod)
-
-timevalues <- seq(-12, 12, 0.1)
-predictedcounts <- predict(qmod, list(hrs=timevalues, hrs2=timevalues^2))
-
-plot(mu_mci_hrs$offset_hrs_day, mu_mci_hrs$residual_chla, xlim = c(-12, 12))
-lines(timevalues, predictedcounts, col = "darkgreen", lwd = 3)
-
-
-## method ---------------
-boxplot(residual_chla ~ ResultAnalyticalMethod.MethodIdentifierContext, data = mu_mci,
-        ylab = "chl a residual",
-        xlab = "Method Identifier Context")
-text(0.7, 150, paste0("n = ", table(mu_mci$ResultAnalyticalMethod.MethodIdentifierContext)[1]))
-text(1.7, 150, paste0("n = ", table(mu_mci$ResultAnalyticalMethod.MethodIdentifierContext)[2]))
-text(2.7, 150, paste0("n = ", table(mu_mci$ResultAnalyticalMethod.MethodIdentifierContext)[3]))
-
-# shore dist vs method
-boxplot(dist_shore_m ~ ResultAnalyticalMethod.MethodIdentifierContext, data = mu_mci,
-        ylab = "distance from shore (m)",
-        xlab = "Method Identifier Context")
-text(0.7, 14000, paste0("n = ", table(mu_mci$ResultAnalyticalMethod.MethodIdentifierContext)[1]))
-text(1.7, 14000, paste0("n = ", table(mu_mci$ResultAnalyticalMethod.MethodIdentifierContext)[2]))
-text(2.7, 14000, paste0("n = ", table(mu_mci$ResultAnalyticalMethod.MethodIdentifierContext)[3]))
-
-par(mfrow = c(2,1))
-barplot(table(mu_mci[which(mu_mci$ResultAnalyticalMethod.MethodIdentifierContext == "APHA"), ]$dist_shore_m_interval), xlab = "distance from shore (m)", ylab = "frequency", main = "APHA")
-boxplot(residual_chla ~ dist_shore_m_interval, data = mu_mci[which(mu_mci$ResultAnalyticalMethod.MethodIdentifierContext == "APHA"), ],
-        xlab = "distance from shore (m)",
-        ylab = "chl a residual")
-
-barplot(table(mu_mci[which(mu_mci$ResultAnalyticalMethod.MethodIdentifierContext == "USEPA"), ]$dist_shore_m_interval), xlab = "distance from shore (m)", ylab = "frequency", main = "USEPA")
-boxplot(residual_chla ~ dist_shore_m_interval, data = mu_mci[which(mu_mci$ResultAnalyticalMethod.MethodIdentifierContext == "USEPA"), ],
-        xlab = "distance from shore (m)",
-        ylab = "chl a residual")
-
-barplot(table(mu_mci[which(mu_mci$ResultAnalyticalMethod.MethodIdentifierContext == "USGS"), ]$dist_shore_m_interval), xlab = "distance from shore (m)", ylab = "frequency", main = "USGS")
-boxplot(residual_chla ~ dist_shore_m_interval, data = mu_mci[which(mu_mci$ResultAnalyticalMethod.MethodIdentifierContext == "USGS"), ],
-        xlab = "distance from shore (m)",
-        ylab = "chl a residual")
-
-mu_method <- mu_mci[which(mu_mci$ResultAnalyticalMethod.MethodIdentifierContext == "APHA"), ]
-plot(mu_method$dist_shore_m, mu_method$residual_chla)
-
-m_usgs <- lm(residual_chla ~ dist_shore_m, mu_usgs)
-
-## satellite ---------------
-boxplot(residual_chla ~ SPACECRAFT_NAME, data = mu_mci,
-        ylab = "chl a residual",
-        xlab = "Satellite")
-text(0.7, 150, paste0("n = ", table(mu_mci$SPACECRAFT_NAME)[1]))
-text(1.7, 150, paste0("n = ", table(mu_mci$SPACECRAFT_NAME)[2]))
-
-
-## plot error by factor variables ---------------
-
-library(vioplot)
-
-plot_error_byfactor <- function(data, var_name, plotvalue_name) {
-  var_values <- unique(data[, which(colnames(data) == var_name)])
-  
-  expr_vio <- vioplot(data[which(data[col])])
-  
-  for (v in 1:length(values)) {
-    
-  }
-  
-  
-  vioplot()  
-}
-
-eval(parse(text = "plot(1, 2)"))
-
-factor_tab <- table(mu_mci$ResultAnalyticalMethod.MethodIdentifierContext)
-factor_vals <- names(factor_tab)
-sum(is.na((mu_mci$ResultAnalyticalMethod.MethodIdentifierContext)))
-
-vioplot(mu_mci$residual_chla[which(mu_mci$ResultAnalyticalMethod.MethodIdentifierContext == factor_vals[1])],
-        mu_mci$residual_chla[which(mu_mci$ResultAnalyticalMethod.MethodIdentifierContext == factor_vals[2])],
-        mu_mci$residual_chla[which(mu_mci$ResultAnalyticalMethod.MethodIdentifierContext == factor_vals[3])],
-        mu_mci$residual_chla[which(is.na(mu_mci$ResultAnalyticalMethod.MethodIdentifierContext))],
-        names = c(
-          paste0(factor_vals[1], "\n", factor_tab[1]),
-          paste0(factor_vals[2], "\n", factor_tab[2]),
-          paste0(factor_vals[3], "\n", factor_tab[3]),
-          "NA\n10"),
-        col = "lightblue")
 
 
 #### scraps
