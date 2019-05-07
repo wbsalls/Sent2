@@ -36,6 +36,9 @@ library(raster)
 #img_folder <- "C:/Users/WSalls/Desktop/s2_imgs_agu/mci/jordan" #jordan or utah
 #img_folder <- "/Users/wilsonsalls/Desktop/EPA/Presentations/AGU2018/data/mci/jordan"
 img_folder <- "/Users/wilsonsalls/Desktop/EPA/Sentinel2/Images/mci_demo_paper"
+img_folder <- "O:/PRIV/NERL_ORD_CYAN/Sentinel2/Images/mci_example/MCI"
+
+
 imgs <- list.files(img_folder, pattern = ".data")
 
 # load lake shp
@@ -48,15 +51,19 @@ lakename <- "example"
 # select lake; reproject to UTM for use with rasters, loading a raster first to get CRS
 #lake_poly_raw <- lakes[which(lakes$COMID == 166755060), ] #166755060 for jordan; xx for utah
 #lake_poly_raw <- readOGR("/Users/wilsonsalls/Desktop/EPA/Presentations/AGU2018/data", "JordanLake")
-lake_poly_raw <- readOGR("/Users/wilsonsalls/Desktop/EPA/Sentinel2/Validation/681_imgs/geospatial",
-                         "lakes_example")
+lake_poly_raw <- readOGR("/Users/wilsonsalls/Desktop/EPA/Sentinel2/Validation/681_imgs/geospatial", "lakes_example")
+lake_poly_raw <- readOGR("O:/PRIV/NERL_ORD_CYAN/Sentinel2/Validation/681_imgs/geospatial", "lakes_example")
+
 rast <- raster(file.path(img_folder, imgs[1], "MCI.img"))
 lake_poly <- spTransform (lake_poly_raw, crs(rast))
+
+lake_poly <- lake_poly[which(lake_poly$COMID == 1101766), ]
 
 ##
 
 #rast_out_dir <- file.path("/Users/wilsonsalls/Desktop/EPA/Presentations/AGU2018/data/mci_cropped/", lakename)
 rast_out_dir <- file.path("/Users/wilsonsalls/Desktop/EPA/Sentinel2/Images/mci_demo_paper")
+rast_out_dir <- "O:/PRIV/NERL_ORD_CYAN/Sentinel2/Images/mci_example/clipped_1101766"
 
 ## clip, remove edges, convert to chlorophyll, save new rasters ---------------
 
@@ -91,9 +98,12 @@ for (i in seq_along(imgs)) {
 
 ### plot
 
+
+
 # set location to save images
 #setwd("/Users/wilsonsalls/Desktop/EPA/Presentations/AGU2018/imgs")
-setwd("/Users/wilsonsalls/Desktop/EPA/Sentinel2/Images/mci_demo_paper")
+#setwd("/Users/wilsonsalls/Desktop/EPA/Sentinel2/Images/mci_demo_paper")
+setwd("O:/PRIV/NERL_ORD_CYAN/Sentinel2/Images/mci_example")
 
 # set location to read rasters from
 chl_rasts <- list.files(rast_out_dir, pattern = ".tif")
@@ -130,7 +140,7 @@ for (i in seq_along(chl_rasts)) {
   plot(lake_poly, add = TRUE)
   dev.off()
   
-  # get min and mox to improve plotting
+  # get min and max to improve plotting
   #min <- min(min, minValue(rast_crop), na.rm = T)
   #max <- max(max, maxValue(rast_crop), na.rm = T)
 }

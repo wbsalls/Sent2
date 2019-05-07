@@ -43,3 +43,29 @@ lines(c(5, 5), c((sum(spectra_all[which(mu_mci$mci_baseline_slope == max(mu_mci$
                  spectra_all[which(mu_mci$mci_baseline_slope == max(mu_mci$mci_baseline_slope)), 2]) / 10000, col = "red", lty = 3)
 
 
+
+
+### band ranges ----------------------------------------
+
+bands <- read.csv("O:/PRIV/NERL_ORD_CYAN/Sentinel2/bands.csv")
+
+plot(c(600, 800), c(0, 3), type = "n", xlab = "wavelength (nm)", ylab = "", yaxt = "n")
+# MERIS
+for (r in 1:nrow(bands)) {
+  lines(c(bands[r, 2] - bands[r, 3] / 2, bands[r, 2] + bands[r, 3] / 2), c(1, 1),
+        lwd = 4, col = "blue")
+}
+# S2A
+for (r in 1:nrow(bands)) {
+  lines(c(bands[r, 5] - bands[r, 6] / 2, bands[r, 5] + bands[r, 6] / 2), c(2.1, 2.1),
+        lwd = 4, col = "red")
+}
+# S2B
+for (r in 1:nrow(bands)) {
+  lines(c(bands[r, 7] - bands[r, 8] / 2, bands[r, 7] + bands[r, 8] / 2), c(1.9, 1.9),
+        lwd = 4, col = "red")
+}
+text(610, 1, "MERIS")
+text(610, 2.2, "S-2A")
+text(610, 1.8, "S-2B")
+

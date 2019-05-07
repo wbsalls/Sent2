@@ -8,16 +8,16 @@ conus <- us[-which(us$STUSPS %in% c("AK", "HI", "PR")), ]
 
 
 ## all points
-bio <- read.csv("/Users/wilsonsalls/Desktop/EPA/Sentinel2/Matchups/WQP/prepared/input.csv")
+wqp <- read.csv("O:/PRIV/NERL_ORD_CYAN/Sentinel2/Matchups/WQP/20180710/input.csv")
 
 # make spdf of matchups
-lon <- bio$LongitudeMeasure # **
-lat <- bio$LatitudeMeasure # **
-bio_pts <- SpatialPointsDataFrame(coords = matrix(c(lon, lat), ncol = 2), 
-                                     bio, proj4string = CRS("+init=epsg:4326"))
+lon <- wqp$LongitudeMeasure # **
+lat <- wqp$LatitudeMeasure # **
+wqp_pts <- SpatialPointsDataFrame(coords = matrix(c(lon, lat), ncol = 2), 
+                                     wqp, proj4string = CRS("+init=epsg:4326"))
 
 # transform
-bio_pts_proj <- spTransform(bio_pts, crs(us))
+wqp_pts_proj <- spTransform(wqp_pts, crs(us))
 
 
 ## used points
@@ -32,9 +32,13 @@ mu_mci_pts <- SpatialPointsDataFrame(coords = matrix(c(lon, lat), ncol = 2),
 mu_mci_pts_proj <- spTransform(mu_mci_pts, crs(us))
 
 # plot
-plot(conus, col = "cornsilk2", border = "grey")
+plot(conus, col = "cornsilk2", border = "grey") # 900 x 625
 
-#plot(bio_pts_proj, pch = 20, col = alpha("black", 0.2), add=TRUE)
-plot(bio_pts_proj, pch = 20, col = "black", add=TRUE)
-#plot(mu_mci_pts_proj, pch = 20, col = alpha("red", 0.2), add=TRUE)
-plot(mu_mci_pts_proj, pch = 20, col = "red", add=TRUE)
+pts_pch = 20
+#plot(wqp_pts_proj, pch = pts_pch, col = alpha("black", 0.2), add=TRUE)
+plot(wqp_pts_proj, pch = pts_pch, col = "black", add=TRUE)
+#plot(mu_mci_pts_proj, pch = pts_pch, col = alpha("red", 0.2), add=TRUE)
+plot(mu_mci_pts_proj, pch = pts_pch, col = "red", add=TRUE)
+
+legend("bottomleft", legend=c("WQP point", "WQP point used for validation"),
+       col=c("black", "red"), pch = pts_pch)
