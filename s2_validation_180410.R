@@ -73,7 +73,7 @@ mu_mci <- mu_mci_prefilter # reset
 sum(is.na(mu_mci$MCI_L1C))
 mu_mci <- mu_mci[!is.na(mu_mci$MCI_L1C), ]
 
-## remove MCI = 4.999
+## remove MCI = 4.999496
 max(mu_mci$MCI_L1C)
 sum(mu_mci$MCI_L1C == max(mu_mci$MCI_L1C))
 'mu_mci_499 <- mu_mci[mu_mci$MCI_L1C == max(mu_mci$MCI_L1C), ]
@@ -89,8 +89,7 @@ mu_mci <- mu_mci[mu_mci$MCI_L1C != max(mu_mci$MCI_L1C), ]
 ## remove MCI = 0
 sum(mu_mci$MCI_L1C == 0)
 
-'sum(mu_mci$MCI_L1C == 0)
-mu_mci_0 <- mu_mci[mu_mci$MCI_L1C == 0, ]
+'mu_mci_0 <- mu_mci[mu_mci$MCI_L1C == 0, ]
 mu_mci_0 <- mu_mci_0[mu_mci_0$chla_corr < 200, ]
 plot(mu_mci_0$chla_corr, mu_mci_0$chla_s2)
 hist(mu_mci_0$chla_corr) # slightly more right-skewed than hist with all data, so 0 values tend to have lower in situ chl (good)
@@ -99,10 +98,10 @@ hist(mu_mci$chla_corr)'
 mu_mci <- mu_mci[mu_mci$MCI_L1C != 0, ]
 
 ## negative MCI
-min(mu_mci$MCI_L1C)
-#hist(mu_mci$MCI_L1C)
+'min(mu_mci$MCI_L1C)
+hist(mu_mci$MCI_L1C)
 sum(mu_mci$MCI_L1C < -0.01)
-#mu_mci <- mu_mci[mu_mci$MCI_L1C > -0.01, ] # not relevant if removing negative S2 chl since intercept is -0.0021
+mu_mci <- mu_mci[mu_mci$MCI_L1C > -0.01, ]' # not relevant if removing negative S2 chl since intercept is -0.0021
 
 ## method
 method_sub <- "APHA" # APHA USEPA USGS
@@ -110,6 +109,7 @@ mu_mci <- mu_mci[which(mu_mci$ResultAnalyticalMethod.MethodIdentifierContext == 
 
 ## in situ chla
 summary(mu_mci$chla_corr)
+sum(mu_mci$chla_corr > 1000)
 mu_mci <- mu_mci[mu_mci$chla_corr <= 1000, ]
 
 ## offset time
@@ -341,7 +341,7 @@ mu_mci$chl_eutr <- sapply(mu_mci$chla_corr, chl_eutrFn)
 ## remove bad points identified in imagery
 length(mu_mci_raw$X.5) == length(unique(mu_mci_raw$X.5)) # checking if unique: yes
 
-img_comments <- read.csv("O:/PRIV/NERL_ORD_CYAN/Sentinel2/Images/composited/0day/ImageCheck_0day_comments.csv", stringsAsFactors = FALSE)
+img_comments <- read.csv("ImageCheck_0day_comments.csv", stringsAsFactors = FALSE)
 
 mu_mci <- merge(mu_mci, img_comments[, which(colnames(img_comments) %in% c("point_IDX5", "tier", "glint"))],
                 by.x = "X.5", by.y = "point_IDX5", all.x = TRUE, all.y = FALSE)
@@ -493,7 +493,6 @@ lat <- mu_mci$LatitudeMeasure # **
 mu_mci_pts <- SpatialPointsDataFrame(coords = matrix(c(lon, lat), ncol = 2), 
                                      mu_mci, proj4string = CRS("+init=epsg:4326"))
 
-# append state name to each point
 mu_mci_pts_proj <- spTransform(mu_mci_pts, crs(us))
 
 conus <- us[-which(us$STUSPS %in% c("AK", "HI", "PR")), ]

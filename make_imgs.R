@@ -34,24 +34,29 @@ library(raster)
 
 # set image folder paths
 #img_folder <- "C:/Users/WSalls/Desktop/s2_imgs_agu/mci/jordan" #jordan or utah
-img_folder <- "/Users/wilsonsalls/Desktop/EPA/Presentations/AGU2018/data/mci/jordan"
+#img_folder <- "/Users/wilsonsalls/Desktop/EPA/Presentations/AGU2018/data/mci/jordan"
+img_folder <- "/Users/wilsonsalls/Desktop/EPA/Sentinel2/Images/mci_demo_paper"
 imgs <- list.files(img_folder, pattern = ".data")
 
 # load lake shp
 #lakes <- readOGR("O:/PRIV/NERL_ORD_CYAN/Salls_working/geospatial_general/resolvableLakes/NHD_NLA_shoredist", "nhd_nla_subset_shore_dist")
 #lakes <- readOGR("/Users/wilsonsalls/Desktop/EPA/geosp_general/resolvableLakes/NHD_NLA_shoredist", "nhd_nla_subset_shore_dist")
 
-lakename <- "utah" # jordan OR utah
+#lakename <- "utah" # jordan OR utah
+lakename <- "example"
 
 # select lake; reproject to UTM for use with rasters, loading a raster first to get CRS
 #lake_poly_raw <- lakes[which(lakes$COMID == 166755060), ] #166755060 for jordan; xx for utah
-lake_poly_raw <- readOGR("/Users/wilsonsalls/Desktop/EPA/Presentations/AGU2018/data", "JordanLake")
+#lake_poly_raw <- readOGR("/Users/wilsonsalls/Desktop/EPA/Presentations/AGU2018/data", "JordanLake")
+lake_poly_raw <- readOGR("/Users/wilsonsalls/Desktop/EPA/Sentinel2/Validation/681_imgs/geospatial",
+                         "lakes_example")
 rast <- raster(file.path(img_folder, imgs[1], "MCI.img"))
 lake_poly <- spTransform (lake_poly_raw, crs(rast))
 
 ##
 
-rast_out_dir <- file.path("/Users/wilsonsalls/Desktop/EPA/Presentations/AGU2018/data/mci_cropped/", lakename)
+#rast_out_dir <- file.path("/Users/wilsonsalls/Desktop/EPA/Presentations/AGU2018/data/mci_cropped/", lakename)
+rast_out_dir <- file.path("/Users/wilsonsalls/Desktop/EPA/Sentinel2/Images/mci_demo_paper")
 
 ## clip, remove edges, convert to chlorophyll, save new rasters ---------------
 
@@ -87,7 +92,8 @@ for (i in seq_along(imgs)) {
 ### plot
 
 # set location to save images
-setwd("/Users/wilsonsalls/Desktop/EPA/Presentations/AGU2018/imgs")
+#setwd("/Users/wilsonsalls/Desktop/EPA/Presentations/AGU2018/imgs")
+setwd("/Users/wilsonsalls/Desktop/EPA/Sentinel2/Images/mci_demo_paper")
 
 # set location to read rasters from
 chl_rasts <- list.files(rast_out_dir, pattern = ".tif")
@@ -103,23 +109,25 @@ library(viridis)
 
 # plot
 for (i in seq_along(chl_rasts)) {
-  idate <- substr(chl_rasts[i], 20, 27)
+  idate <- substr(chl_rasts[i], nchar(chl_rasts[i]) - 11, nchar(chl_rasts[i]) - 4)
   print(sprintf("image %s of %s: %s", i, length(chl_rasts), idate))
   
   # read raster
   rast_crop <- raster(file.path(rast_out_dir, chl_rasts[i]))
   
   # plot
-  jpeg(sprintf("chl_%s_%s.png", lakename, idate), width = 600, height = 1200)
+  jpeg(sprintf("chl_%s_%s.png", lakename, idate), width = 1200, height = 850)
   max.color.val <- 50
   plot(rast_crop,
-       main = paste0(substr(idate, 1, 4), "-", substr(idate, 5, 6), "-", substr(idate, 7, 8)),
+       #main = paste0(substr(idate, 1, 4), "-", substr(idate, 5, 6), "-", substr(idate, 7, 8)),
        cex.main = 4,
        xaxt = "n", yaxt = "n", box = FALSE, bty = "n",
        #col = colorRampPalette(c("blue", "green", "yellow"))(255),
        col = viridis(max.color.val + 1),
        breaks = c(seq(1, max.color.val, length.out = max.color.val), 120),
+       legend = FALSE,
        colNA = NA)
+  plot(lake_poly, add = TRUE)
   dev.off()
   
   # get min and mox to improve plotting
@@ -135,7 +143,7 @@ rast_crop <- raster(file.path(rast_out_dir, chl_rasts[i]))
 values(rast_crop)[values(rast_crop) > 50.1] <- NA
 max.color.val <- 50
 plot(rast_crop,
-     main = paste0(substr(idate, 1, 4), "-", substr(idate, 5, 6), "-", substr(idate, 7, 8)),
+     #main = paste0(substr(idate, 1, 4), "-", substr(idate, 5, 6), "-", substr(idate, 7, 8)),
      cex.main = 4,
      xaxt = "n", yaxt = "n", box = FALSE, bty = "n",
      #col = colorRampPalette(c("blue", "green", "yellow"))(255),
