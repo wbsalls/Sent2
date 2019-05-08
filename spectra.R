@@ -21,7 +21,7 @@ for (r in 1:nrow(spectra_sed)) {
   lines(c(4, 5, 6), spectra_sed[r, ], col = "red")
 }
 
-# plot examples
+# plot cases
 plot(4:6, 4:6, type = "n", ylim = c(0, max(spectra_all) / 10000), 
      xlab = "band", ylab = "reflectance", xaxt="n")
 axis(1, xaxp=c(4, 6, 2), las=2)
@@ -43,7 +43,21 @@ lines(c(5, 5), c((sum(spectra_all[which(mu_mci$mci_baseline_slope == max(mu_mci$
                  spectra_all[which(mu_mci$mci_baseline_slope == max(mu_mci$mci_baseline_slope)), 2]) / 10000, col = "red", lty = 3)
 
 
-
+## show calculation
+plot(c(4, 5, 6), spectra_all[which(mu_mci$MCI_L1C == max(mu_mci$MCI_L1C)), ] / 10000, 
+     ylim = c(0, max(spectra_all) / 10000), pch = 20, 
+     xlab = "band", ylab = "reflectance", xaxt="n", yaxt = "n")
+axis(1, xaxp=c(4, 6, 2), las=2)
+lines(c(4, 5, 6), spectra_all[which(mu_mci$MCI_L1C == max(mu_mci$MCI_L1C)), ] / 10000, col = "black", lty = 1)
+lines(c(4, 6), spectra_all[which(mu_mci$MCI_L1C == max(mu_mci$MCI_L1C)), c(1, 3)] / 10000, col = "pink", lty = 2)
+#lines(c(5, 5), c((sum(spectra_all[which(mu_mci$MCI_L1C == max(mu_mci$MCI_L1C)), c(1, 3)]) / 2), 
+                 #spectra_all[which(mu_mci$MCI_L1C == max(mu_mci$MCI_L1C)), 2]) / 10000, col = "red", lty = 3, lwd = 3)
+arrows(x0 = 5, y0 = (sum(spectra_all[which(mu_mci$MCI_L1C == max(mu_mci$MCI_L1C)), c(1, 3)]) / 2) / 10000, 
+       x1 = 5, y1 = spectra_all[which(mu_mci$MCI_L1C == max(mu_mci$MCI_L1C)), 2] / 10000, 
+       code = 2, col = "red", lty = 1, lwd = 2, length = 0.2)
+text(4.5, 0.067, "MCI baseline", col = "red2")
+text(5.15, 0.085, "MCI peak", col = "red", font = 2)
+#
 
 ### band ranges ----------------------------------------
 
