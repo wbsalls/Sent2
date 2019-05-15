@@ -32,13 +32,11 @@ mu_mci_pts <- SpatialPointsDataFrame(coords = matrix(c(lon, lat), ncol = 2),
 mu_mci_pts_proj <- spTransform(mu_mci_pts, crs(us))
 
 # plot
-plot(conus, col = "cornsilk2", border = "grey") # 900 x 625
-
-pts_pch = 20
-#plot(wqp_pts_proj, pch = pts_pch, col = alpha("black", 0.2), add=TRUE)
-plot(wqp_pts_proj, pch = pts_pch, col = "black", add=TRUE)
-#plot(mu_mci_pts_proj, pch = pts_pch, col = alpha("red", 0.2), add=TRUE)
-plot(mu_mci_pts_proj, pch = pts_pch, col = "red", add=TRUE)
+plot(conus, col = "grey92", border = "white") # 900 x 625
+#plot(wqp_pts_proj, pch = 20, col = alpha("black", 0.2), add=TRUE)
+plot(wqp_pts_proj, pch = 20, col = "gray50", add=TRUE)
+#plot(mu_mci_pts_proj, pch = 20, col = alpha("red", 0.2), add=TRUE)
+plot(mu_mci_pts_proj, pch = 20, col = "black", add=TRUE)
 
 legend("bottomleft", legend=c("WQP point", "WQP point used for validation"),
-       col=c("black", "red"), pch = pts_pch)
+       col=c("gray50", "black"), pch = c(20, 20))

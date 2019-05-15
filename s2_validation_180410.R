@@ -406,7 +406,7 @@ mu_mci <- mu_mci[mu_mci$mci_baseline_slope > sed_cutoff, ]
 
 ### validation plot  -----------------------------------------------------------------------------------
 
-#mu_mci <- read.csv("O:/PRIV/NERL_ORD_CYAN/Sentinel2/Validation/681_imgs/mu_mci_finalset_2019-05-08.csv", stringsAsFactors = FALSE)
+mu_mci <- read.csv("O:/PRIV/NERL_ORD_CYAN/Sentinel2/Validation/681_imgs/mu_mci_finalset_2019-05-08.csv", stringsAsFactors = FALSE)
 
 #jpeg(sprintf("val_%s_%s.png", offset_min, offset_max), width = 800, height = 860)
 if (offset_min == offset_max) {
@@ -436,6 +436,7 @@ plot_error_metrics(x = mu_mci$chla_corr, y = mu_mci$chla_s2, # export 800 x 860
                    #yaxt="n",
                    col = alpha("black", 0.4), 
                    #col = mu_mci$sedimentf,
+                   #col = mu_mci$state_col,
                    pch = 20)
 #legend("bottomright", legend = unique(mu_mci$sedimentf), col = c("black", "red"), border = NULL)
 #dev.off()
@@ -458,6 +459,16 @@ abline(v = 30, lty = threshold_lty, col = "red")
 
 
 ##
+
+# color by state
+mu_mci$state_col <- "black"
+mu_mci$state_col[which(mu_mci$state == "CO")] <- "green"
+mu_mci$state_col[which(mu_mci$state == "OK")] <- "red"
+mu_mci$state_col[which(mu_mci$state == "WI")] <- "cyan"
+
+legend(0.05, 10, legend=c("MN", "WI", "OK", "CO"),
+       col=c("black", "cyan", "red", "green"), pch = 20)
+
 
 #plot(mu_mci$chla_corr, mu_mci$chla_s2, xlim = c(0, 415), ylim = c(0, 415), xlab = "in situ chlorophyll-a (ug/l)", ylab = "S2-derived chlorophyll-a (from MCI L1C)")
 #plot(mu_mci$chla_corr, mu_mci$error_chla)
