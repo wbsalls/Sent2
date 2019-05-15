@@ -532,6 +532,35 @@ mu_mci_sort <- mu_mci[order(-mu_mci$pct_error_chla_abs), ]
 mu_mci_sort[1:20, c(185, 191:194)] # this no longer works right - what's it supposed to be??
 
 
+## depth --------------------------
+mu_mci$depth_m_stdized <- NA
+
+sum(mu_mci$ActivityRelativeDepthName == "Surface", na.rm = TRUE)
+mu_mci$depth_m_stdized[which(mu_mci$ActivityRelativeDepthName == "Surface")] <- 0
+
+sum(!is.na(mu_mci$depth_corr))
+mu_mci$depth_m_stdized[which(!is.na(mu_mci$depth_corr))] <- 
+  mu_mci$depth_corr[which(!is.na(mu_mci$depth_corr))]
+
+sum(!is.na(mu_mci$topdepth_corr))
+mu_mci$depth_m_stdized[which(!is.na(mu_mci$topdepth_corr))] <- 
+  mean(c(mu_mci$topdepth_corr[which(!is.na(mu_mci$topdepth_corr))],
+       mu_mci$botdepth_corr[which(!is.na(mu_mci$topdepth_corr))]))
+
+# depth columns
+depth_corr
+topdepth_corr
+botdepth_corr
+
+"ActivityRelativeDepthName"
+"ActivityDepthHeightMeasure.MeasureValue"
+"ActivityDepthHeightMeasure.MeasureUnitCode"
+"ActivityTopDepthHeightMeasure.MeasureValue"
+"ActivityTopDepthHeightMeasure.MeasureUnitCode"
+"ActivityBottomDepthHeightMeasure.MeasureValue"
+"ActivityBottomDepthHeightMeasure.MeasureUnitCode"
+
+
 ## sediment -------------------------------
 table(mu_mci$sediment)
 
