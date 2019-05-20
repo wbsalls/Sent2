@@ -19,6 +19,14 @@ for (f in seq_along(files)) {
     file_line <- strsplit(file_lines[l], split = " +")[[1]]
     if (length(file_line) == 10 & 
         !is.na(as.numeric(file_line[3]))) {
+      
+      # skip if depth > 0.5
+      if (file_line[6] > 0.5) {
+        next
+      }
+      
+      # get DST status, adjust time if nec, and skip if outside time window
+      
       comb <- rbind(comb, data.frame(matrix(file_line, ncol = 10, nrow = 1), stringsAsFactors = FALSE))
     } else {
       #print(sprintf("skipping line %s with %s elements", l, length(file_line)))
@@ -36,6 +44,11 @@ colnames(comb) <- headers
 
 ### ------------------------------------------------
 
+comb <- read.csv("O:/PRIV/NERL_ORD_CYAN/Sentinel2/Jordan_Data/haw_part/combined_haw_part.csv")
+comb <- read.csv("O:/PRIV/NERL_ORD_CYAN/Sentinel2/Jordan_Data/haw_part/haw_0517_0520_21part_1406_part.csv", 
+                 stringsAsFactors = FALSE)
+###
+
 
 ## show # NAs
 for(c in 1:ncol(comb)) {
@@ -46,11 +59,15 @@ for(c in 1:ncol(comb)) {
 library(chron)
 comb$datetime <- chron(dates. = comb$date, times. = comb$time)
 
+
 ## experiment
+library(ggplot2)
+
 comb <- comb[comb$date == "05/19/17", ] # just to experiment
 
 plot(comb$datetime, comb$depth_m) # these are depth profiles!!
 
+# chl vs depth
 plot(comb$depth_m, comb$chlorophyl_ug_L) # ~2 m drop-off, ~1 m max
 ggplot(comb, aes(as.numeric(depth_m), as.numeric(chlorophyl_ug_L))) +
   stat_density_2d(aes(fill = ..density..), geom = 'raster', contour = FALSE) +       
@@ -60,12 +77,22 @@ ggplot(comb, aes(as.numeric(depth_m), as.numeric(chlorophyl_ug_L))) +
   ylab("Chlorophyll (ug/L)") #+
 #geom_point(shape = '.', col = 'white') # 
 
-
 hist(as.numeric(comb$chlorophyl_ug_L)) # bimodal chl distr is explained by Z-shaped chl vs depth curve
 
+# temp vs depth
+ggplot(comb, aes(as.numeric(depth_m), as.numeric(temp_C))) +
+  stat_density_2d(aes(fill = ..density..), geom = 'raster', contour = FALSE) +       
+  scale_fill_viridis_c() +
+  coord_cartesian(expand = FALSE) +
+  xlab("Depth (m)") + 
+  ylab("Temperature (deg. c)")
+
+
+## restrict depth to top 0.5 m
 comb <- comb[comb$depth_m <= 0.5, ]
 
 plot(comb$datetime, comb$chlorophyl_ug_L)
+
 
 
 ## aggregate
