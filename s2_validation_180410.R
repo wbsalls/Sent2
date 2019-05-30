@@ -29,16 +29,6 @@ mu_mci <- mu_mci_raw
 # rename MCI column
 colnames(mu_mci)[which(colnames(mu_mci) == "MCI_val_1")] <- "MCI_L1C"
 
-#* fix chron
-mu_mci$samp_localTime <- chron(dates. = substr(mu_mci$samp_localTime, 2, 9), 
-                               times. = substr(mu_mci$samp_localTime, 11, 18))
-mu_mci$img_localTime <- chron(dates. = substr(mu_mci$img_localTime, 2, 9), 
-                              times. = substr(mu_mci$img_localTime, 11, 18))
-mu_mci$samp_localDate <- substr(mu_mci$samp_localTime, 2, 9)
-
-mu_mci$offset_hrs <- as.numeric(mu_mci$samp_localTime - mu_mci$img_localTime) * 24
-
-
 # remove duplicates: identify based on duplicated chlorophyll-a and MCI (L1C)
 # most duplicates have 0 MCI_L1C
 val_df <- data.frame(mu_mci$chla_corr, mu_mci$MCI_L1C, mu_mci$LatitudeMeasure, mu_mci$LongitudeMeasure, mu_mci$samp_localDate)
@@ -61,6 +51,25 @@ mu_mci$mci_single <- mu_mci$MCI_L1C
 
 # choose which MCI to use *******
 mu_mci$MCI_L1C <- mu_mci$mci_single # mci_single OR mci_mean
+
+# export points
+lon <- mu_mci$LongitudeMeasure
+lat <- mu_mci$LatitudeMeasure
+mu_mci_pts_all <- SpatialPointsDataFrame(coords = matrix(c(lon, lat), ncol = 2), 
+                                     mu_mci, proj4string = CRS("+init=epsg:4326"))
+writeOGR(obj = mu_mci_pts_all, dsn = "O:/PRIV/NERL_ORD_CYAN/Sentinel2/Validation/681_imgs/geospatial", 
+         layer = "mu_mci_pts_all",  driver = "ESRI Shapefile")
+
+
+#* fix chron
+mu_mci$samp_localTime <- chron(dates. = substr(mu_mci$samp_localTime, 2, 9), 
+                               times. = substr(mu_mci$samp_localTime, 11, 18))
+mu_mci$img_localTime <- chron(dates. = substr(mu_mci$img_localTime, 2, 9), 
+                              times. = substr(mu_mci$img_localTime, 11, 18))
+mu_mci$samp_localDate <- substr(mu_mci$samp_localTime, 2, 9)
+
+mu_mci$offset_hrs <- as.numeric(mu_mci$samp_localTime - mu_mci$img_localTime) * 24
+
 
 # make copy
 mu_mci_prefilter <- mu_mci
