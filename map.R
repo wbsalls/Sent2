@@ -1,3 +1,7 @@
+library(rgdal)
+library(sp)
+library(raster)
+
 
 # read us shp for state names
 us <- readOGR("O:/PRIV/NERL_ORD_CYAN/Salls_working/geospatial_general/US", "cb_2015_us_state_20m")
@@ -32,9 +36,9 @@ mu_mci_pts <- SpatialPointsDataFrame(coords = matrix(c(lon, lat), ncol = 2),
 mu_mci_pts_proj <- spTransform(mu_mci_pts, crs(us))
 
 # plot
-plot(conus, col = "grey92", border = "white") # 900 x 625
+plot(conus, col = "grey94", border = "white") # 900 x 625
 #plot(wqp_pts_proj, pch = 20, col = alpha("black", 0.2), add=TRUE)
-plot(wqp_pts_proj, pch = 20, col = "gray50", add=TRUE)
+plot(wqp_pts_proj, pch = 20, col = "gray60", add=TRUE)
 #plot(mu_mci_pts_proj, pch = 20, col = alpha("red", 0.2), add=TRUE)
 plot(mu_mci_pts_proj, pch = 20, col = "black", add=TRUE)
 
