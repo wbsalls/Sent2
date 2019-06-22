@@ -15,7 +15,6 @@ library(dplyr)
 
 source("C:/Users/WSalls/Desktop/Git/Sent2/error_metrics_1800611.R")
 source("/Users/wilsonsalls/Desktop/Git/Sent2/error_metrics_1800611.R")
-source()
 
 setwd("O:/PRIV/NERL_ORD_CYAN/Sentinel2/Validation/681_imgs")
 setwd("/Users/wilsonsalls/Desktop/EPA/Sentinel2/Validation/681_imgs")
@@ -458,6 +457,7 @@ print("make sure you checked duplicate files for this batch of validation points
 
 ####
 
+# plot trophic categories
 threshold_lty <- 2
 abline(h = 2, lty = threshold_lty, col = "blue")
 abline(v = 2, lty = threshold_lty, col = "blue")
@@ -465,6 +465,23 @@ abline(h = 7, lty = threshold_lty, col = "green")
 abline(v = 7, lty = threshold_lty, col = "green")
 abline(h = 30, lty = threshold_lty, col = "red")
 abline(v = 30, lty = threshold_lty, col = "red")
+
+
+# categorical by trophic state; confusion matrix
+mu_mci$s2_eutr <- sapply(mu_mci$chla_s2, chl_eutrFn)
+sum(mu_mci$chl_eutr == mu_mci$s2_eutr)
+
+mu_mci$chl_eutr <- factor(mu_mci$chl_eutr, 
+                         levels = c("oligotrophic", "mesotrophic", "eutrophic", "hypereutrophic"))
+mu_mci$s2_eutr <- factor(mu_mci$s2_eutr, 
+                         levels = c("oligotrophic", "mesotrophic", "eutrophic", "hypereutrophic"))
+
+confusionMatrix(data = mu_mci$s2_eutr, reference = mu_mci$chl_eutr)
+
+# with adjustment based on regression slope
+mu_mci$chla_s2_adj <- mu_mci$chla_s2 / 0.49
+mu_mci$chla_s2_adj_eutr <- sapply(mu_mci$chla_s2_adj, chl_eutrFn)
+sum(mu_mci$chl_eutr == mu_mci$chla_s2_adj_eutr)
 
 
 ##
