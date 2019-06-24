@@ -164,11 +164,13 @@ plot_error_metrics <- function(x, y,
     #abline(0, 0, lty = 2) # show y = 0 line
     #abline(v = 0, lty = 2) # show x = 0 line
     
+    '
     if (plot_abline == TRUE) {
       legend("bottomright", y.intersp = 0.5, c("Fit model", "y = x"), lty=c(1, 3), bty = "n")
     } else {
       legend("bottomright", y.intersp = 0.5, c("y = x"), lty=c(3), bty = "n")
     }
+'
   }
   
   ## add axes if log transformed and axes withheld
@@ -202,8 +204,8 @@ plot_error_metrics <- function(x, y,
   
   text(x = text_x, y = text_y, adj = c(0, 1), 
        paste0(#"y = ", signif(err_metr$slope, digits = 3), "x + ", signif(err_metr$int, digits = 3), "\n",
-              "MAE = ", signif(err_metr$MAE, digits = 3), "\n", 
-              "bias = ", signif(err_metr$bias, digits = 3), "\n", 
+              "MAE_mult = ", signif(err_metr$MAE, digits = 3), "\n", 
+              "bias_mult = ", signif(err_metr$bias, digits = 3), "\n", 
               if (mape == TRUE) {paste0("MAPE = ", signif(err_metr$MAPE, digits = 3), "\n")}, 
               if (rand_error == TRUE) {paste0("random error = ", signif(err_metr$rand.err, digits = 3), "\n")}, 
               if (regr_stats == TRUE) {paste0("slope = ", round(err_metr$slope, 2), "\n",
