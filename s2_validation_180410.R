@@ -480,6 +480,8 @@ confusionMatrix(data = mu_mci$s2_eutr, reference = mu_mci$chl_eutr)
 
 # with adjustment based on regression slope
 mu_mci$chla_s2_adj <- mu_mci$chla_s2 / 0.49
+#mu_mci$chla_s2_adj <- mu_mci$chla_s2 / 1.2
+#mu_mci$chla_s2 <- mu_mci$chla_s2_adj
 mu_mci$chla_s2_adj_eutr <- sapply(mu_mci$chla_s2_adj, chl_eutrFn)
 sum(mu_mci$chl_eutr == mu_mci$chla_s2_adj_eutr)
 
@@ -657,7 +659,7 @@ summary(mu_mci$MEAN_SOLAR_ZENITH_ANGLE)
 
 box_min <- 21
 box_max <- 45
-box_step <- 4
+box_step <- 3
 mu_mci$solar_angle_interval <- cut(mu_mci$MEAN_SOLAR_ZENITH_ANGLE, seq(box_min, box_max, box_step))
 
 par(mfrow = c(2,1))
@@ -715,9 +717,11 @@ par(mfrow = c(1,1))
 
 
 ## month ----------------------------------
+plot(mu_mci$month, mu_mci$error_chla)
+
 # boxplot
 par(mfrow = c(2,1))
-barplot(table(mu_mci$month), xlab = NULL, ylab = "frequency")
+barplot(table(mu_mci$month), xlab = NULL, ylab = "frequency", xaxt = 'n')
 boxplot(error_chla ~ month, data = mu_mci,
         las = 3,
         xaxt = 'n',
