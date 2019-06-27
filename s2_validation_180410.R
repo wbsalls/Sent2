@@ -572,13 +572,16 @@ mu_mci$depth_m_stdized[which(!is.na(mu_mci$depth_corr))] <-
 
 sum(!is.na(mu_mci$topdepth_corr))
 mu_mci$depth_m_stdized[which(!is.na(mu_mci$topdepth_corr))] <- 
-  mean(c(mu_mci$topdepth_corr[which(!is.na(mu_mci$topdepth_corr))],
-       mu_mci$botdepth_corr[which(!is.na(mu_mci$topdepth_corr))]))
+  apply(data.frame(topd = mu_mci$topdepth_corr[which(!is.na(mu_mci$topdepth_corr))],
+                     botd = mu_mci$botdepth_corr[which(!is.na(mu_mci$topdepth_corr))]), 1, mean)
+
+plot(mu_mci$depth_m_stdized, mu_mci$chla_corr)
 
 # depth columns
-depth_corr
-topdepth_corr
-botdepth_corr
+#ActivityRelativeDepthName
+#depth_corr
+#topdepth_corr
+#botdepth_corr
 
 "ActivityRelativeDepthName"
 "ActivityDepthHeightMeasure.MeasureValue"
@@ -625,6 +628,7 @@ max_depth_boxplot <- 1400
 slice_boxplot <- 50
 mu_mci$dist_shore_m_interval <- cut(mu_mci$dist_shore_m, seq(0, max_depth_boxplot, slice_boxplot))
 
+# error vs dist
 par(mfrow = c(2,1))
 #layout(matrix(c(1,2,2), nrow = 4, ncol = 1, byrow = TRUE))
 par(mar = c(0.5, 4.1, 10, 2.1)) # par(mar = c(bottom, left, top, right))
@@ -639,7 +643,23 @@ boxplot(mu_mci$pct_error_chla_abs ~ dist_shore_m_interval, data = mu_mci,
 axis(side = 1, las = 3,
      at = seq(from = 0.5, to = max_depth_boxplot / slice_boxplot + 0.5, by = 1), 
      labels = c(rbind(seq(from = 0, to = max_depth_boxplot, by = slice_boxplot * 2), ""))[1:(max_depth_boxplot / slice_boxplot + 1)])
+par(opar)
 
+# chla vs dist
+par(mfrow = c(2,1))
+#layout(matrix(c(1,2,2), nrow = 4, ncol = 1, byrow = TRUE))
+par(mar = c(0.5, 4.1, 10, 2.1)) # par(mar = c(bottom, left, top, right))
+barplot(table(mu_mci$dist_shore_m_interval), ylab = "freq", names.arg = FALSE)
+#barplot(table(mu_mci$dist_shore_m_interval), xlab = NULL, ylab = NULL, xaxt = 'n', yaxt = 'n')
+par(mar = c(5.1, 4.1, 0.5, 2.1))
+boxplot(mu_mci$chla_corr ~ dist_shore_m_interval, data = mu_mci,
+        las = 3,
+        xaxt = 'n',
+        xlab = "distance from shore (m)",
+        ylab = "in situ chl-a (ug/l)")
+axis(side = 1, las = 3,
+     at = seq(from = 0.5, to = max_depth_boxplot / slice_boxplot + 0.5, by = 1), 
+     labels = c(rbind(seq(from = 0, to = max_depth_boxplot, by = slice_boxplot * 2), ""))[1:(max_depth_boxplot / slice_boxplot + 1)])
 par(opar)
 
 
@@ -647,7 +667,7 @@ par(opar)
 
 ## glint ---------
 boxplot(error_chla ~ glint, data = mu_mci,
-        ylab = "chl a residual",
+        ylab = "chl-a residual",
         xlab = "Satellite")
 
 
@@ -727,6 +747,19 @@ boxplot(error_chla ~ month, data = mu_mci,
         xaxt = 'n',
         xlab = "month",
         ylab = "chl a error (ug/l)")
+axis(side = 1,
+     at = seq(from = 1, to = length(unique(mu_mci$month)), by = 1), 
+     labels = sort(unique(mu_mci$month)))
+par(mfrow = c(1,1))
+
+# boxplot - chla value vs month
+par(mfrow = c(2,1))
+barplot(table(mu_mci$month), xlab = NULL, ylab = "frequency", xaxt = 'n')
+boxplot(chla_corr ~ month, data = mu_mci,
+        las = 3,
+        xaxt = 'n',
+        xlab = "month",
+        ylab = "in situ chl a (ug/l)")
 axis(side = 1,
      at = seq(from = 1, to = length(unique(mu_mci$month)), by = 1), 
      labels = sort(unique(mu_mci$month)))
