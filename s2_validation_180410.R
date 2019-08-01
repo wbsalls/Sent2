@@ -134,28 +134,36 @@ mu_mci_cleaned <- mu_mci
 
 mu_mci <- mu_mci_cleaned
 
-# choose 1) binding OR 2) cal-val
+# choose coefficients
+s2_calc <- "erie" # <<<<<<<<<<< *** select one of the options below ***
 
-s2_calc <- "binding" # <<<<<<<<<<< *** binding / mollaee / custom / split ***
-
-if (s2_calc == "binding") {
-  # 1) binding paper -------
+if (s2_calc == "ontario") {
+  # 1a) binding erie -------
+  slope.mci <- 0.0002 # from Binding et al. 2013 - Erie
+  intercept.mci <- -0.0012 # from Binding et al. 2013 - Erie
+  
+} else if (s2_calc == "erie") {
+  # 1b) binding erie -------
   slope.mci <- 0.0004 # from Binding et al. 2013 - Erie
   intercept.mci <- -0.0021 # from Binding et al. 2013 - Erie
   
+} else if (s2_calc == "lotw") {
+  # 1c) binding lake of the woods -------
+  slope.mci <- 1 # from Binding et al. 2013 - Erie
+  intercept.mci <- 0 # from Binding et al. 2013 - Erie
   
 } else if (s2_calc == "mollaee") {
-  # 1b) Mollaee thesis (p 77) -------
+  # 2) Mollaee thesis (p 77) -------
   slope.mci <- 0.0001790292 # 1/2158 = 0.00046
   intercept.mci <- -0.0018 # -3.9/2158 = -0.0018
   
 } else if (s2_calc == "custom") {
-  # 1c) custom -------
+  # 3) custom -------
   slope.mci <- 0.0004 * 0.5 # from Binding et al. 2013 - Erie, times correction factor from slope
   intercept.mci <- -0.0021 # from Binding et al. 2013 - Erie
   
 } else if (s2_calc == "split") {
-  # 2) cal-val split -------
+  # 4) cal-val split -------
   set.seed(1)
   index.selected <- sample(1:nrow(mu_mci), size = floor(nrow(mu_mci) * 0.8), replace = FALSE)
   mu_mci_calc <- mu_mci[index.selected, ] # select 80% for cal
@@ -170,6 +178,10 @@ if (s2_calc == "binding") {
 
 # calculate S2 chla
 mu_mci$chla_s2 <- (mu_mci$MCI_L1C - intercept.mci) / slope.mci
+
+if (s2_calc == "lotw") {
+  mu_mci$chla_s2 <- exp((mu_mci$MCI_L1C + 0.017) / 0.0077)
+}
 
 # remove negative S2 Chla
 sum(mu_mci$chla_s2 < 0)
@@ -301,7 +313,7 @@ mu_mci <- mu_mci_integrated
 sprintf("%s/%s duplicates removed", nrow(mu_mci_preintegrated) - nrow(mu_mci), ndups) # show number of duplicates removed
 
 # write out to csv for checking
-#write.csv(mu_mci_preintegrated, "mu_mci_preintegrated.csv")
+#write.csv(mu_mci_preintegrated, sprintf("mu_mci_preintegrated_%s.csv", Sys.Date()))
 #write.csv(mu_mci, sprintf("mu_mci_integrated_%s.csv", Sys.Date()))
 
 # ------------------------------------------------------------------
@@ -408,6 +420,8 @@ mu_mci <- mu_mci[mu_mci$mci_baseline_slope > sed_cutoff, ]
 
 # ------
 
+#mu_mci <- mu_mci[which(!is.na(mu_mci$chla_corr)), ]
+
 # write csv of final validation set
 #write.csv(mu_mci, sprintf("mu_mci_finalset_%s.csv", Sys.Date()))
 
@@ -432,13 +446,15 @@ plot_error_metrics(x = mu_mci$chla_corr, y = mu_mci$chla_s2, # export 800 x 860
                    log_axes = "xy", # xy
                    log_space = TRUE,
                    plot_abline = FALSE,
+                   text_x = 0.04,
+                   #text_y = ,
                    mape = FALSE,
                    rand_error = FALSE,
                    regr_stats = FALSE,
                    states = mu_mci$state,
                    lakes = mu_mci$comid,
-                   xlim = c(0.05, max(mu_mci$chla_corr, mu_mci$chla_s2)), # min 0.05
-                   ylim = c(0.05, max(mu_mci$chla_corr, mu_mci$chla_s2)),
+                   xlim = c(0.04, max(mu_mci$chla_corr, mu_mci$chla_s2)), # min 0.05
+                   ylim = c(0.04, max(mu_mci$chla_corr, mu_mci$chla_s2)),
                    show_metrics = TRUE, 
                    #xaxt="n",
                    #yaxt="n",
@@ -448,8 +464,8 @@ plot_error_metrics(x = mu_mci$chla_corr, y = mu_mci$chla_s2, # export 800 x 860
                    pch = 20)
 #legend("bottomright", legend = unique(mu_mci$sedimentf), col = c("black", "red"), border = NULL)
 #dev.off()
-print(sprintf("S2 -> chl relationship: *** %s ***", s2_calc))
-cat(sprintf("S2 regression slope = %s; intercept = %s (Binding = 0.0004; -0.0021)\n%s images\n", 
+cat(sprintf("S2 -> chl relationship: *** %s *** \nS2 regression slope = %s; intercept = %s \n%s images\n", 
+            s2_calc,
             signif(slope.mci, digits = 2), signif(intercept.mci, digits = 2),
             length(unique(mu_mci$GRANULE_ID))))
 print("make sure you checked duplicate files for this batch of validation points!!")

@@ -90,6 +90,8 @@ plot_error_metrics <- function(x, y,
                                equal_axes = FALSE, 
                                log_axes = "",
                                plot_abline = TRUE,
+                               text_x = 0.05,
+                               text_y = max(x, y, na.rm = TRUE),
                                mape = TRUE,
                                rand_error = TRUE,
                                regr_stats = TRUE,
@@ -194,6 +196,7 @@ plot_error_metrics <- function(x, y,
   }
   
   # add text
+  '
   if (equal_axes == TRUE) {
     text_x <- 0.05 #min(df$x, df$y)
     text_y <- max(df$x, df$y) #150
@@ -201,6 +204,7 @@ plot_error_metrics <- function(x, y,
     text_x <- min(df$x)
     text_y <- max(df$y)
   }
+'
   
   text(x = text_x, y = text_y, adj = c(0, 1), 
        paste0(#"y = ", signif(err_metr$slope, digits = 3), "x + ", signif(err_metr$int, digits = 3), "\n",
