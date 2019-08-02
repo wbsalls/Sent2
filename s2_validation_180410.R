@@ -195,7 +195,7 @@ mu_mci_s2chla <- mu_mci
 # ------------------------------------------------------------------
 
 
-## integrate depth duplicates (only done on set with n = 111 (same-day, filtered, bad pts removed))
+## integrate depth duplicates
 # creates a new table with integrated records, and comments where integration occurred
 # retains the old table with comments
 
@@ -320,7 +320,7 @@ sprintf("%s/%s duplicates removed", nrow(mu_mci_preintegrated) - nrow(mu_mci), n
 
 # >>>> revise mu_mci_integrated.csv if needed; rename file: add "MANUAL" add end <<<<
 # re-load revised data
-mu_mci <- read.csv("mu_mci_integrated_2019-05-01_MANUAL.csv", stringsAsFactors = FALSE)
+mu_mci <- read.csv("mu_mci_integrated_2019-08-02_MANUAL.csv", stringsAsFactors = FALSE)
 
 # ------------------------------------------------------------------
 
@@ -428,7 +428,7 @@ mu_mci <- mu_mci[mu_mci$mci_baseline_slope > sed_cutoff, ]
 
 ### validation plot  -----------------------------------------------------------------------------------
 
-mu_mci <- read.csv("O:/PRIV/NERL_ORD_CYAN/Sentinel2/Validation/681_imgs/mu_mci_finalset_2019-05-08.csv", stringsAsFactors = FALSE)
+mu_mci <- read.csv("O:/PRIV/NERL_ORD_CYAN/Sentinel2/Validation/681_imgs/mu_mci_finalset_2019-08-02.csv", stringsAsFactors = FALSE)
 
 #jpeg(sprintf("val_%s_%s.png", offset_min, offset_max), width = 800, height = 860)
 if (offset_min == offset_max) {
