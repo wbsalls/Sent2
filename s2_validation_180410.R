@@ -61,6 +61,9 @@ writeOGR(obj = mu_mci_pts_all, dsn = "O:/PRIV/NERL_ORD_CYAN/Sentinel2/Validation
 mu_mci_pts_0 <- mu_mci_pts_all[!is.na(mu_mci_pts_all$MCI_L1C) & mu_mci_pts_all$MCI_L1C == 0, ]
 writeOGR(obj = mu_mci_pts_0, dsn = "O:/PRIV/NERL_ORD_CYAN/Sentinel2/Validation/681_imgs/geospatial", 
          layer = "mu_mci_0",  driver = "ESRI Shapefile")
+mu_mci_pts_499 <- mu_mci_pts_all[!is.na(mu_mci_pts_all$MCI_L1C) & mu_mci_pts_all$MCI_L1C == max(mu_mci$MCI_L1C, na.rm = TRUE), ]
+writeOGR(obj = mu_mci_pts_499, dsn = "O:/PRIV/NERL_ORD_CYAN/Sentinel2/Validation/681_imgs/geospatial", 
+         layer = "mu_mci_499",  driver = "ESRI Shapefile")
 
 
 #* fix chron
