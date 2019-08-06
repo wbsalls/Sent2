@@ -55,9 +55,12 @@ mu_mci$MCI_L1C <- mu_mci$mci_single # mci_single OR mci_mean
 lon <- mu_mci$LongitudeMeasure
 lat <- mu_mci$LatitudeMeasure
 mu_mci_pts_all <- SpatialPointsDataFrame(coords = matrix(c(lon, lat), ncol = 2), 
-                                     mu_mci, proj4string = CRS("+init=epsg:4326"))
+                                         mu_mci, proj4string = CRS("+init=epsg:4326"))
 writeOGR(obj = mu_mci_pts_all, dsn = "O:/PRIV/NERL_ORD_CYAN/Sentinel2/Validation/681_imgs/geospatial", 
          layer = "mu_mci_pts_all",  driver = "ESRI Shapefile")
+mu_mci_pts_0 <- mu_mci_pts_all[!is.na(mu_mci_pts_all$MCI_L1C) & mu_mci_pts_all$MCI_L1C == 0, ]
+writeOGR(obj = mu_mci_pts_0, dsn = "O:/PRIV/NERL_ORD_CYAN/Sentinel2/Validation/681_imgs/geospatial", 
+         layer = "mu_mci_0",  driver = "ESRI Shapefile")
 
 
 #* fix chron
@@ -77,48 +80,56 @@ mu_mci_prefilter <- mu_mci
 ## cleaning ---------------------------------------------------------------------------------------
 mu_mci <- mu_mci_prefilter # reset
 
+## in situ chla
+summary(mu_mci$chla_corr)
+sum(mu_mci$chla_corr > 1000)
+mu_mci <- mu_mci[mu_mci$chla_corr <= 1000, ]
+'sum(mu_mci$chla_corr > 300)
+mu_mci <- mu_mci[mu_mci$chla_corr <= 300, ]'
+
+
 ## remove NA MCI
 sum(is.na(mu_mci$MCI_L1C))
 mu_mci <- mu_mci[!is.na(mu_mci$MCI_L1C), ]
 
+'
+mu_mci$imgtype <- substr(mu_mci$PRODUCT_ID, 1, 10)
+mu_mci_na <- mu_mci[is.na(mu_mci$MCI_L1C), ]
+table(mu_mci_na$imgtype)
+'
+
 ## remove MCI = 4.999496
 max(mu_mci$MCI_L1C)
-sum(mu_mci$MCI_L1C == max(mu_mci$MCI_L1C))
-'mu_mci_499 <- mu_mci[mu_mci$MCI_L1C == max(mu_mci$MCI_L1C), ]
+sum(mu_mci$MCI_L1C == max(mu_mci$MCI_L1C, na.rm = TRUE))
+mu_mci <- mu_mci[mu_mci$MCI_L1C != max(mu_mci$MCI_L1C), ]
+
+'
+mu_mci_499 <- mu_mci[mu_mci$MCI_L1C == max(mu_mci$MCI_L1C), ]
+table(mu_mci_499$imgtype)
 plot(sort(mu_mci_499$chla_corr), ylab = "in situ chlorophyll-a (ug/l)")
 plot(sort(mu_mci$chla_corr))
-hist(mu_mci_499$chla_corr)'
-
-mu_mci <- mu_mci[mu_mci$MCI_L1C != max(mu_mci$MCI_L1C), ]
+hist(mu_mci_499$chla_corr)
+'
 
 # plot raw MCI
 #plot(mu_mci$chla_corr, mu_mci$MCI_L1C, xlab = "in situ chlorophyll-a (ug/l)", ylab = "MCI (Level 1C)")
 
 ## remove MCI = 0
 sum(mu_mci$MCI_L1C == 0)
-
-'mu_mci_0 <- mu_mci[mu_mci$MCI_L1C == 0, ]
-mu_mci_0 <- mu_mci_0[mu_mci_0$chla_corr < 200, ]
-plot(mu_mci_0$chla_corr, mu_mci_0$chla_s2)
-hist(mu_mci_0$chla_corr) # slightly more right-skewed than hist with all data, so 0 values tend to have lower in situ chl (good)
-hist(mu_mci$chla_corr)'
-
 mu_mci <- mu_mci[mu_mci$MCI_L1C != 0, ]
 
-## negative MCI
-'min(mu_mci$MCI_L1C)
-hist(mu_mci$MCI_L1C)
-sum(mu_mci$MCI_L1C < -0.01)
-mu_mci <- mu_mci[mu_mci$MCI_L1C > -0.01, ]' # not relevant if removing negative S2 chl since intercept is -0.0021
+'
+mu_mci_0 <- mu_mci[mu_mci$MCI_L1C == 0, ]
+table(mu_mci_0$imgtype)
+plot(mu_mci_0$chla_corr, mu_mci_0$chla_s2)
+summary(mu_mci_0$chla_corr)
+summary(mu_mci$chla_corr)
+'
 
 ## method
 method_sub <- "APHA" # APHA USEPA USGS
 mu_mci <- mu_mci[which(mu_mci$ResultAnalyticalMethod.MethodIdentifierContext == method_sub), ]
 
-## in situ chla
-summary(mu_mci$chla_corr)
-sum(mu_mci$chla_corr > 1000)
-mu_mci <- mu_mci[mu_mci$chla_corr <= 1000, ]
 
 ## offset time
 offset_min <- 0
@@ -135,7 +146,7 @@ mu_mci_cleaned <- mu_mci
 mu_mci <- mu_mci_cleaned
 
 # choose coefficients
-s2_calc <- "erie" # <<<<<<<<<<< *** select one of the options below ***
+s2_calc <- "ontario" # <<<<<<<<<<< *** select one of the options below ***
 
 if (s2_calc == "ontario") {
   # 1a) binding erie -------
