@@ -140,6 +140,13 @@ offset_max <- 0
 offset_threshold <- offset_min:offset_max
 mu_mci <- mu_mci[mu_mci$offset_days %in% offset_threshold, ]
 
+
+if (offset_min == offset_max) {
+  plot_title <- sprintf("+/- %s day", offset_min)
+} else {
+  plot_title <- sprintf("+/- %s-%s days", offset_min, offset_max)
+}
+
 ## for reset
 mu_mci_cleaned <- mu_mci
 
@@ -442,14 +449,9 @@ mu_mci <- mu_mci[mu_mci$mci_baseline_slope > sed_cutoff, ]
 
 ### validation plot  -----------------------------------------------------------------------------------
 
-mu_mci <- read.csv("O:/PRIV/NERL_ORD_CYAN/Sentinel2/Validation/681_imgs/mu_mci_finalset_2019-08-02.csv", stringsAsFactors = FALSE)
+mu_mci <- read.csv("O:/PRIV/NERL_ORD_CYAN/Sentinel2/Validation/681_imgs/mu_mci_finalset_2019-05-01.csv", stringsAsFactors = FALSE)
 
 #jpeg(sprintf("val_%s_%s.png", offset_min, offset_max), width = 800, height = 860)
-if (offset_min == offset_max) {
-  plot_title <- sprintf("+/- %s day", offset_min)
-} else {
-  plot_title <- sprintf("+/- %s-%s days", offset_min, offset_max)
-}
 plot_error_metrics(x = mu_mci$chla_corr, y = mu_mci$chla_s2, # export 800 x 860
                    xname = "in situ chlorophyll-a (ug/l)", 
                    yname = "S2-derived chlorophyll-a (ug/l)", 
@@ -457,7 +459,7 @@ plot_error_metrics(x = mu_mci$chla_corr, y = mu_mci$chla_s2, # export 800 x 860
                    #title = plot_title, 
                    #title = paste0(method_sub, ", ", plot_title), # if subsetting by method
                    equal_axes = TRUE, 
-                   log_axes = "xy", # xy
+                   log_axes = "", # xy
                    log_space = TRUE,
                    plot_abline = FALSE,
                    text_x = 0.04,
