@@ -54,10 +54,15 @@ write.csv(mu_pts_brief@data, "O:/PRIV/NERL_ORD_CYAN/Sentinel2/Validation/validat
 # location of images
 rfolder <- "D:/s2/mci_resample20"
 #rfolder <- "/Users/wilsonsalls/Desktop/EPA/S2/Images"
+rfolder <- "O:/PRIV/NERL_ORD_CYAN/Sentinel2/Images/MCI_BRR"
+
 safe_folder <- "D:/s2/raw"
 
+# for reading files
+process_prefix <- "mci_brr_resample20_"
+
 # for naming MCI output column
-process_name <- "MCI_L1C"
+process_name <- "MCI_BRR"
 
 # check image name matching
 # ***************** consider using GRANULE_ID instead if possible since PRODUCT_ID is not unique and results in duplicates *****
@@ -65,7 +70,7 @@ process_name <- "MCI_L1C"
 # (can make unique image list with PRODUCT_ID, GRANULE_ID in matchups)
 mci_imgs <- list.files(rfolder, pattern = "\\.data")
 #mci_img_names <- substr(mci_imgs, 16, 75)
-mci_img_names <- gsub("mci_resample20_", "", mci_imgs)
+mci_img_names <- gsub(process_prefix, "", mci_imgs)
 mci_img_names <- gsub(".data", "", mci_img_names)
 length(unique(mu_pts$PRODUCT_ID))
 length(mci_img_names)
@@ -87,7 +92,7 @@ for (i in 1:length(mci_imgs)) {
   n_cloud_layers <- 0
   
   # subset points to those in this image
-  mu_pts_img <- mu_pts[mu_pts$PRODUCT_ID == sub(".data", "", sub("mci_resample20_", "", mci_imgs[i])), ]
+  mu_pts_img <- mu_pts[mu_pts$PRODUCT_ID == sub(".data", "", sub(process_prefix, "", mci_imgs[i])), ]
   
   # progress
   cat(sprintf("\nimage #%s of %s (%s) - %s pts\n", i, length(mci_imgs), Sys.time(), nrow(mu_pts_img)))
@@ -251,13 +256,14 @@ for (i in 1:length(mci_imgs)) {
     
     # append points to validation table
     if (has_error(read.csv(sprintf("validation_S2_682imgs_%s_%s.csv", process_name, Sys.Date())))) {
+      # this occurs on the first iteration and will print an error, but it's ok
       write.table(mu_mci_i, sprintf("validation_S2_682imgs_%s_%s.csv", process_name, Sys.Date()),
                   sep = "|", append = FALSE, row.names = FALSE, col.names = TRUE)
     } else {
       write.table(mu_mci_i, sprintf("validation_S2_682imgs_%s_%s.csv", process_name, Sys.Date()),
                   sep = "|", append = TRUE, row.names = FALSE, col.names = FALSE)
     }
-  } 
+  }
   
   # update img_summary dataframe
   img_summary_i <- data.frame(img = mci_imgs[i], 
@@ -268,6 +274,7 @@ for (i in 1:length(mci_imgs)) {
                               notes = notes)
   
   if (has_error(read.csv(sprintf("validation_S2_682imgs_%s_img_summary_%s.csv", process_name, Sys.Date())))) {
+    # this occurs on the first iteration and will print an error, but it's ok
     write.table(img_summary_i, sprintf("validation_S2_682imgs_%s_img_summary_%s.csv", process_name, start_date),
                 sep = "|", append = FALSE, row.names = FALSE, col.names = TRUE)
   } else {
@@ -280,13 +287,15 @@ print(sprintf("started: %s | finished: %s", start_time, Sys.time()))
 
 
 # get | csvs back to comma csvs
-valpipes <- read.table("681_imgs_array/pipes/validation_S2_682imgs_MCI_L1C_2018-11-21.csv", 
+output_suffix <- paste0(process_name, "_", Sys.Date())
+
+valpipes <- read.table(sprintf("681_imgs_array/pipes/validation_S2_682imgs_%s.csv", output_suffix), 
                        stringsAsFactors = FALSE, sep = "|", header = TRUE, quote = "\"")
-cloudpipes <- read.table("681_imgs_array/pipes/validation_S2_682imgs_MCI_L1C_cloudypts_2018-11-21.csv", 
+cloudpipes <- read.table(sprintf("681_imgs_array/pipes/validation_S2_682imgs_%s.csv"), 
                          stringsAsFactors = FALSE, sep = "|", header = TRUE, quote = "\"")
-summarypipes <- read.table("681_imgs_array/pipes/validation_S2_682imgs_MCI_L1C_img_summary_2018-11-21.csv", 
+summarypipes <- read.table(sprintf("681_imgs_array/pipes/validation_S2_682imgs_%s.csv.csv"), 
                            stringsAsFactors = FALSE, sep = "|", header = TRUE, quote = "\"")
 
-write.csv(valpipes, "681_imgs_array/validation_S2_682imgs_MCI_L1C_2018-11-21.csv")
-write.csv(cloudpipes, "681_imgs_array/validation_S2_682imgs_MCI_L1C_cloudypts_2018-11-21.csv")
-write.csv(summarypipes, "681_imgs_array/validation_S2_682imgs_MCI_L1C_img_summary_2018-11-21.csv")
+write.csv(valpipes, sprintf("681_imgs_array/validation_S2_682imgs_%s.csv"))
+write.csv(cloudpipes, sprintf("681_imgs_array/validation_S2_682imgs_%s.csv"))
+write.csv(summarypipes, sprintf("681_imgs_array/validation_S2_682imgs_%s.csv"))
