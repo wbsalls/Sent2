@@ -25,6 +25,9 @@ mu_mci_raw <- read.csv("validation_S2_682imgs_MCI_L1C_2018-11-21.csv", stringsAs
 mu_mci <- mu_mci_raw
 
 ## formatting, prep -------------------------------------------
+
+# MCI
+
 # rename MCI columns
 colnames(mu_mci)[which(colnames(mu_mci) == "MCI_val_1")] <- "MCI_L1C_1"
 colnames(mu_mci)[which(colnames(mu_mci) == "MCI_val_2")] <- "MCI_L1C_2"
@@ -36,12 +39,11 @@ colnames(mu_mci)[which(colnames(mu_mci) == "MCI_val_7")] <- "MCI_L1C_7"
 colnames(mu_mci)[which(colnames(mu_mci) == "MCI_val_8")] <- "MCI_L1C_8"
 colnames(mu_mci)[which(colnames(mu_mci) == "MCI_val_9")] <- "MCI_L1C_9"
 
-# merge BRR with L1C
+# load BRR
 mu_mci_brr <- read.csv("validation_S2_682imgs_MCI_BRR_2019-08-09.csv", stringsAsFactors = FALSE)
-nrow(mu_mci) == nrow(mu_mci_brr)
+nrow(mu_mci) == nrow(mu_mci_brr) # confirm they're the same
 
-brr <- mu_mci_brr[, which(colnames(mu_mci_brr) %in% c("x.5", "MCI_val_1", "MCI_val_2", "MCI_val_3", "MCI_val_4", "MCI_val_5",
-                                                      "MCI_val_6", "MCI_val_7", "MCI_val_8", "MCI_val_9"))]
+# rename MCI columns
 colnames(mu_mci_brr)[which(colnames(mu_mci_brr) == "MCI_val_1")] <- "MCI_BRR_1"
 colnames(mu_mci_brr)[which(colnames(mu_mci_brr) == "MCI_val_2")] <- "MCI_BRR_2"
 colnames(mu_mci_brr)[which(colnames(mu_mci_brr) == "MCI_val_3")] <- "MCI_BRR_3"
@@ -52,9 +54,12 @@ colnames(mu_mci_brr)[which(colnames(mu_mci_brr) == "MCI_val_7")] <- "MCI_BRR_7"
 colnames(mu_mci_brr)[which(colnames(mu_mci_brr) == "MCI_val_8")] <- "MCI_BRR_8"
 colnames(mu_mci_brr)[which(colnames(mu_mci_brr) == "MCI_val_9")] <- "MCI_BRR_9"
 
-mu_mci <- merge(mu_mci, mu_mci_brr, by = "X.5")
+# merge BRR with L1C, selecting only necessary columns from BRR
+brr <- mu_mci_brr[, which(colnames(mu_mci_brr) %in% c("x.5", "MCI_BRR_1", "MCI_BRR_2", "MCI_BRR_3", "MCI_BRR_4", "MCI_BRR_5",
+                                                      "MCI_BRR_6", "MCI_BRR_7", "MCI_BRR_8", "MCI_BRR_9"))]
+mu_mci <- merge(mu_mci, brr, by = "X.5")
 
-# average 9-pixel window
+# average 9-pixel window (L1C and BRR)
 mci_val_colindex <- which(colnames(mu_mci) == "MCI_L1C_1"):which(colnames(mu_mci) == "MCI_L1C_9")
 mu_mci$MCI_L1C_mean <- apply(mu_mci[, mci_val_colindex], 1, mean)
 
@@ -62,12 +67,15 @@ mci_val_colindex <- which(colnames(mu_mci) == "MCI_BRR_1"):which(colnames(mu_mci
 mu_mci$MCI_BRR_mean <- apply(mu_mci[, mci_val_colindex], 1, mean)
 
 
-# choose which MCI to use ******* 
-mu_mci$MCI_L1C <- mu_mci$MCI_BRR_1 # MCI_L1C_1, MCI_L1C_mean, MCI_BRR_1, MCI_BRR_mean
+# choose which MCI to use *******
+mu_mci$MCI <- mu_mci$MCI_BRR_1 # MCI_L1C_1 (single), MCI_L1C_mean, MCI_BRR_1 (single), MCI_BRR_mean
+
+#
+
 
 # remove duplicates: identify based on duplicated chlorophyll-a and MCI (L1C)
 # most duplicates have 0 MCI_L1C
-val_df <- data.frame(mu_mci$chla_corr, mu_mci$MCI_L1C, mu_mci$LatitudeMeasure, mu_mci$LongitudeMeasure, mu_mci$samp_localDate)
+val_df <- data.frame(mu_mci$chla_corr, mu_mci$MCI, mu_mci$LatitudeMeasure, mu_mci$LongitudeMeasure, mu_mci$samp_localDate)
 sum(duplicated(val_df))
 val_df_dups <- val_df[duplicated(val_df), ]
 
@@ -86,10 +94,10 @@ mu_mci_pts_all <- SpatialPointsDataFrame(coords = matrix(c(lon, lat), ncol = 2),
                                          mu_mci, proj4string = CRS("+init=epsg:4326"))
 writeOGR(obj = mu_mci_pts_all, dsn = "O:/PRIV/NERL_ORD_CYAN/Sentinel2/Validation/681_imgs/geospatial", 
          layer = "mu_mci_pts_all",  driver = "ESRI Shapefile")
-mu_mci_pts_0 <- mu_mci_pts_all[!is.na(mu_mci_pts_all$MCI_L1C) & mu_mci_pts_all$MCI_L1C == 0, ]
+mu_mci_pts_0 <- mu_mci_pts_all[!is.na(mu_mci_pts_all$MCI) & mu_mci_pts_all$MCI == 0, ]
 writeOGR(obj = mu_mci_pts_0, dsn = "O:/PRIV/NERL_ORD_CYAN/Sentinel2/Validation/681_imgs/geospatial", 
          layer = "mu_mci_0",  driver = "ESRI Shapefile")
-mu_mci_pts_499 <- mu_mci_pts_all[!is.na(mu_mci_pts_all$MCI_L1C) & mu_mci_pts_all$MCI_L1C == max(mu_mci$MCI_L1C, na.rm = TRUE), ]
+mu_mci_pts_499 <- mu_mci_pts_all[!is.na(mu_mci_pts_all$MCI) & mu_mci_pts_all$MCI == max(mu_mci$MCI, na.rm = TRUE), ]
 writeOGR(obj = mu_mci_pts_499, dsn = "O:/PRIV/NERL_ORD_CYAN/Sentinel2/Validation/681_imgs/geospatial", 
          layer = "mu_mci_499",  driver = "ESRI Shapefile")
 
@@ -120,22 +128,22 @@ mu_mci <- mu_mci[mu_mci$chla_corr <= 300, ]'
 
 
 ## remove NA MCI
-sum(is.na(mu_mci$MCI_L1C))
-mu_mci <- mu_mci[!is.na(mu_mci$MCI_L1C), ]
+sum(is.na(mu_mci$MCI))
+mu_mci <- mu_mci[!is.na(mu_mci$MCI), ]
 
 '
 mu_mci$imgtype <- substr(mu_mci$PRODUCT_ID, 1, 10)
-mu_mci_na <- mu_mci[is.na(mu_mci$MCI_L1C), ]
+mu_mci_na <- mu_mci[is.na(mu_mci$MCI), ]
 table(mu_mci_na$imgtype)
 '
 
 ## remove MCI = 4.999496
-max(mu_mci$MCI_L1C)
-sum(mu_mci$MCI_L1C == max(mu_mci$MCI_L1C, na.rm = TRUE))
-mu_mci <- mu_mci[mu_mci$MCI_L1C != max(mu_mci$MCI_L1C), ]
+max(mu_mci$MCI)
+sum(mu_mci$MCI == max(mu_mci$MCI, na.rm = TRUE))
+mu_mci <- mu_mci[mu_mci$MCI != max(mu_mci$MCI), ]
 
 '
-mu_mci_499 <- mu_mci[mu_mci$MCI_L1C == max(mu_mci$MCI_L1C), ]
+mu_mci_499 <- mu_mci[mu_mci$MCI == max(mu_mci$MCI), ]
 table(mu_mci_499$imgtype)
 plot(sort(mu_mci_499$chla_corr), ylab = "in situ chlorophyll-a (ug/l)")
 plot(sort(mu_mci$chla_corr))
@@ -143,14 +151,14 @@ hist(mu_mci_499$chla_corr)
 '
 
 # plot raw MCI
-#plot(mu_mci$chla_corr, mu_mci$MCI_L1C, xlab = "in situ chlorophyll-a (ug/l)", ylab = "MCI (Level 1C)")
+#plot(mu_mci$chla_corr, mu_mci$MCI, xlab = "in situ chlorophyll-a (ug/l)", ylab = "MCI (Level 1C)")
 
 ## remove MCI = 0
-sum(mu_mci$MCI_L1C == 0)
-mu_mci <- mu_mci[mu_mci$MCI_L1C != 0, ]
+sum(mu_mci$MCI == 0)
+mu_mci <- mu_mci[mu_mci$MCI != 0, ]
 
 '
-mu_mci_0 <- mu_mci[mu_mci$MCI_L1C == 0, ]
+mu_mci_0 <- mu_mci[mu_mci$MCI == 0, ]
 table(mu_mci_0$imgtype)
 plot(mu_mci_0$chla_corr, mu_mci_0$chla_s2)
 summary(mu_mci_0$chla_corr)
@@ -219,17 +227,17 @@ if (s2_calc == "ontario") {
   mu_mci <- mu_mci[-index.selected, ] # retain remaining 20% for val
   
   # fit linear model; set coefficients
-  model_s2chla <- lm(mu_mci_calc$MCI_L1C ~ mu_mci_calc$chla_corr)
+  model_s2chla <- lm(mu_mci_calc$MCI ~ mu_mci_calc$chla_corr)
   
   slope.mci <- model_s2chla$coefficients[2]
   intercept.mci <- model_s2chla$coefficients[1]
 }
 
 # calculate S2 chla
-mu_mci$chla_s2 <- (mu_mci$MCI_L1C - intercept.mci) / slope.mci
+mu_mci$chla_s2 <- (mu_mci$MCI - intercept.mci) / slope.mci
 
 if (s2_calc == "lotw") {
-  mu_mci$chla_s2 <- exp((mu_mci$MCI_L1C + 0.017) / 0.0077)
+  mu_mci$chla_s2 <- exp((mu_mci$MCI + 0.017) / 0.0077)
 }
 
 # remove negative S2 Chla
@@ -565,8 +573,8 @@ legend(0.05, 10, legend=c("MN", "WI", "OK", "CO"),
 # write image list
 write.csv(unique(mu_mci[, c("PRODUCT_ID", "GRANULE_ID")]), "O:/PRIV/NERL_ORD_CYAN/Sentinel2/Images/composited/0day/img_list.csv")
 
-# subset by CV  -------------------------------------------
-mci_val_colindex <- which(colnames(mu_mci) == "MCI_L1C"):which(colnames(mu_mci) == "MCI_val_9")
+# subset by CV  (uses L1C; can sub in BRR) -------------------------------------------
+mci_val_colindex <- which(colnames(mu_mci) == "MCI_L1C_1"):which(colnames(mu_mci) == "MCI_L1C_9")
 
 # define function for population SD (rather than sample SD)
 sd_pop <- function(x) {
@@ -954,9 +962,9 @@ vioplot(mu_mci$error_chla[which(mu_mci$ResultAnalyticalMethod.MethodIdentifierCo
 
 # mci vs chl-a
 '
-l1c <- calc_error_metrics(mu_mci$chla_corr, mu_mci$MCI_L1C)
+l1c <- calc_error_metrics(mu_mci$chla_corr, mu_mci$MCI)
 l1c
-#plot_error_metrics(x = mu_mci$chla_corr, y = mu_mci$MCI_L1C, 
+#plot_error_metrics(x = mu_mci$chla_corr, y = mu_mci$MCI, 
 xname = "in situ chlorophyll-a (ug/l)", 
 yname = "S2 MCI (L1C)", 
 title = sprintf("L1C MCI (r-sq = %s)", round(l1c$r.sq, 2)), 
@@ -1029,18 +1037,18 @@ for (d in 10:0) {
 
 ## these don't work....
 #
-#plot(mu_mci$chla_corr, mu_mci$MCI_L1C, col = mu_mci$offset_days_factor)
-#plot(mu_mci$chla_corr, mu_mci$MCI_L1C, col = rainbow(mu_mci$offset_days_factor))
+#plot(mu_mci$chla_corr, mu_mci$MCI, col = mu_mci$offset_days_factor)
+#plot(mu_mci$chla_corr, mu_mci$MCI, col = rainbow(mu_mci$offset_days_factor))
 #legend(10, 0.045, levels(mu_mci$offset_days_factor), col = rainbow(1:length(mu_mci$offset_days_factor)), pch=1)
 
 #
 library(ggplot2)
-qplot(mu_mci$chla_corr, mu_mci$MCI_L1C, col = mu_mci$offset_days_factor)
+qplot(mu_mci$chla_corr, mu_mci$MCI, col = mu_mci$offset_days_factor)
 
 #
-plot(mu_mci$chla_corr, mu_mci$MCI_L1C, col = topo.colors(n = 11, alpha = 0.5), pch = 16, xlim = c(0, 210))
+plot(mu_mci$chla_corr, mu_mci$MCI, col = topo.colors(n = 11, alpha = 0.5), pch = 16, xlim = c(0, 210))
 legend(195, 0.045, levels(mu_mci$offset_days_factor), col = topo.colors(11, alpha = 0.5), pch = 16)
-plot(mu_mci$chla_corr[mu_mci$offset_days %in% 0:3], mu_mci$MCI_L1C[mu_mci$offset_days %in% 0:3], 
+plot(mu_mci$chla_corr[mu_mci$offset_days %in% 0:3], mu_mci$MCI[mu_mci$offset_days %in% 0:3], 
      col = topo.colors(n = 11, alpha = 0.5), pch = 16, xlim = c(0, 210)) # doesn't work
 
 
@@ -1050,16 +1058,16 @@ plot(mu_mci$chla_corr[mu_mci$offset_days %in% 0:3], mu_mci$MCI_L1C[mu_mci$offset
 
 
 ## same MCI values
-mci_freq <- as.data.frame(table(mu_mci$MCI_L1C))
+mci_freq <- as.data.frame(table(mu_mci$MCI))
 mci_freq <- mci_freq[order(-mci_freq$Freq)[1:30], ]
 
 # these sets are from the same location around the same time (therefore same images) but different in situ chl-a
 # looks like intensive sampling events - keep?
-mci_0117 <- mu_mci[round(mu_mci$MCI_L1C, 4) == 0.0117, ]
-mci_0100 <- mu_mci[round(mu_mci$MCI_L1C, 5) == 0.01005, ]
+mci_0117 <- mu_mci[round(mu_mci$MCI, 4) == 0.0117, ]
+mci_0100 <- mu_mci[round(mu_mci$MCI, 5) == 0.01005, ]
 
 for (i in 1:nrow(mci_freq)) {
-  mu_mci_value <- mu_mci[round(mu_mci$MCI_L1C, 6) == round(Var1), ]
+  mu_mci_value <- mu_mci[round(mu_mci$MCI, 6) == round(Var1), ]
   nimgs <- length(unique(mu_mci_value$PRODUCT_ID))
 }
 
