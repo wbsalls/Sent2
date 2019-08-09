@@ -61,7 +61,7 @@ safe_folder <- "D:/s2/raw"
 # for reading files
 process_prefix <- "mci_brr_resample20_"
 
-# for naming MCI output column
+# for naming MCI output files
 process_name <- "MCI_BRR"
 
 # check image name matching

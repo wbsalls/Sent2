@@ -25,8 +25,45 @@ mu_mci_raw <- read.csv("validation_S2_682imgs_MCI_L1C_2018-11-21.csv", stringsAs
 mu_mci <- mu_mci_raw
 
 ## formatting, prep -------------------------------------------
-# rename MCI column
-colnames(mu_mci)[which(colnames(mu_mci) == "MCI_val_1")] <- "MCI_L1C"
+# rename MCI columns
+colnames(mu_mci)[which(colnames(mu_mci) == "MCI_val_1")] <- "MCI_L1C_1"
+colnames(mu_mci)[which(colnames(mu_mci) == "MCI_val_2")] <- "MCI_L1C_2"
+colnames(mu_mci)[which(colnames(mu_mci) == "MCI_val_3")] <- "MCI_L1C_3"
+colnames(mu_mci)[which(colnames(mu_mci) == "MCI_val_4")] <- "MCI_L1C_4"
+colnames(mu_mci)[which(colnames(mu_mci) == "MCI_val_5")] <- "MCI_L1C_5"
+colnames(mu_mci)[which(colnames(mu_mci) == "MCI_val_6")] <- "MCI_L1C_6"
+colnames(mu_mci)[which(colnames(mu_mci) == "MCI_val_7")] <- "MCI_L1C_7"
+colnames(mu_mci)[which(colnames(mu_mci) == "MCI_val_8")] <- "MCI_L1C_8"
+colnames(mu_mci)[which(colnames(mu_mci) == "MCI_val_9")] <- "MCI_L1C_9"
+
+# merge BRR with L1C
+mu_mci_brr <- read.csv("validation_S2_682imgs_MCI_BRR_2019-08-09.csv", stringsAsFactors = FALSE)
+nrow(mu_mci) == nrow(mu_mci_brr)
+
+brr <- mu_mci_brr[, which(colnames(mu_mci_brr) %in% c("x.5", "MCI_val_1", "MCI_val_2", "MCI_val_3", "MCI_val_4", "MCI_val_5",
+                                                      "MCI_val_6", "MCI_val_7", "MCI_val_8", "MCI_val_9"))]
+colnames(mu_mci_brr)[which(colnames(mu_mci_brr) == "MCI_val_1")] <- "MCI_BRR_1"
+colnames(mu_mci_brr)[which(colnames(mu_mci_brr) == "MCI_val_2")] <- "MCI_BRR_2"
+colnames(mu_mci_brr)[which(colnames(mu_mci_brr) == "MCI_val_3")] <- "MCI_BRR_3"
+colnames(mu_mci_brr)[which(colnames(mu_mci_brr) == "MCI_val_4")] <- "MCI_BRR_4"
+colnames(mu_mci_brr)[which(colnames(mu_mci_brr) == "MCI_val_5")] <- "MCI_BRR_5"
+colnames(mu_mci_brr)[which(colnames(mu_mci_brr) == "MCI_val_6")] <- "MCI_BRR_6"
+colnames(mu_mci_brr)[which(colnames(mu_mci_brr) == "MCI_val_7")] <- "MCI_BRR_7"
+colnames(mu_mci_brr)[which(colnames(mu_mci_brr) == "MCI_val_8")] <- "MCI_BRR_8"
+colnames(mu_mci_brr)[which(colnames(mu_mci_brr) == "MCI_val_9")] <- "MCI_BRR_9"
+
+mu_mci <- merge(mu_mci, mu_mci_brr, by = "X.5")
+
+# average 9-pixel window
+mci_val_colindex <- which(colnames(mu_mci) == "MCI_L1C_1"):which(colnames(mu_mci) == "MCI_L1C_9")
+mu_mci$MCI_L1C_mean <- apply(mu_mci[, mci_val_colindex], 1, mean)
+
+mci_val_colindex <- which(colnames(mu_mci) == "MCI_BRR_1"):which(colnames(mu_mci) == "MCI_BRR_9")
+mu_mci$MCI_BRR_mean <- apply(mu_mci[, mci_val_colindex], 1, mean)
+
+
+# choose which MCI to use ******* 
+mu_mci$MCI_L1C <- mu_mci$MCI_BRR_1 # MCI_L1C_1, MCI_L1C_mean, MCI_BRR_1, MCI_BRR_mean
 
 # remove duplicates: identify based on duplicated chlorophyll-a and MCI (L1C)
 # most duplicates have 0 MCI_L1C
@@ -41,15 +78,6 @@ mu_mci <- mu_mci[-which(is.na(mu_mci$depth_corr) &
                           is.na(mu_mci$topdepth_corr) & 
                           is.na(mu_mci$botdepth_corr) & 
                           is.na(mu_mci$ActivityRelativeDepthName)), ]
-
-# average 9-pixel window
-mci_val_colindex <- which(colnames(mu_mci) == "MCI_L1C"):which(colnames(mu_mci) == "MCI_val_9")
-
-mu_mci$mci_mean <- apply(mu_mci[, mci_val_colindex], 1, mean)
-mu_mci$mci_single <- mu_mci$MCI_L1C
-
-# choose which MCI to use *******
-mu_mci$MCI_L1C <- mu_mci$mci_single # mci_single OR mci_mean
 
 # export points
 lon <- mu_mci$LongitudeMeasure
