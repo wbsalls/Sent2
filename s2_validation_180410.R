@@ -21,27 +21,25 @@ setwd("/Users/wilsonsalls/Desktop/EPA/Sentinel2/Validation/681_imgs")
 
 opar <- par() # grab original par settings for plotting later
 
-mu_mci_raw <- read.csv("validation_S2_682imgs_MCI_L1C_2018-11-21.csv", stringsAsFactors = FALSE)
-mu_mci <- mu_mci_raw
+# MCI L1C
 
-## formatting, prep -------------------------------------------
-
-# MCI
+mu_mci_l1c <- read.csv("validation_S2_682imgs_MCI_L1C_2018-11-21.csv", stringsAsFactors = FALSE)
 
 # rename MCI columns
-colnames(mu_mci)[which(colnames(mu_mci) == "MCI_val_1")] <- "MCI_L1C_1"
-colnames(mu_mci)[which(colnames(mu_mci) == "MCI_val_2")] <- "MCI_L1C_2"
-colnames(mu_mci)[which(colnames(mu_mci) == "MCI_val_3")] <- "MCI_L1C_3"
-colnames(mu_mci)[which(colnames(mu_mci) == "MCI_val_4")] <- "MCI_L1C_4"
-colnames(mu_mci)[which(colnames(mu_mci) == "MCI_val_5")] <- "MCI_L1C_5"
-colnames(mu_mci)[which(colnames(mu_mci) == "MCI_val_6")] <- "MCI_L1C_6"
-colnames(mu_mci)[which(colnames(mu_mci) == "MCI_val_7")] <- "MCI_L1C_7"
-colnames(mu_mci)[which(colnames(mu_mci) == "MCI_val_8")] <- "MCI_L1C_8"
-colnames(mu_mci)[which(colnames(mu_mci) == "MCI_val_9")] <- "MCI_L1C_9"
+colnames(mu_mci_l1c)[which(colnames(mu_mci_l1c) == "MCI_val_1")] <- "MCI_L1C_1"
+colnames(mu_mci_l1c)[which(colnames(mu_mci_l1c) == "MCI_val_2")] <- "MCI_L1C_2"
+colnames(mu_mci_l1c)[which(colnames(mu_mci_l1c) == "MCI_val_3")] <- "MCI_L1C_3"
+colnames(mu_mci_l1c)[which(colnames(mu_mci_l1c) == "MCI_val_4")] <- "MCI_L1C_4"
+colnames(mu_mci_l1c)[which(colnames(mu_mci_l1c) == "MCI_val_5")] <- "MCI_L1C_5"
+colnames(mu_mci_l1c)[which(colnames(mu_mci_l1c) == "MCI_val_6")] <- "MCI_L1C_6"
+colnames(mu_mci_l1c)[which(colnames(mu_mci_l1c) == "MCI_val_7")] <- "MCI_L1C_7"
+colnames(mu_mci_l1c)[which(colnames(mu_mci_l1c) == "MCI_val_8")] <- "MCI_L1C_8"
+colnames(mu_mci_l1c)[which(colnames(mu_mci_l1c) == "MCI_val_9")] <- "MCI_L1C_9"
 
-# load BRR
+# MCI BRR
 mu_mci_brr <- read.csv("validation_S2_682imgs_MCI_BRR_2019-08-09.csv", stringsAsFactors = FALSE)
-nrow(mu_mci) == nrow(mu_mci_brr) # confirm they're the same
+nrow(mu_mci_l1c) == nrow(mu_mci_brr) # confirm they're the same
+mu_mci_brrONLY <- mu_mci_brr[which(!(mu_mci_brr$X.5 %in% mu_mci_l1c$X.5)), ]
 
 # rename MCI columns
 colnames(mu_mci_brr)[which(colnames(mu_mci_brr) == "MCI_val_1")] <- "MCI_BRR_1"
@@ -54,10 +52,33 @@ colnames(mu_mci_brr)[which(colnames(mu_mci_brr) == "MCI_val_7")] <- "MCI_BRR_7"
 colnames(mu_mci_brr)[which(colnames(mu_mci_brr) == "MCI_val_8")] <- "MCI_BRR_8"
 colnames(mu_mci_brr)[which(colnames(mu_mci_brr) == "MCI_val_9")] <- "MCI_BRR_9"
 
+# check unique IDs
+check_unique <- function(input_df) {
+  for (c in 1:ncol(input_df)) {
+    unique_status <- "ERROR"
+    if (length(unique(input_df[, c])) == nrow(input_df)) {
+      unique_status <- "*** unique*** "
+    } else if (length(unique(input_df[, c]) != nrow(input_df))) {
+      unique_status <- "NOT unique"
+    }
+    print(sprintf("%s: %s - %s", c, colnames(input_df)[c], unique_status))
+  }
+}
+
+check_unique(mu_mci_l1c)
+check_unique(mu_mci_brr)
+# X.3, X.4, X.5 are unique, but it seems X.5 has been mixed up a bit. 
+# X.3 should be secure since it was the output of matchups (and what went into extraction)
+
 # merge BRR with L1C, selecting only necessary columns from BRR
-brr <- mu_mci_brr[, which(colnames(mu_mci_brr) %in% c("x.5", "MCI_BRR_1", "MCI_BRR_2", "MCI_BRR_3", "MCI_BRR_4", "MCI_BRR_5",
-                                                      "MCI_BRR_6", "MCI_BRR_7", "MCI_BRR_8", "MCI_BRR_9"))]
-mu_mci <- merge(mu_mci, brr, by = "X.5")
+l1c <- mu_mci_l1c[, which(colnames(mu_mci_l1c) %in% c("X.3", "MCI_L1C_1", "MCI_L1C_2", "MCI_L1C_3", "MCI_L1C_4", "MCI_L1C_5",
+                                                      "MCI_L1C_6", "MCI_L1C_7", "MCI_L1C_8", "MCI_L1C_9"))]
+mu_mci <- merge(mu_mci_brr, l1c, by = "X.3", all.x = TRUE)
+
+# initial plot
+plot(mu_mci$MCI_L1C_1, mu_mci$MCI_BRR_1, xlim = c(-0.05, 0.05), ylim = c(-0.05, 0.05))
+plot(mu_mci$chla_corr, mu_mci$MCI_BRR_1, xlim = c(0, 300), ylim = c(-0.05, 0.05))
+plot(mu_mci$chla_corr, mu_mci$MCI_L1C_1, xlim = c(0, 300), ylim = c(-0.05, 0.05))
 
 # average 9-pixel window (L1C and BRR)
 mci_val_colindex <- which(colnames(mu_mci) == "MCI_L1C_1"):which(colnames(mu_mci) == "MCI_L1C_9")

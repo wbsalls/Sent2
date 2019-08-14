@@ -287,15 +287,16 @@ print(sprintf("started: %s | finished: %s", start_time, Sys.time()))
 
 
 # get | csvs back to comma csvs
-output_suffix <- paste0(process_name, "_", Sys.Date())
+#output_date <- Sys.Date()
+output_date <- "2019-08-09"
 
-valpipes <- read.table(sprintf("681_imgs_array/pipes/validation_S2_682imgs_%s.csv", output_suffix), 
+valpipes <- read.table(sprintf("681_imgs/old/pipes/validation_S2_682imgs_%s_%s.csv", process_name, output_date), 
                        stringsAsFactors = FALSE, sep = "|", header = TRUE, quote = "\"")
-cloudpipes <- read.table(sprintf("681_imgs_array/pipes/validation_S2_682imgs_%s.csv"), 
+cloudpipes <- read.table(sprintf("681_imgs/old/pipes/validation_S2_682imgs_%s_cloudypts_%s.csv", process_name, output_date), 
                          stringsAsFactors = FALSE, sep = "|", header = TRUE, quote = "\"")
-summarypipes <- read.table(sprintf("681_imgs_array/pipes/validation_S2_682imgs_%s.csv.csv"), 
+summarypipes <- read.table(sprintf("681_imgs/old/pipes/validation_S2_682imgs_%s_img_summary_%s.csv", process_name, output_date), 
                            stringsAsFactors = FALSE, sep = "|", header = TRUE, quote = "\"")
 
-write.csv(valpipes, sprintf("681_imgs_array/validation_S2_682imgs_%s.csv"))
-write.csv(cloudpipes, sprintf("681_imgs_array/validation_S2_682imgs_%s.csv"))
-write.csv(summarypipes, sprintf("681_imgs_array/validation_S2_682imgs_%s.csv"))
+write.csv(valpipes, sprintf("681_imgs/validation_S2_682imgs_%s_%s.csv", process_name, output_date))
+write.csv(cloudpipes, sprintf("681_imgs/validation_S2_682imgs_%s_cloudypts_%s.csv", process_name, output_date))
+write.csv(summarypipes, sprintf("681_imgs/validation_S2_682imgs_%s_img_summary_%s.csv", process_name, output_date))
