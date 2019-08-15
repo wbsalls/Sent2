@@ -87,7 +87,9 @@ mu_mci$MCI_BRR_mean <- apply(mu_mci[, mci_val_colindex], 1, mean)
 
 
 # choose which MCI to use *******
-mu_mci$MCI <- mu_mci$MCI_BRR_1 # MCI_L1C_1 (single), MCI_L1C_mean, MCI_BRR_1 (single), MCI_BRR_mean
+mci_type <- "MCI_BRR_1" # MCI_L1C_1 (single), MCI_L1C_mean, MCI_BRR_1 (single), MCI_BRR_mean
+mu_mci$MCI <- mu_mci[, which(colnames(mu_mci) == mci_type)]
+mu_mci$mci_type <- mci_type
 
 #
 
@@ -160,7 +162,7 @@ table(mu_mci_na$imgtype)
 ## remove MCI = 4.999496
 max(mu_mci$MCI)
 sum(mu_mci$MCI == max(mu_mci$MCI, na.rm = TRUE))
-mu_mci <- mu_mci[mu_mci$MCI != max(mu_mci$MCI), ]
+mu_mci <- mu_mci[which(mu_mci$MCI < 4), ]
 
 '
 mu_mci_499 <- mu_mci[mu_mci$MCI == max(mu_mci$MCI), ]
@@ -212,58 +214,54 @@ mu_mci_cleaned <- mu_mci
 
 mu_mci <- mu_mci_cleaned
 
-# choose coefficients
-s2_calc <- "ontario" # <<<<<<<<<<< *** select one of the options below ***
+# calculate chla from various conversions
 
-if (s2_calc == "ontario") {
-  # 1a) binding erie -------
-  slope.mci <- 0.0002 # from Binding et al. 2013 - Erie
-  intercept.mci <- -0.0012 # from Binding et al. 2013 - Erie
-  
-} else if (s2_calc == "erie") {
-  # 1b) binding erie -------
-  slope.mci <- 0.0004 # from Binding et al. 2013 - Erie
-  intercept.mci <- -0.0021 # from Binding et al. 2013 - Erie
-  
-} else if (s2_calc == "lotw") {
-  # 1c) binding lake of the woods -------
-  slope.mci <- 1 # from Binding et al. 2013 - Erie
-  intercept.mci <- 0 # from Binding et al. 2013 - Erie
-  
-} else if (s2_calc == "mollaee") {
-  # 2) Mollaee thesis (p 77) -------
-  slope.mci <- 0.0001790292 # 1/2158 = 0.00046
-  intercept.mci <- -0.0018 # -3.9/2158 = -0.0018
-  
-} else if (s2_calc == "custom") {
-  # 3) custom -------
-  slope.mci <- 0.0004 * 0.5 # from Binding et al. 2013 - Erie, times correction factor from slope
-  intercept.mci <- -0.0021 # from Binding et al. 2013 - Erie
-  
-} else if (s2_calc == "split") {
-  # 4) cal-val split -------
-  set.seed(1)
-  index.selected <- sample(1:nrow(mu_mci), size = floor(nrow(mu_mci) * 0.8), replace = FALSE)
-  mu_mci_calc <- mu_mci[index.selected, ] # select 80% for cal
-  mu_mci <- mu_mci[-index.selected, ] # retain remaining 20% for val
-  
-  # fit linear model; set coefficients
-  model_s2chla <- lm(mu_mci_calc$MCI ~ mu_mci_calc$chla_corr)
-  
-  slope.mci <- model_s2chla$coefficients[2]
-  intercept.mci <- model_s2chla$coefficients[1]
-}
+# 1a) binding erie -------
+slope.mci <- 0.0002 # from Binding et al. 2013 - Erie
+intercept.mci <- -0.0012 # from Binding et al. 2013 - Erie
+mu_mci$s2_chl_ontario <- (mu_mci$MCI - intercept.mci) / slope.mci
 
-# calculate S2 chla
-mu_mci$chla_s2 <- (mu_mci$MCI - intercept.mci) / slope.mci
+# 1b) binding erie -------
+slope.mci <- 0.0004 # from Binding et al. 2013 - Erie
+intercept.mci <- -0.0021 # from Binding et al. 2013 - Erie
+mu_mci$s2_chl_erie <- (mu_mci$MCI - intercept.mci) / slope.mci
 
-if (s2_calc == "lotw") {
-  mu_mci$chla_s2 <- exp((mu_mci$MCI + 0.017) / 0.0077)
-}
+# 1c) binding lake of the woods -------
+mu_mci$s2_chl_lotw <- exp((mu_mci$MCI + 0.017) / 0.0077)
+
+# 2) Mollaee thesis (p 77) -------
+'slope.mci <- 0.0001790292 # 1/2158 = 0.00046
+intercept.mci <- -0.0018 # -3.9/2158 = -0.0018
+mu_mci$s2_chl_mollaee <- (mu_mci$MCI - intercept.mci) / slope.mci'
+
+# 3) custom -------
+'slope.mci <- 0.0004 * 0.5 # from Binding et al. 2013 - Erie, times correction factor from slope
+intercept.mci <- -0.0021 # from Binding et al. 2013 - Erie
+mu_mci$s2_chl_custom <- (mu_mci$MCI - intercept.mci) / slope.mci'
+
+# 4) cal-val split -------
+'set.seed(1)
+index.selected <- sample(1:nrow(mu_mci), size = floor(nrow(mu_mci) * 0.8), replace = FALSE)
+mu_mci_calc <- mu_mci[index.selected, ] # select 80% for cal
+mu_mci <- mu_mci[-index.selected, ] # retain remaining 20% for val
+  
+# fit linear model; set coefficients
+model_s2chla <- lm(mu_mci_calc$MCI ~ mu_mci_calc$chla_corr)
+  
+slope.mci <- model_s2chla$coefficients[2]
+intercept.mci <- model_s2chla$coefficients[1]
+mu_mci$s2_chl_split <- (mu_mci$MCI - intercept.mci) / slope.mci'
+
+
+# choose which MCI-chla conversion to use *******
+chla_conv <- "s2_chl_ontario" # s2_chl_ontario, s2_chl_erie, s2_chl_lotw, s2_chl_mollaee, s2_chl_custom, s2_chl_split
+mu_mci$chla_s2 <- mu_mci[, which(colnames(mu_mci) == chla_conv)]
+mu_mci$chla_conv <- chla_conv
+
 
 # remove negative S2 Chla
 sum(mu_mci$chla_s2 < 0)
-mu_mci <- mu_mci[mu_mci$chla_s2 >= 0, ]
+mu_mci <- mu_mci[mu_mci$chla_s2 >= 0, ] # remove negatives
 #mu_mci[mu_mci$chla_s2 < 0, ] <- 0 # set negatives to 0
 
 
@@ -280,18 +278,15 @@ mu_mci_s2chla <- mu_mci
 # reset
 mu_mci <- mu_mci_s2chla
 
+# initiate
 mu_mci$integration_comment <- ""
-
 mu_mci_integrated <- data.frame()
-duplicate_checks <- data.frame()
-ndups <- 0
 
 #
 for (r in 1:nrow(mu_mci)) {
   
   # skip if it's a duplicate that has already been handled
   if (grepl("REMOVED", mu_mci$integration_comment[r])) {
-    ndups <- c(ndups + 1)
     next
   }
   
@@ -307,100 +302,89 @@ for (r in 1:nrow(mu_mci)) {
     next
   }
   
-  # if both satellite and in situ dup, add to output and flag
-  if (length(unique(concurrent$GRANULE_ID)) > 1 & length(unique(concurrent$bio_uniqueID)) > 1) {
-    mu_mci$integration_comment[r] <- paste0("in situ AND satellite duplicate with X.3 = ", toString(concurrent$X.3))
-    mu_mci_integrated <- rbind(mu_mci_integrated, mu_mci[r, ])
-    print(sprintf("SKIPPING... has in situ AND satellite duplicates: mu_mci row #%s, X.3 %s", r, toString(concurrent$X.3)))
-    next
-  }
-  
-  # check if depth is the same
+  # check if depth is the same; if not, skip
   if (length(unique(concurrent$depth_corr)) == 1 &
       length(unique(concurrent$topdepth_corr)) == 1 & 
       length(unique(concurrent$botdepth_corr)) == 1 & 
       length(unique(concurrent$ActivityRelativeDepthName)) == 1) {
     same_depth <- TRUE
   } else {
-    same_depth <- FALSE
+    mu_mci$integration_comment[r] <- paste0("*** duplicate with different depths - X.3: ", toString(concurrent$X.3))
+    print(sprintf("*** SKIPPING... duplicate with different depths: mu_mci row #%s, X.3 %s", r, toString(concurrent$X.3)))
+    mu_mci_integrated <- rbind(mu_mci_integrated, mu_mci[r, ])
+    next
   }
   
+  mu_mci_newrow <- mu_mci[r, ]
+  
   ## integrating
+  
   # diff in situ sample, same img
   if (length(unique(concurrent$bio_uniqueID)) > 1) {
     
-    # as long as depth is the same, average in situ chl; otherwise, add to list to check
+    # as long as depth is the same, average in situ chl
     if (isTRUE(same_depth)) {
       
-      mu_mci$integration_comment[r] <- 
-        sprintf("avged in situ chl; original values: %s; original X.3: %s", 
+      mu_mci_newrow$chla_corr <- mean(concurrent$chla_corr) # set average chl
+      
+      mu_mci_newrow$integration_comment <- 
+        sprintf("avged in situ chl; original values: %s; original X.3: %s. ", 
                 toString(concurrent$chla_corr), toString(concurrent$X.3)) # add comment
       
-      mu_mci_integrated <- rbind(mu_mci_integrated, mu_mci[r, ]) # add this row to output
-      mu_mci_integrated$chla_corr[nrow(mu_mci_integrated)] <- mean(concurrent$chla_corr) # set average chl
-      mu_mci$integration_comment[concurrent_index[2:length(concurrent_index)]] <- 
-        sprintf("REMOVED; in situ duplicate with %s", concurrent$X.3[1]) # flag future obsevations to be skipped
+      mu_mci$integration_comment[r] <- 
+        sprintf("avged in situ chl; original values: %s; original X.3: %s. ", 
+                toString(concurrent$chla_corr), toString(concurrent$X.3)) # add comment
       
-    } else {
-      mu_mci$integration_comment[r] <- paste0("in situ duplicate with different depths - X.3: ", toString(concurrent$X.3))
-      print(sprintf("SKIPPING... in situ duplicate with different depths: mu_mci row #%s, X.3 %s", r, toString(concurrent$X.3)))
-      mu_mci_integrated <- rbind(mu_mci_integrated, mu_mci[r, ])
-      next
+      mu_mci$integration_comment[concurrent_index[2:length(concurrent_index)]] <- 
+        sprintf("REMOVED; in situ duplicate with %s. ", concurrent$X.3[1]) # flag future obsevations to be skipped
     }
   }
   
   # diff imgs, same in situ sample
-  else if (length(unique(concurrent$GRANULE_ID)) > 1) {
+  if (length(unique(concurrent$GRANULE_ID)) > 1) {
     
-    # as long as depth is the same, average in S2 chl; otherwise, add to list to check
+    # as long as depth is the same, average S2 chl; otherwise, add to list to check
     if (isTRUE(same_depth)) {
       
-      mu_mci$integration_comment[r] <-  
-        sprintf("avged S2 chl; original values: %s; original X.3: %s", 
-                toString(round(concurrent$chla_s2, 1)), toString(round(concurrent$X.3, 1))) # add comment
+      mu_mci_newrow$chla_s2 <- mean(concurrent$chla_s2) # set average chl
       
-      mu_mci_integrated <- rbind(mu_mci_integrated, mu_mci[r, ]) # add this row to output
-      mu_mci_integrated$chla_s2[nrow(mu_mci_integrated)] <- mean(concurrent$chla_s2) # set average chl
+      mu_mci_newrow$integration_comment <- paste0(mu_mci_newrow$integration_comment,
+                                                  sprintf("avged S2 chl; original values: %s; original X.3: %s.", 
+                                                          toString(round(concurrent$chla_s2, 1)), toString(round(concurrent$X.3, 1)))) # add comment
+      
+      
+      mu_mci$integration_comment[r] <- paste0(mu_mci$integration_comment[r],
+                                              sprintf("avged S2 chl; original values: %s; original X.3: %s.", 
+                                                      toString(round(concurrent$chla_s2, 1)), toString(round(concurrent$X.3, 1)))) # add comment
+      
       mu_mci$integration_comment[concurrent_index[2:length(concurrent_index)]] <- 
-        sprintf("REMOVED; img duplicate with %s", concurrent$X.3[1]) # flag future obsevations to be skipped
+        paste0(mu_mci$integration_comment[concurrent_index[2:length(concurrent_index)]], 
+               sprintf("REMOVED; img duplicate with %s.", concurrent$X.3[1])) # flag future obsevations to be skipped
       
       # print alert if S2 chla values are different - may indicate cloud in one image
       if (sd(concurrent$chla_s2) > 1) {
         print(sprintf("*** S2 chla SD > 1!! CHECK %s ***", toString(concurrent$X.3)))
       }
-      
-    } else {
-      mu_mci$integration_comment[r] <- paste0("img duplicate with different depths - X.3: ", toString(concurrent$X.3))
-      print(sprintf("SKIPPING... img duplicate with different depths: mu_mci row #%s, X.3 %s", r, toString(concurrent$X.3)))
-      mu_mci_integrated <- rbind(mu_mci_integrated, mu_mci[r, ])
-      next
     }
   }
-  
-  # if doesn't fit into either case, there's a problem
-  else {
-    mu_mci_integrated <- rbind(mu_mci_integrated, mu_mci[r, ])
-    mu_mci$integration_comment[r] <- "*** ISSUE - CHECK ***"
-    print(paste0("issue: mu_mci row #", r))
-  }
+  # add integrated row to new df
+  mu_mci_integrated <- rbind(mu_mci_integrated, mu_mci_newrow) # add this row to output
 }
 
 # rename old and new tables
 mu_mci_preintegrated <- mu_mci
 mu_mci <- mu_mci_integrated
-sprintf("%s/%s duplicates removed", nrow(mu_mci_preintegrated) - nrow(mu_mci), ndups) # show number of duplicates removed
+sprintf("%s duplicates removed", nrow(mu_mci_preintegrated) - nrow(mu_mci)) # show number of duplicates removed
 
 # write out to csv for checking
 #write.csv(mu_mci_preintegrated, sprintf("mu_mci_preintegrated_%s.csv", Sys.Date()))
 #write.csv(mu_mci, sprintf("mu_mci_integrated_%s.csv", Sys.Date()))
 
-# ------------------------------------------------------------------
-
 # >>>> revise mu_mci_integrated.csv if needed; rename file: add "MANUAL" add end <<<<
 # re-load revised data
-mu_mci <- read.csv("mu_mci_integrated_2019-08-02_MANUAL.csv", stringsAsFactors = FALSE)
+#mu_mci <- read.csv("mu_mci_integrated_2019-xx-xx_MANUAL.csv", stringsAsFactors = FALSE)
 
-# ------------------------------------------------------------------
+# -----------------------------------------------------
 
 # calculate error
 mu_mci$error_chla <- (mu_mci$chla_s2 - mu_mci$chla_corr) # error
@@ -435,6 +419,15 @@ chl_eutrFn <- function(x) {
 }
 mu_mci$chl_eutr <- sapply(mu_mci$chla_corr, chl_eutrFn)
 
+# save mu_mci
+mu_mci_prefilter <- mu_mci
+
+
+
+## additional criteria ------------------------------------------------------------------------------------
+
+# reset mu_mci
+mu_mci <- mu_mci_prefilter
 
 ## remove bad points identified in imagery
 length(mu_mci_raw$X.5) == length(unique(mu_mci_raw$X.5)) # checking if unique: yes
@@ -450,13 +443,11 @@ mu_mci <- merge(mu_mci, img_comments[, which(colnames(img_comments) %in% c("poin
 # apply removal
 print(sprintf("removing %s bad imagery points", sum(!(mu_mci$tier %in% c("1", "2")))))
 mu_mci <- mu_mci[which(mu_mci$tier %in% c("1", "2")), ]
+#
 
-mu_mci_prefilter <- mu_mci
-
-
-## additional criteria ------------------------------------------------------------------------------------
-
-mu_mci <- mu_mci_prefilter
+## shore dist
+sum(mu_mci$dist_shore_m < 30)
+mu_mci <- mu_mci[mu_mci$dist_shore_m >= 30, ]
 
 ## clouds
 #mu_mci <- mu_mci[mu_mci$CLOUDY_PIXEL_PERCENTAGE == 0, ]
@@ -465,10 +456,6 @@ mu_mci <- mu_mci_prefilter
 mu_mci$month <- as.numeric(substr(mu_mci$samp_localTime, 2, 3))
 table(mu_mci$month)
 #mu_mci <- mu_mci[mu_mci$month %in% 6:8, ]
-
-## shore dist
-sum(mu_mci$dist_shore_m < 30)
-mu_mci <- mu_mci[mu_mci$dist_shore_m >= 30, ]
 
 
 ## sediment -------------
@@ -538,7 +525,7 @@ plot_error_metrics(x = mu_mci$chla_corr, y = mu_mci$chla_s2, # export 800 x 860
 #legend("bottomright", legend = unique(mu_mci$sedimentf), col = c("black", "red"), border = NULL)
 #dev.off()
 cat(sprintf("S2 -> chl relationship: *** %s *** \nS2 regression slope = %s; intercept = %s \n%s images\n", 
-            s2_calc,
+            chla_conv,
             signif(slope.mci, digits = 2), signif(intercept.mci, digits = 2),
             length(unique(mu_mci$GRANULE_ID))))
 print("make sure you checked duplicate files for this batch of validation points!!")
