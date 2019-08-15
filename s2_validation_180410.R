@@ -39,7 +39,7 @@ colnames(mu_mci_l1c)[which(colnames(mu_mci_l1c) == "MCI_val_9")] <- "MCI_L1C_9"
 # MCI BRR
 mu_mci_brr <- read.csv("validation_S2_682imgs_MCI_BRR_2019-08-09.csv", stringsAsFactors = FALSE)
 nrow(mu_mci_l1c) == nrow(mu_mci_brr) # confirm they're the same
-mu_mci_brrONLY <- mu_mci_brr[which(!(mu_mci_brr$X.5 %in% mu_mci_l1c$X.5)), ]
+mu_mci_brrONLY <- mu_mci_brr[which(!(mu_mci_brr$X.3 %in% mu_mci_l1c$X.3)), ]
 
 # rename MCI columns
 colnames(mu_mci_brr)[which(colnames(mu_mci_brr) == "MCI_val_1")] <- "MCI_BRR_1"
@@ -58,10 +58,8 @@ check_unique <- function(input_df) {
     unique_status <- "ERROR"
     if (length(unique(input_df[, c])) == nrow(input_df)) {
       unique_status <- "*** unique*** "
-    } else if (length(unique(input_df[, c]) != nrow(input_df))) {
-      unique_status <- "NOT unique"
+      print(sprintf("col %s: %s - *** unique***", c, colnames(input_df)[c]))
     }
-    print(sprintf("%s: %s - %s", c, colnames(input_df)[c], unique_status))
   }
 }
 
@@ -76,9 +74,9 @@ l1c <- mu_mci_l1c[, which(colnames(mu_mci_l1c) %in% c("X.3", "MCI_L1C_1", "MCI_L
 mu_mci <- merge(mu_mci_brr, l1c, by = "X.3", all.x = TRUE)
 
 # initial plot
-plot(mu_mci$MCI_L1C_1, mu_mci$MCI_BRR_1, xlim = c(-0.05, 0.05), ylim = c(-0.05, 0.05))
-plot(mu_mci$chla_corr, mu_mci$MCI_BRR_1, xlim = c(0, 300), ylim = c(-0.05, 0.05))
-plot(mu_mci$chla_corr, mu_mci$MCI_L1C_1, xlim = c(0, 300), ylim = c(-0.05, 0.05))
+#plot(mu_mci$MCI_L1C_1, mu_mci$MCI_BRR_1, xlim = c(-0.05, 0.05), ylim = c(-0.05, 0.05))
+#plot(mu_mci$chla_corr, mu_mci$MCI_BRR_1, xlim = c(0, 300), ylim = c(-0.05, 0.05))
+#plot(mu_mci$chla_corr, mu_mci$MCI_L1C_1, xlim = c(0, 300), ylim = c(-0.05, 0.05))
 
 # average 9-pixel window (L1C and BRR)
 mci_val_colindex <- which(colnames(mu_mci) == "MCI_L1C_1"):which(colnames(mu_mci) == "MCI_L1C_9")
@@ -92,6 +90,15 @@ mu_mci$MCI_BRR_mean <- apply(mu_mci[, mci_val_colindex], 1, mean)
 mu_mci$MCI <- mu_mci$MCI_BRR_1 # MCI_L1C_1 (single), MCI_L1C_mean, MCI_BRR_1 (single), MCI_BRR_mean
 
 #
+
+# fix chron
+mu_mci$samp_localTime <- chron(dates. = substr(mu_mci$samp_localTime, 2, 9), 
+                               times. = substr(mu_mci$samp_localTime, 11, 18))
+mu_mci$img_localTime <- chron(dates. = substr(mu_mci$img_localTime, 2, 9), 
+                              times. = substr(mu_mci$img_localTime, 11, 18))
+mu_mci$samp_localDate <- substr(mu_mci$samp_localTime, 2, 9)
+
+mu_mci$offset_hrs <- as.numeric(mu_mci$samp_localTime - mu_mci$img_localTime) * 24
 
 
 # remove duplicates: identify based on duplicated chlorophyll-a and MCI (L1C)
@@ -109,6 +116,7 @@ mu_mci <- mu_mci[-which(is.na(mu_mci$depth_corr) &
                           is.na(mu_mci$ActivityRelativeDepthName)), ]
 
 # export points
+'
 lon <- mu_mci$LongitudeMeasure
 lat <- mu_mci$LatitudeMeasure
 mu_mci_pts_all <- SpatialPointsDataFrame(coords = matrix(c(lon, lat), ncol = 2), 
@@ -121,16 +129,7 @@ writeOGR(obj = mu_mci_pts_0, dsn = "O:/PRIV/NERL_ORD_CYAN/Sentinel2/Validation/6
 mu_mci_pts_499 <- mu_mci_pts_all[!is.na(mu_mci_pts_all$MCI) & mu_mci_pts_all$MCI == max(mu_mci$MCI, na.rm = TRUE), ]
 writeOGR(obj = mu_mci_pts_499, dsn = "O:/PRIV/NERL_ORD_CYAN/Sentinel2/Validation/681_imgs/geospatial", 
          layer = "mu_mci_499",  driver = "ESRI Shapefile")
-
-
-#* fix chron
-mu_mci$samp_localTime <- chron(dates. = substr(mu_mci$samp_localTime, 2, 9), 
-                               times. = substr(mu_mci$samp_localTime, 11, 18))
-mu_mci$img_localTime <- chron(dates. = substr(mu_mci$img_localTime, 2, 9), 
-                              times. = substr(mu_mci$img_localTime, 11, 18))
-mu_mci$samp_localDate <- substr(mu_mci$samp_localTime, 2, 9)
-
-mu_mci$offset_hrs <- as.numeric(mu_mci$samp_localTime - mu_mci$img_localTime) * 24
+'
 
 
 # make copy
@@ -187,6 +186,7 @@ summary(mu_mci$chla_corr)
 '
 
 ## method
+table(mu_mci$ResultAnalyticalMethod.MethodIdentifierContext)
 method_sub <- "APHA" # APHA USEPA USGS
 mu_mci <- mu_mci[which(mu_mci$ResultAnalyticalMethod.MethodIdentifierContext == method_sub), ]
 
@@ -309,9 +309,9 @@ for (r in 1:nrow(mu_mci)) {
   
   # if both satellite and in situ dup, add to output and flag
   if (length(unique(concurrent$GRANULE_ID)) > 1 & length(unique(concurrent$bio_uniqueID)) > 1) {
-    mu_mci$integration_comment[r] <- paste0("in situ AND satellite duplicate with X.5 = ", toString(concurrent$X.5))
+    mu_mci$integration_comment[r] <- paste0("in situ AND satellite duplicate with X.3 = ", toString(concurrent$X.3))
     mu_mci_integrated <- rbind(mu_mci_integrated, mu_mci[r, ])
-    print(sprintf("SKIPPING... has in situ AND satellite duplicates: mu_mci row #%s, X.5 %s", r, toString(concurrent$X.5)))
+    print(sprintf("SKIPPING... has in situ AND satellite duplicates: mu_mci row #%s, X.3 %s", r, toString(concurrent$X.3)))
     next
   }
   
@@ -333,17 +333,17 @@ for (r in 1:nrow(mu_mci)) {
     if (isTRUE(same_depth)) {
       
       mu_mci$integration_comment[r] <- 
-        sprintf("avged in situ chl; original values: %s; original X.5: %s", 
-                toString(concurrent$chla_corr), toString(concurrent$X.5)) # add comment
+        sprintf("avged in situ chl; original values: %s; original X.3: %s", 
+                toString(concurrent$chla_corr), toString(concurrent$X.3)) # add comment
       
       mu_mci_integrated <- rbind(mu_mci_integrated, mu_mci[r, ]) # add this row to output
       mu_mci_integrated$chla_corr[nrow(mu_mci_integrated)] <- mean(concurrent$chla_corr) # set average chl
       mu_mci$integration_comment[concurrent_index[2:length(concurrent_index)]] <- 
-        sprintf("REMOVED; in situ duplicate with %s", concurrent$X.5[1]) # flag future obsevations to be skipped
+        sprintf("REMOVED; in situ duplicate with %s", concurrent$X.3[1]) # flag future obsevations to be skipped
       
     } else {
-      mu_mci$integration_comment[r] <- paste0("in situ duplicate with different depths - X.5: ", toString(concurrent$X.5))
-      print(sprintf("SKIPPING... in situ duplicate with different depths: mu_mci row #%s, X.5 %s", r, toString(concurrent$X.5)))
+      mu_mci$integration_comment[r] <- paste0("in situ duplicate with different depths - X.3: ", toString(concurrent$X.3))
+      print(sprintf("SKIPPING... in situ duplicate with different depths: mu_mci row #%s, X.3 %s", r, toString(concurrent$X.3)))
       mu_mci_integrated <- rbind(mu_mci_integrated, mu_mci[r, ])
       next
     }
@@ -356,22 +356,22 @@ for (r in 1:nrow(mu_mci)) {
     if (isTRUE(same_depth)) {
       
       mu_mci$integration_comment[r] <-  
-        sprintf("avged S2 chl; original values: %s; original X.5: %s", 
-                toString(round(concurrent$chla_s2, 1)), toString(round(concurrent$X.5, 1))) # add comment
+        sprintf("avged S2 chl; original values: %s; original X.3: %s", 
+                toString(round(concurrent$chla_s2, 1)), toString(round(concurrent$X.3, 1))) # add comment
       
       mu_mci_integrated <- rbind(mu_mci_integrated, mu_mci[r, ]) # add this row to output
       mu_mci_integrated$chla_s2[nrow(mu_mci_integrated)] <- mean(concurrent$chla_s2) # set average chl
       mu_mci$integration_comment[concurrent_index[2:length(concurrent_index)]] <- 
-        sprintf("REMOVED; img duplicate with %s", concurrent$X.5[1]) # flag future obsevations to be skipped
+        sprintf("REMOVED; img duplicate with %s", concurrent$X.3[1]) # flag future obsevations to be skipped
       
       # print alert if S2 chla values are different - may indicate cloud in one image
       if (sd(concurrent$chla_s2) > 1) {
-        print(sprintf("S2 chla SD > 1!! CHECK %s", toString(concurrent$X.5)))
+        print(sprintf("*** S2 chla SD > 1!! CHECK %s ***", toString(concurrent$X.3)))
       }
       
     } else {
-      mu_mci$integration_comment[r] <- paste0("img duplicate with different depths - X.5: ", toString(concurrent$X.5))
-      print(sprintf("SKIPPING... img duplicate with different depths: mu_mci row #%s, X.5 %s", r, toString(concurrent$X.5)))
+      mu_mci$integration_comment[r] <- paste0("img duplicate with different depths - X.3: ", toString(concurrent$X.3))
+      print(sprintf("SKIPPING... img duplicate with different depths: mu_mci row #%s, X.3 %s", r, toString(concurrent$X.3)))
       mu_mci_integrated <- rbind(mu_mci_integrated, mu_mci[r, ])
       next
     }
@@ -380,7 +380,7 @@ for (r in 1:nrow(mu_mci)) {
   # if doesn't fit into either case, there's a problem
   else {
     mu_mci_integrated <- rbind(mu_mci_integrated, mu_mci[r, ])
-    mu_mci$integration_comment[r] <- "ISSUE - CHECK"
+    mu_mci$integration_comment[r] <- "*** ISSUE - CHECK ***"
     print(paste0("issue: mu_mci row #", r))
   }
 }
@@ -474,7 +474,7 @@ mu_mci <- mu_mci[mu_mci$dist_shore_m >= 30, ]
 ## sediment -------------
 # merge raw band values table
 raw_bands <- read.csv("mu_rawbands_3day.csv", stringsAsFactors = FALSE)
-mu_mci <- merge(mu_mci, raw_bands, by = "X.5", all.x = TRUE)
+mu_mci <- merge(mu_mci, raw_bands, by = "X.3", all.x = TRUE)
 
 # calculate slope
 mu_mci$mci_baseline_slope <- (mu_mci$b6_1 - mu_mci$b4_1) / (740 - 655)
@@ -516,7 +516,7 @@ plot_error_metrics(x = mu_mci$chla_corr, y = mu_mci$chla_s2, # export 800 x 860
                    #title = plot_title, 
                    #title = paste0(method_sub, ", ", plot_title), # if subsetting by method
                    equal_axes = TRUE, 
-                   log_axes = "", # xy
+                   log_axes = "xy", # xy
                    log_space = TRUE,
                    plot_abline = FALSE,
                    text_x = 0.04,
@@ -561,7 +561,7 @@ mu_mci$s2_eutr <- sapply(mu_mci$chla_s2, chl_eutrFn)
 sum(mu_mci$chl_eutr == mu_mci$s2_eutr)
 
 mu_mci$chl_eutr <- factor(mu_mci$chl_eutr, 
-                         levels = c("oligotrophic", "mesotrophic", "eutrophic", "hypereutrophic"))
+                          levels = c("oligotrophic", "mesotrophic", "eutrophic", "hypereutrophic"))
 mu_mci$s2_eutr <- factor(mu_mci$s2_eutr, 
                          levels = c("oligotrophic", "mesotrophic", "eutrophic", "hypereutrophic"))
 
@@ -662,7 +662,7 @@ mu_mci$depth_m_stdized[which(!is.na(mu_mci$depth_corr))] <-
 sum(!is.na(mu_mci$topdepth_corr))
 mu_mci$depth_m_stdized[which(!is.na(mu_mci$topdepth_corr))] <- 
   apply(data.frame(topd = mu_mci$topdepth_corr[which(!is.na(mu_mci$topdepth_corr))],
-                     botd = mu_mci$botdepth_corr[which(!is.na(mu_mci$topdepth_corr))]), 1, mean)
+                   botd = mu_mci$botdepth_corr[which(!is.na(mu_mci$topdepth_corr))]), 1, mean)
 
 plot(mu_mci$depth_m_stdized, mu_mci$chla_corr)
 
