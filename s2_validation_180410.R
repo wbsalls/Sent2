@@ -161,7 +161,8 @@ table(mu_mci_na$imgtype)
 
 ## remove MCI = 4.999496
 max(mu_mci$MCI)
-sum(mu_mci$MCI == max(mu_mci$MCI, na.rm = TRUE))
+sum(mu_mci$MCI == max(mu_mci$MCI))
+#mu_mci <- mu_mci[-which(mu_mci$MCI == max(mu_mci$MCI)), ] # why doesn't this work right???
 mu_mci <- mu_mci[which(mu_mci$MCI < 4), ]
 
 '
@@ -261,7 +262,11 @@ mu_mci$chla_conv <- chla_conv
 
 # remove negative S2 Chla
 sum(mu_mci$chla_s2 < 0)
-mu_mci <- mu_mci[mu_mci$chla_s2 >= 0, ] # remove negatives
+sum(mu_mci$s2_chl_erie < 0)
+sum(mu_mci$s2_chl_ontario < 0)
+sum(mu_mci$s2_chl_erie[which(mu_mci$s2_chl_ontario < 0)] > 0)
+sum(mu_mci$s2_chl_ontario[which(mu_mci$s2_chl_erie < 0)] > 0)
+mu_mci <- mu_mci[mu_mci$s2_chl_erie >= 0, ] # remove negatives; use erie for now since ontario removes 28 additional negatives
 #mu_mci[mu_mci$chla_s2 < 0, ] <- 0 # set negatives to 0
 
 
@@ -430,19 +435,23 @@ mu_mci_prefilter <- mu_mci
 mu_mci <- mu_mci_prefilter
 
 ## remove bad points identified in imagery
-length(mu_mci_raw$X.5) == length(unique(mu_mci_raw$X.5)) # checking if unique: yes
+length(mu_mci_raw$X.3) == length(unique(mu_mci_raw$X.3)) # checking if unique: yes
 
-img_comments <- read.csv("ImageCheck_0day_comments.csv", stringsAsFactors = FALSE)
+img_comments <- read.csv("ImageCheck_0day_comments_X3.csv", stringsAsFactors = FALSE)
 
-mu_mci <- merge(mu_mci, img_comments[, which(colnames(img_comments) %in% c("point_IDX5", "tier", "glint"))],
-                by.x = "X.5", by.y = "point_IDX5", all.x = TRUE, all.y = FALSE)
+sum(img_comments$X.3 %in% mu_mci$X.3)
+
+# <<<<*********>>>>> check remaining points in imagery
+
+mu_mci <- merge(mu_mci, img_comments[, which(colnames(img_comments) %in% c("X.3", "tier", "glint"))],
+                by = "X.3", all.x = TRUE, all.y = FALSE)
 
 # investigate file to see make sure img comments weren't lost in duplicates
 #write.csv(mu_mci, "mu_mci_imgComments.csv")
 
 # apply removal
-print(sprintf("removing %s bad imagery points", sum(!(mu_mci$tier %in% c("1", "2")))))
-mu_mci <- mu_mci[which(mu_mci$tier %in% c("1", "2")), ]
+print(sprintf("removing %s bad imagery points", sum((mu_mci$tier %in% c("3", "x")))))
+mu_mci <- mu_mci[-which(mu_mci$tier %in% c("3", "x")), ]
 #
 
 ## shore dist
@@ -460,7 +469,7 @@ table(mu_mci$month)
 
 ## sediment -------------
 # merge raw band values table
-raw_bands <- read.csv("mu_rawbands_3day.csv", stringsAsFactors = FALSE)
+raw_bands <- read.csv("mu_rawbands_3day_X3.csv", stringsAsFactors = FALSE)
 mu_mci <- merge(mu_mci, raw_bands, by = "X.3", all.x = TRUE)
 
 # calculate slope
@@ -493,7 +502,7 @@ mu_mci <- mu_mci[mu_mci$mci_baseline_slope > sed_cutoff, ]
 
 ### validation plot  -----------------------------------------------------------------------------------
 
-mu_mci <- read.csv("O:/PRIV/NERL_ORD_CYAN/Sentinel2/Validation/681_imgs/mu_mci_finalset_2019-05-01.csv", stringsAsFactors = FALSE)
+#mu_mci <- read.csv("O:/PRIV/NERL_ORD_CYAN/Sentinel2/Validation/681_imgs/mu_mci_finalset_2019-05-01.csv", stringsAsFactors = FALSE)
 
 #jpeg(sprintf("val_%s_%s.png", offset_min, offset_max), width = 800, height = 860)
 plot_error_metrics(x = mu_mci$chla_corr, y = mu_mci$chla_s2, # export 800 x 860
@@ -503,8 +512,8 @@ plot_error_metrics(x = mu_mci$chla_corr, y = mu_mci$chla_s2, # export 800 x 860
                    #title = plot_title, 
                    #title = paste0(method_sub, ", ", plot_title), # if subsetting by method
                    equal_axes = TRUE, 
-                   log_axes = "xy", # xy
-                   log_space = TRUE,
+                   log_axes = "", # xy
+                   log_space = F,
                    plot_abline = FALSE,
                    text_x = 0.04,
                    #text_y = ,
@@ -528,7 +537,6 @@ cat(sprintf("S2 -> chl relationship: *** %s *** \nS2 regression slope = %s; inte
             chla_conv,
             signif(slope.mci, digits = 2), signif(intercept.mci, digits = 2),
             length(unique(mu_mci$GRANULE_ID))))
-print("make sure you checked duplicate files for this batch of validation points!!")
 #text(x = mu_mci$chla_corr, y = mu_mci$chla_s2, labels = 1:nrow(mu_mci))
 
 ####
