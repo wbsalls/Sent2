@@ -87,7 +87,7 @@ mu_mci$MCI_BRR_mean <- apply(mu_mci[, mci_val_colindex], 1, mean)
 
 
 # choose which MCI to use *******
-mci_type <- "MCI_BRR_1" # MCI_L1C_1 (single), MCI_L1C_mean, MCI_BRR_1 (single), MCI_BRR_mean
+mci_type <- "MCI_BRR_1" # <<<** MCI_L1C_1 (single), MCI_L1C_mean, MCI_BRR_1 (single), MCI_BRR_mean
 mu_mci$MCI <- mu_mci[, which(colnames(mu_mci) == mci_type)]
 mu_mci$mci_type <- mci_type
 
@@ -118,20 +118,22 @@ mu_mci <- mu_mci[-which(is.na(mu_mci$depth_corr) &
                           is.na(mu_mci$ActivityRelativeDepthName)), ]
 
 # export points
-'
+
 lon <- mu_mci$LongitudeMeasure
 lat <- mu_mci$LatitudeMeasure
 mu_mci_pts_all <- SpatialPointsDataFrame(coords = matrix(c(lon, lat), ncol = 2), 
                                          mu_mci, proj4string = CRS("+init=epsg:4326"))
-writeOGR(obj = mu_mci_pts_all, dsn = "O:/PRIV/NERL_ORD_CYAN/Sentinel2/Validation/681_imgs/geospatial", 
-         layer = "mu_mci_pts_all",  driver = "ESRI Shapefile")
+writeOGR(obj = mu_mci_pts_all[, -which(colnames(mu_mci) %in% c("samp_localTime", "img_localTime"))],
+         dsn = "O:/PRIV/NERL_ORD_CYAN/Sentinel2/Validation/681_imgs/geospatial", 
+         layer = "xxxx",  driver = "ESRI Shapefile")
+
 mu_mci_pts_0 <- mu_mci_pts_all[!is.na(mu_mci_pts_all$MCI) & mu_mci_pts_all$MCI == 0, ]
 writeOGR(obj = mu_mci_pts_0, dsn = "O:/PRIV/NERL_ORD_CYAN/Sentinel2/Validation/681_imgs/geospatial", 
          layer = "mu_mci_0",  driver = "ESRI Shapefile")
 mu_mci_pts_499 <- mu_mci_pts_all[!is.na(mu_mci_pts_all$MCI) & mu_mci_pts_all$MCI == max(mu_mci$MCI, na.rm = TRUE), ]
 writeOGR(obj = mu_mci_pts_499, dsn = "O:/PRIV/NERL_ORD_CYAN/Sentinel2/Validation/681_imgs/geospatial", 
          layer = "mu_mci_499",  driver = "ESRI Shapefile")
-'
+
 
 
 # make copy
@@ -255,7 +257,7 @@ mu_mci$s2_chl_split <- (mu_mci$MCI - intercept.mci) / slope.mci'
 
 
 # choose which MCI-chla conversion to use *******
-chla_conv <- "s2_chl_ontario" # s2_chl_ontario, s2_chl_erie, s2_chl_lotw, s2_chl_mollaee, s2_chl_custom, s2_chl_split
+chla_conv <- "s2_chl_ontario" # <<<** s2_chl_ontario, s2_chl_erie, s2_chl_lotw, s2_chl_mollaee, s2_chl_custom, s2_chl_split
 mu_mci$chla_s2 <- mu_mci[, which(colnames(mu_mci) == chla_conv)]
 mu_mci$chla_conv <- chla_conv
 
@@ -435,7 +437,7 @@ mu_mci_prefilter <- mu_mci
 mu_mci <- mu_mci_prefilter
 
 ## remove bad points identified in imagery
-length(mu_mci_raw$X.3) == length(unique(mu_mci_raw$X.3)) # checking if unique: yes
+length(mu_mci$X.3) == length(unique(mu_mci$X.3)) # checking if unique: yes
 
 img_comments <- read.csv("ImageCheck_0day_comments_X3.csv", stringsAsFactors = FALSE)
 
@@ -470,6 +472,7 @@ table(mu_mci$month)
 ## sediment -------------
 # merge raw band values table
 raw_bands <- read.csv("mu_rawbands_3day_X3.csv", stringsAsFactors = FALSE)
+sum(raw_bands$X.3 %in% mu_mci$X.3)
 mu_mci <- merge(mu_mci, raw_bands, by = "X.3", all.x = TRUE)
 
 # calculate slope
@@ -512,8 +515,8 @@ plot_error_metrics(x = mu_mci$chla_corr, y = mu_mci$chla_s2, # export 800 x 860
                    #title = plot_title, 
                    #title = paste0(method_sub, ", ", plot_title), # if subsetting by method
                    equal_axes = TRUE, 
-                   log_axes = "", # xy
-                   log_space = F,
+                   log_axes = "xy", # xy
+                   log_space = T,
                    plot_abline = FALSE,
                    text_x = 0.04,
                    #text_y = ,
@@ -531,12 +534,12 @@ plot_error_metrics(x = mu_mci$chla_corr, y = mu_mci$chla_s2, # export 800 x 860
                    #col = mu_mci$sedimentf,
                    #col = mu_mci$state_col,
                    pch = 20)
-#legend("bottomright", legend = unique(mu_mci$sedimentf), col = c("black", "red"), border = NULL)
-#dev.off()
 cat(sprintf("S2 -> chl relationship: *** %s *** \nS2 regression slope = %s; intercept = %s \n%s images\n", 
             chla_conv,
             signif(slope.mci, digits = 2), signif(intercept.mci, digits = 2),
             length(unique(mu_mci$GRANULE_ID))))
+#legend("bottomright", legend = unique(mu_mci$sedimentf), col = c("black", "red"), border = NULL)
+#dev.off()
 #text(x = mu_mci$chla_corr, y = mu_mci$chla_s2, labels = 1:nrow(mu_mci))
 
 ####
