@@ -118,7 +118,7 @@ mu_mci <- mu_mci[-which(is.na(mu_mci$depth_corr) &
                           is.na(mu_mci$ActivityRelativeDepthName)), ]
 
 # export points
-
+'
 lon <- mu_mci$LongitudeMeasure
 lat <- mu_mci$LatitudeMeasure
 mu_mci_pts_all <- SpatialPointsDataFrame(coords = matrix(c(lon, lat), ncol = 2), 
@@ -133,7 +133,7 @@ writeOGR(obj = mu_mci_pts_0, dsn = "O:/PRIV/NERL_ORD_CYAN/Sentinel2/Validation/6
 mu_mci_pts_499 <- mu_mci_pts_all[!is.na(mu_mci_pts_all$MCI) & mu_mci_pts_all$MCI == max(mu_mci$MCI, na.rm = TRUE), ]
 writeOGR(obj = mu_mci_pts_499, dsn = "O:/PRIV/NERL_ORD_CYAN/Sentinel2/Validation/681_imgs/geospatial", 
          layer = "mu_mci_499",  driver = "ESRI Shapefile")
-
+'
 
 
 # make copy
@@ -256,8 +256,9 @@ intercept.mci <- model_s2chla$coefficients[1]
 mu_mci$s2_chl_split <- (mu_mci$MCI - intercept.mci) / slope.mci'
 
 
-# choose which MCI-chla conversion to use *******
-chla_conv <- "s2_chl_ontario" # <<<** s2_chl_ontario, s2_chl_erie, s2_chl_lotw, s2_chl_mollaee, s2_chl_custom, s2_chl_split
+# choose which MCI-chla conversion to use
+# using erie for now since ontario removes 28 additional negatives
+chla_conv <- "s2_chl_erie" # <<<** s2_chl_ontario, s2_chl_erie, s2_chl_lotw, s2_chl_mollaee, s2_chl_custom, s2_chl_split
 mu_mci$chla_s2 <- mu_mci[, which(colnames(mu_mci) == chla_conv)]
 mu_mci$chla_conv <- chla_conv
 
@@ -268,7 +269,7 @@ sum(mu_mci$s2_chl_erie < 0)
 sum(mu_mci$s2_chl_ontario < 0)
 sum(mu_mci$s2_chl_erie[which(mu_mci$s2_chl_ontario < 0)] > 0)
 sum(mu_mci$s2_chl_ontario[which(mu_mci$s2_chl_erie < 0)] > 0)
-mu_mci <- mu_mci[mu_mci$s2_chl_erie >= 0, ] # remove negatives; use erie for now since ontario removes 28 additional negatives
+mu_mci <- mu_mci[mu_mci$chla_s2 >= 0, ] # remove negatives
 #mu_mci[mu_mci$chla_s2 < 0, ] <- 0 # set negatives to 0
 
 
@@ -436,6 +437,11 @@ mu_mci_prefilter <- mu_mci
 # reset mu_mci
 mu_mci <- mu_mci_prefilter
 
+## shore dist
+sum(mu_mci$dist_shore_m < 30)
+mu_mci <- mu_mci[mu_mci$dist_shore_m >= 30, ]
+
+
 ## remove bad points identified in imagery
 length(mu_mci$X.3) == length(unique(mu_mci$X.3)) # checking if unique: yes
 
@@ -448,6 +454,8 @@ sum(img_comments$X.3 %in% mu_mci$X.3)
 mu_mci <- merge(mu_mci, img_comments[, which(colnames(img_comments) %in% c("X.3", "tier", "glint"))],
                 by = "X.3", all.x = TRUE, all.y = FALSE)
 
+sum(is.na(mu_mci$tier)) # should be 0
+
 # investigate file to see make sure img comments weren't lost in duplicates
 #write.csv(mu_mci, "mu_mci_imgComments.csv")
 
@@ -455,18 +463,6 @@ mu_mci <- merge(mu_mci, img_comments[, which(colnames(img_comments) %in% c("X.3"
 print(sprintf("removing %s bad imagery points", sum((mu_mci$tier %in% c("3", "x")))))
 mu_mci <- mu_mci[-which(mu_mci$tier %in% c("3", "x")), ]
 #
-
-## shore dist
-sum(mu_mci$dist_shore_m < 30)
-mu_mci <- mu_mci[mu_mci$dist_shore_m >= 30, ]
-
-## clouds
-#mu_mci <- mu_mci[mu_mci$CLOUDY_PIXEL_PERCENTAGE == 0, ]
-
-## season
-mu_mci$month <- as.numeric(substr(mu_mci$samp_localTime, 2, 3))
-table(mu_mci$month)
-#mu_mci <- mu_mci[mu_mci$month %in% 6:8, ]
 
 
 ## sediment -------------
@@ -477,6 +473,7 @@ mu_mci <- merge(mu_mci, raw_bands, by = "X.3", all.x = TRUE)
 
 # calculate slope
 mu_mci$mci_baseline_slope <- (mu_mci$b6_1 - mu_mci$b4_1) / (740 - 655)
+sum(is.na(mu_mci$mci_baseline_slope))
 
 #plot(mu_mci$mci_baseline_slope, rep(1, nrow(mu_mci)))
 #plot(mu_mci$mci_baseline_slope, mu_mci$error_chla)
@@ -484,8 +481,10 @@ mu_mci$mci_baseline_slope <- (mu_mci$b6_1 - mu_mci$b4_1) / (740 - 655)
 # assign cutoff
 sed_cutoff <- -4 # Binding recommendation: retain only points that are > -0.15
 
-mu_mci$sediment <- "sediment"
-mu_mci$sediment[mu_mci$mci_baseline_slope > sed_cutoff] <- "no sediment flag"
+mu_mci$sediment <- ""
+mu_mci$sediment[mu_mci$mci_baseline_slope < sed_cutoff] <- "sediment"
+mu_mci$sediment[mu_mci$mci_baseline_slope >= sed_cutoff] <- "no sediment flag"
+table(mu_mci$sediment)
 mu_mci$sediment <- factor(mu_mci$sediment, levels(factor(mu_mci$sediment))[c(2, 1)])
 
 sprintf("%s/%s points retained (removing %s)", 
@@ -497,15 +496,40 @@ mu_mci <- mu_mci[mu_mci$mci_baseline_slope > sed_cutoff, ]
 
 # ------
 
+## clouds
+#mu_mci <- mu_mci[mu_mci$CLOUDY_PIXEL_PERCENTAGE == 0, ]
+
+## season
+#mu_mci$month <- as.numeric(substr(mu_mci$samp_localTime, 2, 3))
+#table(mu_mci$month)
+#mu_mci <- mu_mci[mu_mci$month %in% 6:8, ]
+
+
 #mu_mci <- mu_mci[which(!is.na(mu_mci$chla_corr)), ]
 
 # write csv of final validation set
 #write.csv(mu_mci, sprintf("mu_mci_finalset_%s.csv", Sys.Date()))
 
 
+
+### ---------------------------------------------------------------------------------------------------
+
+#mu_mci <- read.csv("O:/PRIV/NERL_ORD_CYAN/Sentinel2/Validation/681_imgs/mu_mci_finalset_2019-08-21.csv", stringsAsFactors = FALSE)
+
+# save
+mu_mci_final <- mu_mci
+
 ### validation plot  -----------------------------------------------------------------------------------
 
-#mu_mci <- read.csv("O:/PRIV/NERL_ORD_CYAN/Sentinel2/Validation/681_imgs/mu_mci_finalset_2019-05-01.csv", stringsAsFactors = FALSE)
+# reset
+mu_mci <- mu_mci_final
+mu_mci$pid <- 1:nrow(mu_mci) # for viewing point IDs
+
+# choose which MCI-chla conversion to use *******
+chla_conv <- "s2_chl_ontario" # <<<** s2_chl_ontario, s2_chl_erie, s2_chl_lotw, s2_chl_mollaee, s2_chl_custom, s2_chl_split
+mu_mci$chla_s2 <- mu_mci[, which(colnames(mu_mci) == chla_conv)]
+mu_mci$chla_conv <- chla_conv
+mu_mci <- mu_mci[mu_mci$chla_s2 >= 0, ] # remove negatives
 
 #jpeg(sprintf("val_%s_%s.png", offset_min, offset_max), width = 800, height = 860)
 plot_error_metrics(x = mu_mci$chla_corr, y = mu_mci$chla_s2, # export 800 x 860
@@ -515,8 +539,8 @@ plot_error_metrics(x = mu_mci$chla_corr, y = mu_mci$chla_s2, # export 800 x 860
                    #title = plot_title, 
                    #title = paste0(method_sub, ", ", plot_title), # if subsetting by method
                    equal_axes = TRUE, 
-                   log_axes = "xy", # xy
-                   log_space = T,
+                   log_axes = "xy", # xy, x, y, ""
+                   log_space = T, # T, F
                    plot_abline = FALSE,
                    text_x = 0.04,
                    #text_y = ,
@@ -540,7 +564,8 @@ cat(sprintf("S2 -> chl relationship: *** %s *** \nS2 regression slope = %s; inte
             length(unique(mu_mci$GRANULE_ID))))
 #legend("bottomright", legend = unique(mu_mci$sedimentf), col = c("black", "red"), border = NULL)
 #dev.off()
-#text(x = mu_mci$chla_corr, y = mu_mci$chla_s2, labels = 1:nrow(mu_mci))
+#mu_mci$pid <- 1:nrow(mu_mci)
+#text(x = mu_mci$chla_corr, y = mu_mci$chla_s2, labels = mu_mci$pid)
 
 ####
 
@@ -555,6 +580,7 @@ abline(v = 30, lty = threshold_lty, col = "red")
 
 
 # categorical by trophic state; confusion matrix
+mu_mci$chl_eutr <- sapply(mu_mci$chla_corr, chl_eutrFn)
 mu_mci$s2_eutr <- sapply(mu_mci$chla_s2, chl_eutrFn)
 sum(mu_mci$chl_eutr == mu_mci$s2_eutr)
 
@@ -563,6 +589,7 @@ mu_mci$chl_eutr <- factor(mu_mci$chl_eutr,
 mu_mci$s2_eutr <- factor(mu_mci$s2_eutr, 
                          levels = c("oligotrophic", "mesotrophic", "eutrophic", "hypereutrophic"))
 
+library(caret)
 confusionMatrix(data = mu_mci$s2_eutr, reference = mu_mci$chl_eutr)
 
 # with adjustment based on regression slope
