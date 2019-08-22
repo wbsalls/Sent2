@@ -219,9 +219,9 @@ mu_mci <- mu_mci_cleaned
 
 # calculate chla from various conversions
 
-# 1a) binding erie -------
-slope.mci <- 0.0002 # from Binding et al. 2013 - Erie
-intercept.mci <- -0.0012 # from Binding et al. 2013 - Erie
+# 1a) binding ontario -------
+slope.mci <- 0.0002 # from Binding et al. 2013 - ontario
+intercept.mci <- -0.0012 # from Binding et al. 2013 - ontario
 mu_mci$s2_chl_ontario <- (mu_mci$MCI - intercept.mci) / slope.mci
 
 # 1b) binding erie -------
@@ -256,21 +256,23 @@ intercept.mci <- model_s2chla$coefficients[1]
 mu_mci$s2_chl_split <- (mu_mci$MCI - intercept.mci) / slope.mci'
 
 
-# choose which MCI-chla conversion to use
+# choose which MCI-chla conversion to use *******
 # using erie for now since ontario removes 28 additional negatives
-chla_conv <- "s2_chl_erie" # <<<** s2_chl_ontario, s2_chl_erie, s2_chl_lotw, s2_chl_mollaee, s2_chl_custom, s2_chl_split
-mu_mci$chla_s2 <- mu_mci[, which(colnames(mu_mci) == chla_conv)]
-mu_mci$chla_conv <- chla_conv
+chla_conv <- "s2_chl_ontario" # <<<** s2_chl_ontario, s2_chl_erie, s2_chl_lotw, s2_chl_mollaee, s2_chl_custom, s2_chl_split
+mu_mci$chla_s2 <- mu_mci[, which(colnames(mu_mci) == chla_conv)] # select column for s2 chla
+mu_mci$chla_conv <- chla_conv # specify which conversion used
+mu_mci <- mu_mci[mu_mci$chla_s2 >= 0, ] # remove negatives
 
 
-# remove negative S2 Chla
 sum(mu_mci$chla_s2 < 0)
 sum(mu_mci$s2_chl_erie < 0)
 sum(mu_mci$s2_chl_ontario < 0)
 sum(mu_mci$s2_chl_erie[which(mu_mci$s2_chl_ontario < 0)] > 0)
 sum(mu_mci$s2_chl_ontario[which(mu_mci$s2_chl_erie < 0)] > 0)
+
+# remove negative S2 Chla
 mu_mci <- mu_mci[mu_mci$chla_s2 >= 0, ] # remove negatives
-#mu_mci[mu_mci$chla_s2 < 0, ] <- 0 # set negatives to 0
+#mu_mci[mu_mci$chla_s2 < 0, ] <- 0 # or set negatives to 0
 
 
 # for reset
@@ -437,19 +439,12 @@ mu_mci_prefilter <- mu_mci
 # reset mu_mci
 mu_mci <- mu_mci_prefilter
 
-## shore dist
-sum(mu_mci$dist_shore_m < 30)
-mu_mci <- mu_mci[mu_mci$dist_shore_m >= 30, ]
-
-
 ## remove bad points identified in imagery
 length(mu_mci$X.3) == length(unique(mu_mci$X.3)) # checking if unique: yes
 
 img_comments <- read.csv("ImageCheck_0day_comments_X3.csv", stringsAsFactors = FALSE)
 
 sum(img_comments$X.3 %in% mu_mci$X.3)
-
-# <<<<*********>>>>> check remaining points in imagery
 
 mu_mci <- merge(mu_mci, img_comments[, which(colnames(img_comments) %in% c("X.3", "tier", "glint"))],
                 by = "X.3", all.x = TRUE, all.y = FALSE)
@@ -463,6 +458,11 @@ sum(is.na(mu_mci$tier)) # should be 0
 print(sprintf("removing %s bad imagery points", sum((mu_mci$tier %in% c("3", "x")))))
 mu_mci <- mu_mci[-which(mu_mci$tier %in% c("3", "x")), ]
 #
+
+
+## shore dist
+sum(mu_mci$dist_shore_m < 30)
+mu_mci <- mu_mci[mu_mci$dist_shore_m >= 30, ]
 
 
 ## sediment -------------
@@ -508,16 +508,19 @@ mu_mci <- mu_mci[mu_mci$mci_baseline_slope > sed_cutoff, ]
 #mu_mci <- mu_mci[which(!is.na(mu_mci$chla_corr)), ]
 
 # write csv of final validation set
-#write.csv(mu_mci, sprintf("mu_mci_finalset_%s.csv", Sys.Date()))
+#write.csv(mu_mci, sprintf("mu_mci_finalset_%s_%s.csv", Sys.Date(), chla_conv))
 
+# save
+mu_mci_final <- mu_mci
 
 
 ### ---------------------------------------------------------------------------------------------------
 
-#mu_mci <- read.csv("O:/PRIV/NERL_ORD_CYAN/Sentinel2/Validation/681_imgs/mu_mci_finalset_2019-08-21.csv", stringsAsFactors = FALSE)
+# choose chla conversion
+chl_file <- "ontario" # ontario, erie
+mu_mci <- read.csv(sprintf("mu_mci_finalset_2019-08-22_s2_chl_%s.csv", chl_file), stringsAsFactors = FALSE)
 
-# save
-mu_mci_final <- mu_mci
+
 
 ### validation plot  -----------------------------------------------------------------------------------
 
@@ -525,14 +528,8 @@ mu_mci_final <- mu_mci
 mu_mci <- mu_mci_final
 mu_mci$pid <- 1:nrow(mu_mci) # for viewing point IDs
 
-# choose which MCI-chla conversion to use *******
-chla_conv <- "s2_chl_ontario" # <<<** s2_chl_ontario, s2_chl_erie, s2_chl_lotw, s2_chl_mollaee, s2_chl_custom, s2_chl_split
-mu_mci$chla_s2 <- mu_mci[, which(colnames(mu_mci) == chla_conv)]
-mu_mci$chla_conv <- chla_conv
-mu_mci <- mu_mci[mu_mci$chla_s2 >= 0, ] # remove negatives
-
 #jpeg(sprintf("val_%s_%s.png", offset_min, offset_max), width = 800, height = 860)
-plot_error_metrics(x = mu_mci$chla_corr, y = mu_mci$chla_s2, # export 800 x 860
+plot_error_metrics(x = mu_mci$chla_corr, y = mu_mci$chla_s2, # export 800 x 860; 600 x 645 for paper
                    xname = "in situ chlorophyll-a (ug/l)", 
                    yname = "S2-derived chlorophyll-a (ug/l)", 
                    #yname = "S2-derived chlorophyll-a (ug/l, from MCI using L1C reflectance)", 
@@ -637,29 +634,6 @@ mu_mci$mci_cv <- mu_mci$mci_sd / mu_mci$mci_mean
 
 
 
-# make map of in situ locations ------------------------------------------------------------------
-
-# read us shp for state names
-us <- readOGR("O:/PRIV/NERL_ORD_CYAN/Salls_working/geospatial_general/US", "cb_2015_us_state_20m")
-
-# make spdf of matchups
-lon <- mu_mci$LongitudeMeasure # **
-lat <- mu_mci$LatitudeMeasure # **
-mu_mci_pts <- SpatialPointsDataFrame(coords = matrix(c(lon, lat), ncol = 2), 
-                                     mu_mci, proj4string = CRS("+init=epsg:4326"))
-
-mu_mci_pts_proj <- spTransform(mu_mci_pts, crs(us))
-
-conus <- us[-which(us$STUSPS %in% c("AK", "HI", "PR")), ]
-
-if (offset_min == offset_max) {
-  plot(conus, col = "cornsilk2", border = "grey", main = sprintf("+/- %s-day matchups", offset_max))
-} else {
-  plot(conus, col = "cornsilk2", border = "grey", main = sprintf("+/- %s-%s-day matchups", offset_min, offset_max))
-}
-plot(mu_mci_pts_proj, pch = 20, col = alpha("black", 0.2), add=TRUE)
-
-
 # investigate patterns ---------------------------------------------------------------------------------------------------------
 par()$mfrow
 par(mfrow = c(2,1))
@@ -717,7 +691,7 @@ plot(mu_mci$mci_baseline_slope, mu_mci$chla_s2 - mu_mci$chla_corr,
      pch = 20, xlab = "MCI baseline slope", ylab = "S2 chl a error (ug/l)")
 abline(v = -4, lty = 3)
 abline(h=0)
-#
+# 800 x 600 plot
 
 boxplot(error_chla ~ sediment, data = mu_mci,
         xlab = "baseline slope (low indicates sediment)",
@@ -788,17 +762,17 @@ boxplot(error_chla ~ glint, data = mu_mci,
 ## solar angle ---------
 
 # error ~ angle
-plot(mu_mci$MEAN_SOLAR_ZENITH_ANGLE, mu_mci$error_chla)
+plot(mu_mci$MEAN_SOLAR_ZENITH_ANGLE, mu_mci$error_chla_abs)
 summary(mu_mci$MEAN_SOLAR_ZENITH_ANGLE)
 
 box_min <- 21
 box_max <- 45
-box_step <- 3
+box_step <- 4
 mu_mci$solar_angle_interval <- cut(mu_mci$MEAN_SOLAR_ZENITH_ANGLE, seq(box_min, box_max, box_step))
 
 par(mfrow = c(2,1))
 barplot(table(mu_mci$solar_angle_interval), xlab = NULL, ylab = "frequency", xaxt = 'n') # ylab = NULL, yaxt = 'n'
-boxplot(error_chla ~ solar_angle_interval, data = mu_mci,
+boxplot(error_chla_abs ~ solar_angle_interval, data = mu_mci,
         las = 3,
         xaxt = 'n',
         xlab = "Solar Zenith Angle",

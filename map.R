@@ -44,3 +44,5 @@ plot(mu_mci_pts_proj, pch = 20, col = "black", add=TRUE)
 
 legend("bottomleft", legend=c("WQP point", "WQP point used for validation"),
        col=c("gray50", "black"), pch = c(20, 20))
+
+# export 900 x 625
