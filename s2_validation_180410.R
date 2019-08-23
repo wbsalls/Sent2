@@ -14,10 +14,10 @@ library(ggplot2)
 library(dplyr)
 
 source("C:/Users/WSalls/Desktop/Git/Sent2/error_metrics_1800611.R")
-source("/Users/wilsonsalls/Desktop/Git/Sent2/error_metrics_1800611.R")
+#source("/Users/wilsonsalls/Desktop/Git/Sent2/error_metrics_1800611.R")
 
 setwd("O:/PRIV/NERL_ORD_CYAN/Sentinel2/Validation/681_imgs")
-setwd("/Users/wilsonsalls/Desktop/EPA/Sentinel2/Validation/681_imgs")
+#setwd("/Users/wilsonsalls/Desktop/EPA/Sentinel2/Validation/681_imgs")
 
 opar <- par() # grab original par settings for plotting later
 
@@ -500,7 +500,7 @@ mu_mci <- mu_mci[mu_mci$mci_baseline_slope > sed_cutoff, ]
 #mu_mci <- mu_mci[mu_mci$CLOUDY_PIXEL_PERCENTAGE == 0, ]
 
 ## season
-#mu_mci$month <- as.numeric(substr(mu_mci$samp_localTime, 2, 3))
+mu_mci$month <- as.numeric(substr(mu_mci$samp_localTime, 2, 3))
 #table(mu_mci$month)
 #mu_mci <- mu_mci[mu_mci$month %in% 6:8, ]
 
@@ -519,8 +519,6 @@ mu_mci_final <- mu_mci
 # choose chla conversion
 chl_file <- "ontario" # ontario, erie
 mu_mci <- read.csv(sprintf("mu_mci_finalset_2019-08-22_s2_chl_%s.csv", chl_file), stringsAsFactors = FALSE)
-
-
 
 ### validation plot  -----------------------------------------------------------------------------------
 
@@ -759,9 +757,9 @@ boxplot(error_chla ~ glint, data = mu_mci,
         xlab = "Satellite")
 
 
-## solar angle ---------
+## solar angle ------------------
 
-# error ~ angle
+# error vs angle - YES
 plot(mu_mci$MEAN_SOLAR_ZENITH_ANGLE, mu_mci$error_chla_abs)
 summary(mu_mci$MEAN_SOLAR_ZENITH_ANGLE)
 
@@ -770,19 +768,21 @@ box_max <- 45
 box_step <- 4
 mu_mci$solar_angle_interval <- cut(mu_mci$MEAN_SOLAR_ZENITH_ANGLE, seq(box_min, box_max, box_step))
 
-par(mfrow = c(2,1))
-barplot(table(mu_mci$solar_angle_interval), xlab = NULL, ylab = "frequency", xaxt = 'n') # ylab = NULL, yaxt = 'n'
+par(mfrow = c(2,1), cex = 1, mgp = c(2, 0.6, 0)) #
+par(mar = c(2, 4.1, 5, 2.1)) # par(mar = c(bottom, left, top, right))
+barplot(table(mu_mci$solar_angle_interval), xlab = NULL, ylab = "freq.", xaxt = 'n') # ylab = NULL, yaxt = 'n'
+par(mar = c(3, 4.1, 0, 2.1)) # par(mar = c(bottom, left, top, right))
 boxplot(error_chla_abs ~ solar_angle_interval, data = mu_mci,
         las = 3,
         xaxt = 'n',
-        xlab = "Solar Zenith Angle",
-        ylab = "chl a error (ug/l)")
-axis(side = 1, las = 3,
+        xlab = "Solar Angle",
+        ylab = "chl-a error (ug/l)")
+axis(side = 1, las = 1,
      at = seq(from = 0.5, to = length(seq(box_min, box_max, box_step)) - 0.5, by = 1), 
      seq(box_min, box_max, box_step))
-par(mfrow = c(1,1))
+par(opar)
 
-# angle ~ month
+# angle vs month - (YES)
 plot(mu_mci$month, mu_mci$MEAN_SOLAR_ZENITH_ANGLE)
 table(mu_mci$month)
 
@@ -805,6 +805,7 @@ par(mfrow = c(1,1))
 ## sensor angle ---------
 plot(mu_mci$MEAN_INCIDENCE_ZENITH_ANGLE_B4, mu_mci$error_chla)
 
+# boxplot  - error vs angle - NO
 summary(mu_mci$MEAN_INCIDENCE_ZENITH_ANGLE_B4)
 box_min <- 2
 box_max <- 11
@@ -813,7 +814,7 @@ mu_mci$sensor_angle_interval <- cut(mu_mci$MEAN_INCIDENCE_ZENITH_ANGLE_B4, seq(b
 
 par(mfrow = c(2,1))
 barplot(table(mu_mci$sensor_angle_interval), xlab = NULL, ylab = "frequency", xaxt = 'n') # ylab = NULL, yaxt = 'n'
-boxplot(error_chla ~ sensor_angle_interval, data = mu_mci,
+boxplot(error_chla_abs ~ sensor_angle_interval, data = mu_mci,
         las = 3,
         xaxt = 'n',
         xlab = "Sensor Zenith Angle",
@@ -827,10 +828,10 @@ par(mfrow = c(1,1))
 ## month ----------------------------------
 plot(mu_mci$month, mu_mci$error_chla)
 
-# boxplot
+# boxplot - error vs month - (YES)
 par(mfrow = c(2,1))
 barplot(table(mu_mci$month), xlab = NULL, ylab = "frequency", xaxt = 'n')
-boxplot(error_chla ~ month, data = mu_mci,
+boxplot(error_chla_abs ~ month, data = mu_mci,
         las = 3,
         xaxt = 'n',
         xlab = "month",
@@ -840,7 +841,7 @@ axis(side = 1,
      labels = sort(unique(mu_mci$month)))
 par(mfrow = c(1,1))
 
-# boxplot - chla value vs month
+# boxplot - chla value vs month - NO
 par(mfrow = c(2,1))
 barplot(table(mu_mci$month), xlab = NULL, ylab = "frequency", xaxt = 'n')
 boxplot(chla_corr ~ month, data = mu_mci,
@@ -852,6 +853,28 @@ axis(side = 1,
      at = seq(from = 1, to = length(unique(mu_mci$month)), by = 1), 
      labels = sort(unique(mu_mci$month)))
 par(mfrow = c(1,1))
+
+
+# combo plot: chla, solar angle ~ month -------------- YES
+par(mfrow = c(3,1), cex = 1, mgp = c(2, 0.6, 0)) #
+par(mar = c(0, 4.1, 2, 2.1)) # par(mar = c(bottom, left, top, right))
+barplot(table(mu_mci$month), xlab = NULL, ylab = "freq.", xaxt = 'n') # ylab = NULL, yaxt = 'n'
+par(mar = c(1, 4.1, 2, 2.1)) # par(mar = c(bottom, left, top, right))
+boxplot(error_chla_abs ~ month, data = mu_mci,
+        las = 3,
+        xaxt = 'n',
+        xlab = NULL,
+        ylab = "chl-a error (ug/l)")
+par(mar = c(3, 4.1, 0, 2.1)) # par(mar = c(bottom, left, top, right))
+boxplot(MEAN_SOLAR_ZENITH_ANGLE ~ month, data = mu_mci,
+        las = 3,
+        xaxt = 'n',
+        xlab = "Month",
+        ylab = "Solar Angle")
+axis(side = 1, las = 1,
+     at = seq(from = 1, to = length(seq(box_min, box_max, box_step)), by = 1), 
+     seq(box_min, box_max, box_step))
+par(opar) # 5.1 4.1 4.1 2.1
 
 
 ## offset days ---------------
