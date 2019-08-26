@@ -519,6 +519,7 @@ mu_mci_final <- mu_mci
 # choose chla conversion
 chl_file <- "ontario" # ontario, erie
 mu_mci <- read.csv(sprintf("mu_mci_finalset_2019-08-22_s2_chl_%s.csv", chl_file), stringsAsFactors = FALSE)
+mu_mci$month <- as.numeric(substr(mu_mci$samp_localTime, 2, 3))
 
 ### validation plot  -----------------------------------------------------------------------------------
 
@@ -684,11 +685,8 @@ table(mu_mci$sediment)
 plot(mu_mci$mci_baseline_slope, mu_mci$error_chla, 
      pch = 20, xlab = "MCI baseline slope", ylab = "S2 chl a absolute error (ug/l)")
 abline(v = -4, lty = 3)
-
-plot(mu_mci$mci_baseline_slope, mu_mci$chla_s2 - mu_mci$chla_corr,
-     pch = 20, xlab = "MCI baseline slope", ylab = "S2 chl a error (ug/l)")
-abline(v = -4, lty = 3)
 abline(h=0)
+abline(v=-0.15)
 # 800 x 600 plot
 
 boxplot(error_chla ~ sediment, data = mu_mci,
@@ -709,23 +707,23 @@ plot(mu_mci$dist_shore_m, mu_mci$error_chla,
 abline(v = 30, lty = 2)
 #rect(0, 0, 30, 350, border = NULL, col = alpha("orange", alpha = 0.5))
 
-# boxplot 1000 x 700
+## boxplots
 max_depth_boxplot <- 1400
 slice_boxplot <- 50
 mu_mci$dist_shore_m_interval <- cut(mu_mci$dist_shore_m, seq(0, max_depth_boxplot, slice_boxplot))
 
-# error vs dist
+# error vs dist 1000 x 700
 par(mfrow = c(2,1))
 #layout(matrix(c(1,2,2), nrow = 4, ncol = 1, byrow = TRUE))
 par(mar = c(0.5, 4.1, 10, 2.1)) # par(mar = c(bottom, left, top, right))
-barplot(table(mu_mci$dist_shore_m_interval), ylab = "freq", names.arg = FALSE)
+barplot(table(mu_mci$dist_shore_m_interval), ylab = "freq.", names.arg = FALSE)
 #barplot(table(mu_mci$dist_shore_m_interval), xlab = NULL, ylab = NULL, xaxt = 'n', yaxt = 'n')
 par(mar = c(5.1, 4.1, 0.5, 2.1))
 boxplot(mu_mci$pct_error_chla_abs ~ dist_shore_m_interval, data = mu_mci,
         las = 3,
         xaxt = 'n',
         xlab = "distance from shore (m)",
-        ylab = "S2 chl a abs pct err (ug/l)")
+        ylab = "S2 chl-a % error (ug/l)")
 axis(side = 1, las = 3,
      at = seq(from = 0.5, to = max_depth_boxplot / slice_boxplot + 0.5, by = 1), 
      labels = c(rbind(seq(from = 0, to = max_depth_boxplot, by = slice_boxplot * 2), ""))[1:(max_depth_boxplot / slice_boxplot + 1)])
@@ -751,16 +749,11 @@ par(opar)
 
 ## image characteristics -------------------------
 
-## glint ---------
-boxplot(error_chla ~ glint, data = mu_mci,
-        ylab = "chl-a residual",
-        xlab = "Satellite")
-
-
 ## solar angle ------------------
 
 # error vs angle - YES
 plot(mu_mci$MEAN_SOLAR_ZENITH_ANGLE, mu_mci$error_chla_abs)
+plot(mu_mci$MEAN_SOLAR_ZENITH_ANGLE, mu_mci$pct_error_chla_abs)
 summary(mu_mci$MEAN_SOLAR_ZENITH_ANGLE)
 
 box_min <- 21
@@ -772,15 +765,45 @@ par(mfrow = c(2,1), cex = 1, mgp = c(2, 0.6, 0)) #
 par(mar = c(2, 4.1, 5, 2.1)) # par(mar = c(bottom, left, top, right))
 barplot(table(mu_mci$solar_angle_interval), xlab = NULL, ylab = "freq.", xaxt = 'n') # ylab = NULL, yaxt = 'n'
 par(mar = c(3, 4.1, 0, 2.1)) # par(mar = c(bottom, left, top, right))
-boxplot(error_chla_abs ~ solar_angle_interval, data = mu_mci,
+boxplot(pct_error_chla_abs ~ solar_angle_interval, data = mu_mci,
         las = 3,
         xaxt = 'n',
         xlab = "Solar Angle",
-        ylab = "chl-a error (ug/l)")
+        ylab = "chl-a % error (ug/l)")
 axis(side = 1, las = 1,
      at = seq(from = 0.5, to = length(seq(box_min, box_max, box_step)) - 0.5, by = 1), 
      seq(box_min, box_max, box_step))
 par(opar)
+
+
+
+# combo plot: chla, solar angle ~ month - YES
+par(mfrow = c(4,1), cex = 1, mgp = c(2, 0.6, 0)) #
+par(mar = c(0, 4.1, 2, 2.1)) # par(mar = c(bottom, left, top, right))
+barplot(table(mu_mci$month), xlab = NULL, ylab = "freq.", xaxt = 'n') # ylab = NULL, yaxt = 'n'
+par(mar = c(1, 4.1, 2, 2.1)) # par(mar = c(bottom, left, top, right))
+boxplot(pct_error_chla_abs ~ month, data = mu_mci,
+        las = 3,
+        xaxt = 'n',
+        xlab = NULL,
+        ylab = "chl-a % error (ug/l)")
+boxplot(chla_corr ~ month, data = mu_mci,
+        las = 3,
+        xaxt = 'n',
+        xlab = NULL,
+        ylab = "chl-a (ug/l)")
+par(mar = c(3, 4.1, 0, 2.1)) # par(mar = c(bottom, left, top, right))
+boxplot(MEAN_SOLAR_ZENITH_ANGLE ~ month, data = mu_mci,
+        las = 3,
+        xaxt = 'n',
+        xlab = "Month",
+        ylab = "Solar Angle")
+axis(side = 1, las = 1,
+     at = seq(from = 1, to = length(seq(min(mu_mci$month), max(mu_mci$month), 1)), by = 1), 
+     seq(min(mu_mci$month), max(mu_mci$month), 1))
+par(opar) # 5.1 4.1 4.1 2.1
+
+
 
 # angle vs month - (YES)
 plot(mu_mci$month, mu_mci$MEAN_SOLAR_ZENITH_ANGLE)
@@ -855,26 +878,20 @@ axis(side = 1,
 par(mfrow = c(1,1))
 
 
-# combo plot: chla, solar angle ~ month -------------- YES
-par(mfrow = c(3,1), cex = 1, mgp = c(2, 0.6, 0)) #
-par(mar = c(0, 4.1, 2, 2.1)) # par(mar = c(bottom, left, top, right))
-barplot(table(mu_mci$month), xlab = NULL, ylab = "freq.", xaxt = 'n') # ylab = NULL, yaxt = 'n'
-par(mar = c(1, 4.1, 2, 2.1)) # par(mar = c(bottom, left, top, right))
-boxplot(error_chla_abs ~ month, data = mu_mci,
-        las = 3,
-        xaxt = 'n',
-        xlab = NULL,
-        ylab = "chl-a error (ug/l)")
-par(mar = c(3, 4.1, 0, 2.1)) # par(mar = c(bottom, left, top, right))
-boxplot(MEAN_SOLAR_ZENITH_ANGLE ~ month, data = mu_mci,
-        las = 3,
-        xaxt = 'n',
-        xlab = "Month",
-        ylab = "Solar Angle")
-axis(side = 1, las = 1,
-     at = seq(from = 1, to = length(seq(box_min, box_max, box_step)), by = 1), 
-     seq(box_min, box_max, box_step))
-par(opar) # 5.1 4.1 4.1 2.1
+## satellite ---------------
+boxplot(error_chla_abs ~ SPACECRAFT_NAME, data = mu_mci,
+        ylab = "chl a residual",
+        xlab = "Satellite")
+text(0.7, 150, paste0("n = ", table(mu_mci$SPACECRAFT_NAME)[1]))
+text(1.7, 150, paste0("n = ", table(mu_mci$SPACECRAFT_NAME)[2]))
+abline(v=0)
+
+
+## glint ---------
+boxplot(error_chla ~ glint, data = mu_mci,
+        ylab = "chl-a residual",
+        xlab = "Satellite")
+
 
 
 ## offset days ---------------
@@ -956,13 +973,6 @@ mu_method <- mu_mci[which(mu_mci$ResultAnalyticalMethod.MethodIdentifierContext 
 plot(mu_method$dist_shore_m, mu_method$error_chla)
 
 m_usgs <- lm(error_chla ~ dist_shore_m, mu_usgs)
-
-## satellite ---------------
-boxplot(error_chla ~ SPACECRAFT_NAME, data = mu_mci,
-        ylab = "chl a residual",
-        xlab = "Satellite")
-text(0.7, 150, paste0("n = ", table(mu_mci$SPACECRAFT_NAME)[1]))
-text(1.7, 150, paste0("n = ", table(mu_mci$SPACECRAFT_NAME)[2]))
 
 
 ## plot error by factor variables ---------------

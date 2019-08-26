@@ -36,34 +36,34 @@ library(raster)
 #img_folder <- "C:/Users/WSalls/Desktop/s2_imgs_agu/mci/jordan" #jordan or utah
 #img_folder <- "/Users/wilsonsalls/Desktop/EPA/Presentations/AGU2018/data/mci/jordan"
 img_folder <- "/Users/wilsonsalls/Desktop/EPA/Sentinel2/Images/mci_demo_paper"
-img_folder <- "O:/PRIV/NERL_ORD_CYAN/Sentinel2/Images/mci_example/MCI"
+img_folder <- "O:/PRIV/NERL_ORD_CYAN/Salls_working/Presentations/AGU2018/data/mci/jordan"
 
 
 imgs <- list.files(img_folder, pattern = ".data")
+imgs <- c("mci_resample20_S2B_MSIL1C_20180429T155859_N0206_R097_T17SPV_20180429T194054.data")
 
 # load lake shp
 #lakes <- readOGR("O:/PRIV/NERL_ORD_CYAN/Salls_working/geospatial_general/resolvableLakes/NHD_NLA_shoredist", "nhd_nla_subset_shore_dist")
 #lakes <- readOGR("/Users/wilsonsalls/Desktop/EPA/geosp_general/resolvableLakes/NHD_NLA_shoredist", "nhd_nla_subset_shore_dist")
 
-#lakename <- "utah" # jordan OR utah
-lakename <- "example"
+lakename <- "jordan" # jordan OR utah
 
 # select lake; reproject to UTM for use with rasters, loading a raster first to get CRS
-#lake_poly_raw <- lakes[which(lakes$COMID == 166755060), ] #166755060 for jordan; xx for utah
+lake_poly_raw <- lakes[which(lakes$COMID == 166755060), ] #166755060 for jordan; xx for utah
 #lake_poly_raw <- readOGR("/Users/wilsonsalls/Desktop/EPA/Presentations/AGU2018/data", "JordanLake")
-lake_poly_raw <- readOGR("/Users/wilsonsalls/Desktop/EPA/Sentinel2/Validation/681_imgs/geospatial", "lakes_example")
-lake_poly_raw <- readOGR("O:/PRIV/NERL_ORD_CYAN/Sentinel2/Validation/681_imgs/geospatial", "lakes_example")
+#lake_poly_raw <- readOGR("/Users/wilsonsalls/Desktop/EPA/Sentinel2/Validation/681_imgs/geospatial", "lakes_example")
+#lake_poly_raw <- readOGR("O:/PRIV/NERL_ORD_CYAN/Sentinel2/Validation/681_imgs/geospatial", "lakes_example")
 
 rast <- raster(file.path(img_folder, imgs[1], "MCI.img"))
 lake_poly <- spTransform (lake_poly_raw, crs(rast))
 
-lake_poly <- lake_poly[which(lake_poly$COMID == 1101766), ]
+#lake_poly <- lake_poly_trans[which(lake_poly_trans$COMID == 1101766), ]
 
 ##
 
 #rast_out_dir <- file.path("/Users/wilsonsalls/Desktop/EPA/Presentations/AGU2018/data/mci_cropped/", lakename)
 rast_out_dir <- file.path("/Users/wilsonsalls/Desktop/EPA/Sentinel2/Images/mci_demo_paper")
-rast_out_dir <- "O:/PRIV/NERL_ORD_CYAN/Sentinel2/Images/mci_example/clipped_1101766"
+rast_out_dir <- "O:/PRIV/NERL_ORD_CYAN/Sentinel2/Images/JordanLake"
 
 ## clip, remove edges, convert to chlorophyll, save new rasters ---------------
 
@@ -82,7 +82,8 @@ for (i in seq_along(imgs)) {
   rast_crop <- focal(rast_crop, matrix(c(0,0,0,0,1,0,0,0,0), nrow = 3))
   
   # convert to chlorophyll
-  rast_crop <- (rast_crop - (-0.0021)) / 0.0004
+  #rast_crop <- (rast_crop - (-0.0021)) / 0.0004 # erie
+  rast_crop <- (rast_crop - (-0.0012)) / 0.0002 # ontario
   
   # remove negative chl
   values(rast_crop)[which(values(rast_crop) < 0)] <- NA
@@ -103,7 +104,7 @@ for (i in seq_along(imgs)) {
 # set location to save images
 #setwd("/Users/wilsonsalls/Desktop/EPA/Presentations/AGU2018/imgs")
 #setwd("/Users/wilsonsalls/Desktop/EPA/Sentinel2/Images/mci_demo_paper")
-setwd("O:/PRIV/NERL_ORD_CYAN/Sentinel2/Images/mci_example")
+setwd(rast_out_dir)
 
 # set location to read rasters from
 chl_rasts <- list.files(rast_out_dir, pattern = ".tif")
@@ -126,8 +127,8 @@ for (i in seq_along(chl_rasts)) {
   rast_crop <- raster(file.path(rast_out_dir, chl_rasts[i]))
   
   # plot
-  jpeg(sprintf("chl_%s_%s.png", lakename, idate), width = 1200, height = 850)
-  max.color.val <- 50
+  jpeg(sprintf("chl_%s_%s.jpg", lakename, idate), width = 600, height = 1200)
+  max.color.val <- 70
   plot(rast_crop,
        #main = paste0(substr(idate, 1, 4), "-", substr(idate, 5, 6), "-", substr(idate, 7, 8)),
        cex.main = 4,
@@ -137,7 +138,7 @@ for (i in seq_along(chl_rasts)) {
        breaks = c(seq(1, max.color.val, length.out = max.color.val), 120),
        legend = FALSE,
        colNA = NA)
-  plot(lake_poly, add = TRUE)
+  #plot(lake_poly, add = TRUE)
   dev.off()
   
   # get min and max to improve plotting
@@ -149,15 +150,15 @@ min # ~0
 max # 117.3
 
 # for legend
+max.color.val <- 70
 rast_crop <- raster(file.path(rast_out_dir, chl_rasts[i]))
-values(rast_crop)[values(rast_crop) > 50.1] <- NA
-max.color.val <- 50
+values(rast_crop)[values(rast_crop) > max.color.val] <- NA
 plot(rast_crop,
      #main = paste0(substr(idate, 1, 4), "-", substr(idate, 5, 6), "-", substr(idate, 7, 8)),
      cex.main = 4,
      xaxt = "n", yaxt = "n", box = FALSE, bty = "n",
      #col = colorRampPalette(c("blue", "green", "yellow"))(255),
-     col = viridis(50),
+     col = viridis(max.color.val),
      #breaks = c(seq(1, max.color.val, length.out = max.color.val), 120),
      colNA = NA)
 
@@ -174,14 +175,15 @@ for (i in seq_along(chl_rasts)) {
   rast_crop <- raster(file.path(rast_out_dir, chl_rasts[i]))
   
   # plot
-  jpeg(sprintf("trophic_%s_%s.png", lakename, idate), width = 600, height = 1200)
+  jpeg(sprintf("trophic_%s_%s.jpg", lakename, idate), width = 600, height = 1200)
   max.color.val <- 120
   plot(rast_crop, 
-       main = paste0(substr(idate, 1, 4), "-", substr(idate, 5, 6), "-", substr(idate, 7, 8)),
+       #main = paste0(substr(idate, 1, 4), "-", substr(idate, 5, 6), "-", substr(idate, 7, 8)),
        cex.main = 4,
        xaxt = "n", yaxt = "n", box = FALSE, bty = "n",
        col = plasma(4),
        breaks = c(0, 2, 7, 30, max.color.val),
+       legend = FALSE,
        colNA = NA)
   dev.off()
   
@@ -206,7 +208,7 @@ dev.off()
 
 
 ## pie charts----------------------------
-setwd("/Users/wilsonsalls/Desktop/EPA/Presentations/AGU2018/imgs/pie")
+#setwd("/Users/wilsonsalls/Desktop/EPA/Presentations/AGU2018/imgs/pie")
 
 clrs <- plasma(4)
 
@@ -229,7 +231,7 @@ for (i in seq_along(chl_rasts)) {
   
   #trophic_counts <- rbind(trophic_counts, data.frame(oligotrophic, mesotrophic, eutrophic, hypereutrophic, total))
   
-  jpeg(sprintf("pie_%s_%s.png", lakename, idate), width = 600, height = 600)
+  jpeg(sprintf("pie_%s_%s.jpg", lakename, idate), width = 600, height = 600)
   pie(c(oligotrophic, mesotrophic, eutrophic, hypereutrophic), labels=NA, col=clrs, main = sprintf("%s: %s", lakename, idate))
   dev.off()
 }
