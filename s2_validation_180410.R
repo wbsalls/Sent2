@@ -450,6 +450,7 @@ mu_mci <- merge(mu_mci, img_comments[, which(colnames(img_comments) %in% c("X.3"
                 by = "X.3", all.x = TRUE, all.y = FALSE)
 
 sum(is.na(mu_mci$tier)) # should be 0
+#boxplot(error_chla_abs ~ tier, data = mu_mci)
 
 # investigate file to see make sure img comments weren't lost in duplicates
 #write.csv(mu_mci, "mu_mci_imgComments.csv")
@@ -461,8 +462,9 @@ mu_mci <- mu_mci[-which(mu_mci$tier %in% c("3", "x")), ]
 
 
 ## shore dist
-sum(mu_mci$dist_shore_m < 30)
-mu_mci <- mu_mci[mu_mci$dist_shore_m >= 30, ]
+sum(mu_mci$dist_shore_m < 30) # how many?
+mu_mci$pct_error_chla[mu_mci$dist_shore_m <= 30] # display error
+mu_mci <- mu_mci[mu_mci$dist_shore_m >= 30, ] # remove
 
 
 ## sediment -------------
@@ -479,7 +481,7 @@ sum(is.na(mu_mci$mci_baseline_slope))
 #plot(mu_mci$mci_baseline_slope, mu_mci$error_chla)
 
 # assign cutoff
-sed_cutoff <- -4 # Binding recommendation: retain only points that are > -0.15
+sed_cutoff <- -2 # Binding recommendation: retain only points that are > -0.15
 
 mu_mci$sediment <- ""
 mu_mci$sediment[mu_mci$mci_baseline_slope < sed_cutoff] <- "sediment"
@@ -682,14 +684,14 @@ plot(mu_mci$depth_m_stdized, mu_mci$chla_corr)
 ## sediment -------------------------------
 table(mu_mci$sediment)
 
-plot(mu_mci$mci_baseline_slope, mu_mci$error_chla, 
-     pch = 20, xlab = "MCI baseline slope", ylab = "S2 chl a absolute error (ug/l)")
+plot(mu_mci$mci_baseline_slope, mu_mci$pct_error_chla, 
+     pch = 20, xlab = "MCI baseline slope", ylab = "S2 chl-a % error")
 abline(v = -4, lty = 3)
 abline(h=0)
-abline(v=-0.15)
+#abline(v=-0.15)
 # 800 x 600 plot
 
-boxplot(error_chla ~ sediment, data = mu_mci,
+boxplot(pct_error_chla ~ sediment, data = mu_mci,
         xlab = "baseline slope (low indicates sediment)",
         ylab = "chl a residual")
 text(1, 80, sprintf("n = %s", table(mu_mci$sediment)[1]))
@@ -701,7 +703,7 @@ plot(mu_mci$dist_shore_m, mu_mci$error_chla,
      xlim = c(0, 2000), # try removing this too
      #ylim = c(0, 200),
      xlab = "distance from shore (m)",
-     ylab = "chl a error (ug/L)",
+     ylab = "chl-a error (ug/L)",
      pch = 20,
      col = alpha("black", alpha = 0.4))
 abline(v = 30, lty = 2)
@@ -712,18 +714,18 @@ max_depth_boxplot <- 1400
 slice_boxplot <- 50
 mu_mci$dist_shore_m_interval <- cut(mu_mci$dist_shore_m, seq(0, max_depth_boxplot, slice_boxplot))
 
-# error vs dist 1000 x 700
+# error vs dist
 par(mfrow = c(2,1))
 #layout(matrix(c(1,2,2), nrow = 4, ncol = 1, byrow = TRUE))
 par(mar = c(0.5, 4.1, 10, 2.1)) # par(mar = c(bottom, left, top, right))
 barplot(table(mu_mci$dist_shore_m_interval), ylab = "freq.", names.arg = FALSE)
 #barplot(table(mu_mci$dist_shore_m_interval), xlab = NULL, ylab = NULL, xaxt = 'n', yaxt = 'n')
 par(mar = c(5.1, 4.1, 0.5, 2.1))
-boxplot(mu_mci$pct_error_chla_abs ~ dist_shore_m_interval, data = mu_mci,
+boxplot(mu_mci$error_chla_abs ~ dist_shore_m_interval, data = mu_mci,
         las = 3,
         xaxt = 'n',
         xlab = "distance from shore (m)",
-        ylab = "S2 chl-a % error (ug/l)")
+        ylab = "S2 chl-a % error")
 axis(side = 1, las = 3,
      at = seq(from = 0.5, to = max_depth_boxplot / slice_boxplot + 0.5, by = 1), 
      labels = c(rbind(seq(from = 0, to = max_depth_boxplot, by = slice_boxplot * 2), ""))[1:(max_depth_boxplot / slice_boxplot + 1)])
@@ -769,7 +771,7 @@ boxplot(pct_error_chla_abs ~ solar_angle_interval, data = mu_mci,
         las = 3,
         xaxt = 'n',
         xlab = "Solar Angle",
-        ylab = "chl-a % error (ug/l)")
+        ylab = "chl-a % error")
 axis(side = 1, las = 1,
      at = seq(from = 0.5, to = length(seq(box_min, box_max, box_step)) - 0.5, by = 1), 
      seq(box_min, box_max, box_step))
@@ -786,7 +788,7 @@ boxplot(pct_error_chla_abs ~ month, data = mu_mci,
         las = 3,
         xaxt = 'n',
         xlab = NULL,
-        ylab = "chl-a % error (ug/l)")
+        ylab = "chl-a % error")
 boxplot(chla_corr ~ month, data = mu_mci,
         las = 3,
         xaxt = 'n',
@@ -849,6 +851,7 @@ par(mfrow = c(1,1))
 
 
 ## month ----------------------------------
+plot(mu_mci$month, mu_mci$pct_error_chla_abs)
 plot(mu_mci$month, mu_mci$error_chla)
 
 # boxplot - error vs month - (YES)
