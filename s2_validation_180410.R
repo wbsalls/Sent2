@@ -402,19 +402,6 @@ mu_mci$error_chla_abs <- abs(mu_mci$error_chla) # abs error
 mu_mci$pct_error_chla <- ((mu_mci$chla_s2 - mu_mci$chla_corr) / mu_mci$chla_corr) * 100 # % error
 mu_mci$pct_error_chla_abs <- abs(mu_mci$pct_error_chla) # abs error
 
-# recalculate in situ chla range and trophic level in case it changed with integrating
-chl_rangeFn <- function(x) {
-  if (x <= 15) {
-    return("0-15")
-  } else if (x <= 50) {
-    return("15-50")
-  } else if (x <= 200) {
-    return("50-200")
-  } else {
-    return("> 200")
-  }
-}
-mu_mci$chl_range <- sapply(mu_mci$chla_corr, chl_rangeFn)
 
 chl_eutrFn <- function(x) {
   if (x < 2) {
@@ -523,6 +510,9 @@ chl_file <- "ontario" # ontario, erie
 mu_mci <- read.csv(sprintf("mu_mci_finalset_2019-08-22_s2_chl_%s.csv", chl_file), stringsAsFactors = FALSE)
 mu_mci$month <- as.numeric(substr(mu_mci$samp_localTime, 2, 3))
 
+# cut below 10?
+mu_mci <- mu_mci[mu_mci$chla_corr >= 10, ]
+
 ### validation plot  -----------------------------------------------------------------------------------
 
 # reset
@@ -537,17 +527,17 @@ plot_error_metrics(x = mu_mci$chla_corr, y = mu_mci$chla_s2, # export 800 x 860;
                    #title = plot_title, 
                    #title = paste0(method_sub, ", ", plot_title), # if subsetting by method
                    equal_axes = TRUE, 
-                   log_axes = "xy", # xy, x, y, ""
+                   log_axes = "", # xy, x, y, ""
                    log_space = T, # T, F
                    plot_abline = FALSE,
-                   text_x = 0.04,
+                   text_x = 0.04, # 0.04; min(mu_mci$chla_corr, mu_mci$chla_s2)
                    #text_y = ,
                    mape = FALSE,
                    rand_error = FALSE,
                    regr_stats = FALSE,
                    states = mu_mci$state,
                    lakes = mu_mci$comid,
-                   xlim = c(0.04, max(mu_mci$chla_corr, mu_mci$chla_s2)), # min 0.05
+                   xlim = c(0.04, max(mu_mci$chla_corr, mu_mci$chla_s2)), # 0.04 (min 0.05)
                    ylim = c(0.04, max(mu_mci$chla_corr, mu_mci$chla_s2)),
                    show_metrics = TRUE, 
                    #xaxt="n",
@@ -578,6 +568,28 @@ abline(v = 30, lty = threshold_lty, col = "red")
 
 
 # categorical by trophic state; confusion matrix
+chl_eutrFn <- function(x) {
+  if (x < 2) {
+    return("oligotrophic")
+  } else if (x <= 7) {
+    return("mesotrophic")
+  } else if (x <= 30) {
+    return("eutrophic")
+  } else {
+    return("hypereutrophic")
+  }
+}
+
+chl_eutrFn <- function(x) {
+  if (x <= 7) {
+    return("mesotrophic")
+  } else if (x <= 30) {
+    return("eutrophic")
+  } else {
+    return("hypereutrophic")
+  }
+}
+
 mu_mci$chl_eutr <- sapply(mu_mci$chla_corr, chl_eutrFn)
 mu_mci$s2_eutr <- sapply(mu_mci$chla_s2, chl_eutrFn)
 sum(mu_mci$chl_eutr == mu_mci$s2_eutr)
@@ -586,6 +598,10 @@ mu_mci$chl_eutr <- factor(mu_mci$chl_eutr,
                           levels = c("oligotrophic", "mesotrophic", "eutrophic", "hypereutrophic"))
 mu_mci$s2_eutr <- factor(mu_mci$s2_eutr, 
                          levels = c("oligotrophic", "mesotrophic", "eutrophic", "hypereutrophic"))
+mu_mci$chl_eutr <- factor(mu_mci$chl_eutr, 
+                          levels = c("mesotrophic", "eutrophic", "hypereutrophic"))
+mu_mci$s2_eutr <- factor(mu_mci$s2_eutr, 
+                         levels = c("mesotrophic", "eutrophic", "hypereutrophic"))
 
 library(caret)
 confusionMatrix(data = mu_mci$s2_eutr, reference = mu_mci$chl_eutr)
