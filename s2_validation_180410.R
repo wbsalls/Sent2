@@ -468,7 +468,7 @@ sum(is.na(mu_mci$mci_baseline_slope))
 #plot(mu_mci$mci_baseline_slope, mu_mci$error_chla)
 
 # assign cutoff
-sed_cutoff <- -2 # Binding recommendation: retain only points that are > -0.15
+sed_cutoff <- -4 # Binding recommendation: retain only points that are > -0.15
 
 mu_mci$sediment <- ""
 mu_mci$sediment[mu_mci$mci_baseline_slope < sed_cutoff] <- "sediment"
@@ -477,8 +477,8 @@ table(mu_mci$sediment)
 mu_mci$sediment <- factor(mu_mci$sediment, levels(factor(mu_mci$sediment))[c(2, 1)])
 
 sprintf("%s/%s points retained (removing %s)", 
-        sum(mu_mci$mci_baseline_slope > -4), 
-        nrow(mu_mci), nrow(mu_mci) - sum(mu_mci$mci_baseline_slope > -4))
+        sum(mu_mci$mci_baseline_slope > sed_cutoff), 
+        nrow(mu_mci), nrow(mu_mci) - sum(mu_mci$mci_baseline_slope > sed_cutoff))
 
 # apply cutoff
 mu_mci <- mu_mci[mu_mci$mci_baseline_slope > sed_cutoff, ]
