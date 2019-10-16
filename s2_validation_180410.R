@@ -511,7 +511,7 @@ mu_mci <- read.csv(sprintf("mu_mci_finalset_2019-08-22_s2_chl_%s.csv", chl_file)
 mu_mci$month <- as.numeric(substr(mu_mci$samp_localTime, 2, 3))
 
 # cut below 10?
-mu_mci <- mu_mci[mu_mci$chla_corr >= 10, ]
+#mu_mci <- mu_mci[mu_mci$chla_corr >= 10, ]
 
 ### validation plot  -----------------------------------------------------------------------------------
 
@@ -527,7 +527,7 @@ plot_error_metrics(x = mu_mci$chla_corr, y = mu_mci$chla_s2, # export 800 x 860;
                    #title = plot_title, 
                    #title = paste0(method_sub, ", ", plot_title), # if subsetting by method
                    equal_axes = TRUE, 
-                   log_axes = "", # xy, x, y, ""
+                   log_axes = "xy", # xy, x, y, ""
                    log_space = T, # T, F
                    plot_abline = FALSE,
                    text_x = 0.04, # 0.04; min(mu_mci$chla_corr, mu_mci$chla_s2)
@@ -655,6 +655,17 @@ mu_mci$mci_cv <- mu_mci$mci_sd / mu_mci$mci_mean
 par()$mfrow
 par(mfrow = c(2,1))
 par(mfrow = c(1,1))
+
+## single vs multi pixel
+plot(mu_mci$chla_corr, mu_mci$MCI_BRR_1, 
+     ylim = c(min(mu_mci$MCI_BRR_1, mu_mci$MCI_BRR_mean), max(mu_mci$MCI_BRR_1, mu_mci$MCI_BRR_meanr)))
+text(x = mu_mci$chla_corr, y = mu_mci$MCI_BRR_1, labels = rownames(mu_mci))
+
+plot(mu_mci$chla_corr, mu_mci$MCI_BRR_mean)
+text(x = mu_mci$chla_corr, y = mu_mci$MCI_BRR_mean, labels = rownames(mu_mci),
+     ylim = c(min(mu_mci$MCI_BRR_1, mu_mci$MCI_BRR_mean), max(mu_mci$MCI_BRR_1, mu_mci$MCI_BRR_meanr)))
+
+
 
 ## residual vs. in situ value - what's happening with points above 1:1 line?
 plot(mu_mci$chla_corr, mu_mci$error_chla, xlab = "in situ chlorophyll-a (ug/l)", ylab = "chl a error (ug/L)")
