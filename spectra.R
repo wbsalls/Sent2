@@ -11,7 +11,7 @@ spectra_sed <- spectra_all[which(spectra_all$mci_baseline_slope < sed_cutoff), 1
 
 # plot all
 plot(4:6, 4:6, type = "n", ylim = c(0, max(spectra_all)), 
-     xlab = "band", ylab = "reflectance", xaxt="n")
+     xlab = "S2 band #", ylab = "reflectance", xaxt="n")
 axis(1, xaxp=c(4, 6, 2), las=2)
 for (r in 1:nrow(spectra_clear)) {
   lines(c(4, 5, 6), spectra_clear[r, ], col = "blue")
@@ -23,13 +23,13 @@ for (r in 1:nrow(spectra_sed)) {
 
 # plot examples
 plot(4:6, 4:6, type = "n", ylim = c(0, max(spectra_all) / 10000), 
-     xlab = "band", ylab = "reflectance", xaxt="n")
-axis(1, xaxp=c(4, 6, 2), las=2)
+     xlab = "S2 band #", ylab = "reflectance", xaxt="n")
+axis(1, xaxp=c(4, 6, 2))
 lines(c(4, 5, 6), spectra_all[which(mu_mci$MCI_BRR_1 == min(mu_mci$MCI_BRR_1)), 1:3] / 10000, col = "black")
-lines(c(4, 5, 6), spectra_all[which(mu_mci$MCI_BRR_1 == max(mu_mci$MCI_BRR_1)), 1:3] / 10000, col = "black", lty = 2)
+#lines(c(4, 5, 6), spectra_all[which(mu_mci$MCI_BRR_1 == max(mu_mci$MCI_BRR_1)), 1:3] / 10000, col = "black", lty = 2)
+lines(c(4, 5, 6), spectra_all[which(mu_mci$MCI_BRR_1 == sort(mu_mci$MCI_BRR_1, decreasing = TRUE)[4]), 1:3] / 10000, col = "black", lty = 2)
 lines(c(4, 5, 6), spectra_all[which(mu_mci$mci_baseline_slope == min(mu_mci$mci_baseline_slope)), 1:3] / 10000, 
       col = "black", lty = 3)
-
 legend(5.3, 1375 / 10000, legend=c("Clear", "High-chlorophyll", "Sediment-influenced"),
        col=c("black", "black", "black"), lty=c(1, 2, 3), cex=0.8)
 
