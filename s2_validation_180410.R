@@ -512,6 +512,7 @@ mu_mci$month <- as.numeric(substr(mu_mci$samp_localTime, 2, 3))
 
 # cut below 10?
 #mu_mci <- mu_mci[mu_mci$chla_corr >= 10, ]
+mu_mci <- mu_mci[mu_mci$chla_s2 >= 10, ]
 
 ### validation plot  -----------------------------------------------------------------------------------
 
