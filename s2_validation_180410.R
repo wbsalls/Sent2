@@ -468,7 +468,7 @@ sum(is.na(mu_mci$mci_baseline_slope))
 #plot(mu_mci$mci_baseline_slope, mu_mci$error_chla)
 
 # assign cutoff
-sed_cutoff <- -4 # Binding recommendation: retain only points that are > -0.15
+sed_cutoff <- -1.5 # Binding recommendation: retain only points that are > -0.15
 
 mu_mci$sediment <- ""
 mu_mci$sediment[mu_mci$mci_baseline_slope < sed_cutoff] <- "sediment"
@@ -507,7 +507,7 @@ mu_mci_final <- mu_mci
 
 # choose chla conversion
 chl_file <- "ontario" # ontario, erie
-mu_mci <- read.csv(sprintf("mu_mci_finalset_2019-08-22_s2_chl_%s.csv", chl_file), stringsAsFactors = FALSE)
+mu_mci <- read.csv(sprintf("mu_mci_finalset_2019-11-07_s2_chl_%s.csv", chl_file), stringsAsFactors = FALSE)
 mu_mci$month <- as.numeric(substr(mu_mci$samp_localTime, 2, 3))
 
 # cut below 10?
@@ -712,8 +712,8 @@ plot(mu_mci$depth_m_stdized, mu_mci$chla_corr)
 table(mu_mci$sediment)
 
 plot(mu_mci$mci_baseline_slope, mu_mci$pct_error_chla, 
-     pch = 20, xlab = "MCI baseline slope", ylab = "S2 chl-a % error")
-abline(v = -4, lty = 3)
+     pch = 20, xlab = "MCI baseline slope (e-4 nm-1)", ylab = "S2 chl-a % error")
+abline(v = -1.5, lty = 3)
 abline(h=0)
 #abline(v=-0.15)
 # 800 x 600 plot
@@ -748,7 +748,7 @@ par(mar = c(0.5, 4.1, 10, 2.1)) # par(mar = c(bottom, left, top, right))
 barplot(table(mu_mci$dist_shore_m_interval), ylab = "freq.", names.arg = FALSE)
 #barplot(table(mu_mci$dist_shore_m_interval), xlab = NULL, ylab = NULL, xaxt = 'n', yaxt = 'n')
 par(mar = c(5.1, 4.1, 0.5, 2.1))
-boxplot(mu_mci$error_chla_abs ~ dist_shore_m_interval, data = mu_mci,
+boxplot(mu_mci$pct_error_chla_abs ~ dist_shore_m_interval, data = mu_mci,
         las = 3,
         xaxt = 'n',
         xlab = "distance from shore (m)",

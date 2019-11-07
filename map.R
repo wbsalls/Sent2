@@ -35,6 +35,9 @@ mu_mci_pts <- SpatialPointsDataFrame(coords = matrix(c(lon, lat), ncol = 2),
 # transform
 mu_mci_pts_proj <- spTransform(mu_mci_pts, crs(us))
 
+
+par(mar = c(4, 4, 4, 2))
+
 # plot
 plot(conus, col = "grey94", border = "white") # 900 x 625
 #plot(wqp_pts_proj, pch = 20, col = alpha("black", 0.2), add=TRUE)
