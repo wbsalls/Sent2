@@ -511,8 +511,8 @@ mu_mci <- read.csv(sprintf("mu_mci_finalset_2019-11-07_s2_chl_%s.csv", chl_file)
 mu_mci$month <- as.numeric(substr(mu_mci$samp_localTime, 2, 3))
 
 # cut below 10?
-#mu_mci <- mu_mci[mu_mci$chla_corr >= 10, ]
-mu_mci <- mu_mci[mu_mci$chla_s2 >= 10, ]
+mu_mci <- mu_mci[mu_mci$chla_corr >= 10, ]
+#mu_mci <- mu_mci[mu_mci$chla_s2 >= 10, ]
 
 ### validation plot  -----------------------------------------------------------------------------------
 
@@ -569,6 +569,9 @@ abline(v = 30, lty = threshold_lty, col = "red")
 
 
 # categorical by trophic state; confusion matrix
+library(caret)
+
+# all four classes
 chl_eutrFn <- function(x) {
   if (x < 2) {
     return("oligotrophic")
@@ -581,9 +584,19 @@ chl_eutrFn <- function(x) {
   }
 }
 
+mu_mci$chl_eutr <- sapply(mu_mci$chla_corr, chl_eutrFn)
+mu_mci$s2_eutr <- sapply(mu_mci$chla_s2, chl_eutrFn)
+sum(mu_mci$chl_eutr == mu_mci$s2_eutr)
+mu_mci$chl_eutr <- factor(mu_mci$chl_eutr, 
+                          levels = c("oligotrophic", "mesotrophic", "eutrophic", "hypereutrophic"))
+mu_mci$s2_eutr <- factor(mu_mci$s2_eutr, 
+                         levels = c("oligotrophic", "mesotrophic", "eutrophic", "hypereutrophic"))
+
+
+# lump oligo and meso
 chl_eutrFn <- function(x) {
   if (x <= 7) {
-    return("mesotrophic")
+    return("oligo-mesotrophic")
   } else if (x <= 30) {
     return("eutrophic")
   } else {
@@ -594,17 +607,13 @@ chl_eutrFn <- function(x) {
 mu_mci$chl_eutr <- sapply(mu_mci$chla_corr, chl_eutrFn)
 mu_mci$s2_eutr <- sapply(mu_mci$chla_s2, chl_eutrFn)
 sum(mu_mci$chl_eutr == mu_mci$s2_eutr)
-
 mu_mci$chl_eutr <- factor(mu_mci$chl_eutr, 
-                          levels = c("oligotrophic", "mesotrophic", "eutrophic", "hypereutrophic"))
+                          levels = c("oligo-mesotrophic", "eutrophic", "hypereutrophic"))
 mu_mci$s2_eutr <- factor(mu_mci$s2_eutr, 
-                         levels = c("oligotrophic", "mesotrophic", "eutrophic", "hypereutrophic"))
-mu_mci$chl_eutr <- factor(mu_mci$chl_eutr, 
-                          levels = c("mesotrophic", "eutrophic", "hypereutrophic"))
-mu_mci$s2_eutr <- factor(mu_mci$s2_eutr, 
-                         levels = c("mesotrophic", "eutrophic", "hypereutrophic"))
+                         levels = c("oligo-mesotrophic", "eutrophic", "hypereutrophic"))
 
-library(caret)
+
+# run matrix
 confusionMatrix(data = mu_mci$s2_eutr, reference = mu_mci$chl_eutr)
 
 # with adjustment based on regression slope
