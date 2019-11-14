@@ -740,7 +740,7 @@ plot(mu_mci$dist_shore_m, mu_mci$error_chla,
      xlim = c(0, 2000), # try removing this too
      #ylim = c(0, 200),
      xlab = "distance from shore (m)",
-     ylab = "chl-a error (ug/L)",
+     ylab = "chl a error (ug/L)",
      pch = 20,
      col = alpha("black", alpha = 0.4))
 abline(v = 30, lty = 2)
@@ -762,7 +762,7 @@ boxplot(mu_mci$pct_error_chla_abs ~ dist_shore_m_interval, data = mu_mci,
         las = 3,
         xaxt = 'n',
         xlab = "distance from shore (m)",
-        ylab = "S2 chl-a % error")
+        ylab = "S2 chl a abs % error")
 axis(side = 1, las = 3,
      at = seq(from = 0.5, to = max_depth_boxplot / slice_boxplot + 0.5, by = 1), 
      labels = c(rbind(seq(from = 0, to = max_depth_boxplot, by = slice_boxplot * 2), ""))[1:(max_depth_boxplot / slice_boxplot + 1)])
