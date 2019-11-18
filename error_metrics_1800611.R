@@ -32,6 +32,13 @@ calc_mae <- function(observed, modeled, log_space = TRUE) {
   return(mmae)
 }
 
+calc_rmse <- function(observed, modeled, log_space = TRUE) {
+  mrmse <- sqrt(sum(
+    ((modeled) - (observed)) ^ 2
+  ) / length(observed))
+  return(mrmse)
+}
+
 calc_mape <- function(observed, modeled) {
     mmape <- (sum(
       abs((modeled) - (observed)) / abs((observed))
@@ -72,6 +79,7 @@ calc_error_metrics <- function(x, y, log_space = TRUE, rtype = 2) {
                           int = m1.int,
                           r.sq = m1$rsquare,
                           MAE = calc_mae(x2, y2, log_space = log_space), 
+                          RMSE = calc_rmse(x2, y2),
                           MAPE = calc_mape(x2, y2), 
                           bias = calc_bias(x2, y2, log_space = log_space), 
                           rand.err = calc_mae(x2, y2, log_space = log_space) - abs(calc_bias(x2, y2, log_space = log_space)), 

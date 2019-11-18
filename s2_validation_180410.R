@@ -508,6 +508,7 @@ mu_mci_final <- mu_mci
 # choose chla conversion
 chl_file <- "ontario" # ontario, erie
 mu_mci <- read.csv(sprintf("mu_mci_finalset_2019-11-07_s2_chl_%s.csv", chl_file), stringsAsFactors = FALSE)
+
 mu_mci$month <- as.numeric(substr(mu_mci$samp_localTime, 2, 3))
 
 # cut below 10?
