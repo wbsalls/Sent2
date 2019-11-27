@@ -460,15 +460,29 @@ raw_bands <- read.csv("mu_rawbands_3day_X3.csv", stringsAsFactors = FALSE)
 sum(raw_bands$X.3 %in% mu_mci$X.3)
 mu_mci <- merge(mu_mci, raw_bands, by = "X.3", all.x = TRUE)
 
+brr_bands <- read.csv("mu_BRRbands_2019-11-27.csv", stringsAsFactors = FALSE)
+sum(brr_bands$X.3 %in% mu_mci$X.3)
+mu_mci <- merge(mu_mci, brr_bands, by = "X.3", all.x = TRUE)
+
 # calculate slope
-mu_mci$mci_baseline_slope <- (mu_mci$b6_1 - mu_mci$b4_1) / (740 - 655)
-sum(is.na(mu_mci$mci_baseline_slope))
+mu_mci$mci_baseline_slope_l1c <- (mu_mci$b6_1 - mu_mci$b4_1) / (740 - 655)
+sum(is.na(mu_mci$mci_baseline_slope_l1c))
+
+mu_mci$mci_baseline_slope_brr <- (mu_mci$b6_1_BRR - mu_mci$b4_1_BRR) / (740 - 655) * 10000
+sum(is.na(mu_mci$mci_baseline_slope_brr))
+
+# for BRR baseline slope NA (from SNAP processing errors), set to L1C baseline slope (8 instances)
+mu_mci$mci_baseline_slope <- mu_mci$mci_baseline_slope_brr
+mu_mci$mci_baseline_slope[which(is.na(mu_mci$mci_baseline_slope))] <- 
+  mu_mci$mci_baseline_slope_l1c[which(is.na(mu_mci$mci_baseline_slope))]
+
+mu_mci$mci_baseline_slope <- mu_mci$mci_baseline_slope_l1c # or use L1C for all
 
 #plot(mu_mci$mci_baseline_slope, rep(1, nrow(mu_mci)))
 #plot(mu_mci$mci_baseline_slope, mu_mci$error_chla)
 
 # assign cutoff
-sed_cutoff <- -1.5 # Binding recommendation: retain only points that are > -0.15
+sed_cutoff <- -1.5 # Binding recommendation: retain only points that are > -1.5
 
 mu_mci$sediment <- ""
 mu_mci$sediment[mu_mci$mci_baseline_slope < sed_cutoff] <- "sediment"
