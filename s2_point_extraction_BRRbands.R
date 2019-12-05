@@ -4,7 +4,8 @@
 ## load points, pre-filter (from s2_validation_180410.R) ----------------------------
 setwd("O:/PRIV/NERL_ORD_CYAN/Sentinel2/Validation/681_imgs")
 
-mu_mci <- read.csv("mu_mci_presediment_Ontario_2019-11-26.csv", stringsAsFactors = FALSE)
+# read in output from 05_s2_point_extraction_MCI.R
+mu_mci <- read.csv("validation_S2_682imgs_MCI_L1C_2018-11-21.csv", stringsAsFactors = FALSE)
 
 
 ## get image list
