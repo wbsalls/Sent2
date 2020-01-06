@@ -87,7 +87,7 @@ mu_mci$MCI_BRR_mean <- apply(mu_mci[, mci_val_colindex], 1, mean)
 
 
 # choose which MCI to use *******
-mci_type <- "MCI_BRR_1" # <<<** MCI_L1C_1 (single), MCI_L1C_mean, MCI_BRR_1 (single), MCI_BRR_mean
+mci_type <- "MCI_L1C_1" # <<<** MCI_L1C_1 (single), MCI_L1C_mean, MCI_BRR_1 (single), MCI_BRR_mean
 mu_mci$MCI <- mu_mci[, which(colnames(mu_mci) == mci_type)]
 mu_mci$mci_type <- mci_type
 
@@ -220,14 +220,14 @@ mu_mci <- mu_mci_cleaned
 # calculate chla from various conversions
 
 # 1a) binding ontario -------
-slope.mci <- 0.0002 # from Binding et al. 2013 - ontario
-intercept.mci <- -0.0012 # from Binding et al. 2013 - ontario
-mu_mci$s2_chl_ontario <- (mu_mci$MCI - intercept.mci) / slope.mci
+slope.mci <- 0.0002 # from Binding et al. 2013 - ontario # 5000
+intercept.mci <- 0.0012 # from Binding et al. 2013 - ontario # 6
+mu_mci$s2_chl_ontario <- (mu_mci$MCI + intercept.mci) / slope.mci
 
 # 1b) binding erie -------
-slope.mci <- 0.0004 # from Binding et al. 2013 - Erie
-intercept.mci <- -0.0021 # from Binding et al. 2013 - Erie
-mu_mci$s2_chl_erie <- (mu_mci$MCI - intercept.mci) / slope.mci
+slope.mci <- 0.0004 # from Binding et al. 2013 - Erie # 2500
+intercept.mci <- 0.0021 # from Binding et al. 2013 - Erie # 10.5
+mu_mci$s2_chl_erie <- (mu_mci$MCI + intercept.mci) / slope.mci
 
 # 1c) binding lake of the woods -------
 mu_mci$s2_chl_lotw <- exp((mu_mci$MCI + 0.017) / 0.0077)
@@ -258,7 +258,7 @@ mu_mci$s2_chl_split <- (mu_mci$MCI - intercept.mci) / slope.mci'
 
 # choose which MCI-chla conversion to use *******
 # using erie for now since ontario removes 28 additional negatives
-chla_conv <- "s2_chl_ontario" # <<<** s2_chl_ontario, s2_chl_erie, s2_chl_lotw, s2_chl_mollaee, s2_chl_custom, s2_chl_split
+chla_conv <- "s2_chl_erie" # <<<** s2_chl_ontario, s2_chl_erie, s2_chl_lotw, s2_chl_mollaee, s2_chl_custom, s2_chl_split
 mu_mci$chla_s2 <- mu_mci[, which(colnames(mu_mci) == chla_conv)] # select column for s2 chla
 mu_mci$chla_conv <- chla_conv # specify which conversion used
 mu_mci <- mu_mci[mu_mci$chla_s2 >= 0, ] # remove negatives
@@ -570,6 +570,41 @@ cat(sprintf("S2 -> chl relationship: *** %s *** \nS2 regression slope = %s; inte
 #dev.off()
 #mu_mci$pid <- 1:nrow(mu_mci)
 #text(x = mu_mci$chla_corr, y = mu_mci$chla_s2, labels = mu_mci$pid)
+
+####
+
+# MCI coefficients from Binding et al. 2013
+plot(mu_mci$chla_corr, mu_mci$MCI_BRR_1, xlab = "in situ chl a (ug/L)", ylab = "MCI, BRR")
+
+curve(0.0002 * x - 0.0012, add = TRUE, col = "brown3") # ontario
+curve(0.0004 * x - 0.0021, add = TRUE, col = "blue") # erie
+curve(0.0077 * log(x) - 0.017, add = TRUE, col = "green3") # LotW
+
+text(90, 0.015, "Ontario", col = "brown3")
+text(35, 0.015, "Erie", col = "blue")
+text(55, 0.015, "LotW", col = "green3")
+
+####
+
+# L1C vs BRR
+
+mu_mcix <- mu_mci[-which(mu_mci$MCI_BRR_1 == 4.999496), ]
+
+mu_mcix$chl_l1c <- mu_mcix$MCI_L1C_1 * 2500 + 10.5
+mu_mcix$chl_brr <- mu_mcix$MCI_BRR_1 * 2500 + 10.5
+
+plot(mu_mcix$chl_l1c, mu_mcix$chl_brr,
+     xlab = "S2 chl a, L1C (ug/L)", ylab = "S2 chl a, BRR(ug/L)",
+     xlim = c(0, 80), ylim = c(0, 80))
+abline(0, 1)
+
+max(abs(mu_mcix$chl_brr - mu_mcix$chl_l1c), na.rm =T)
+data.frame(mu_mcix$chl_l1c, mu_mcix$chl_brr, (mu_mcix$chl_brr - mu_mcix$chl_l1c))
+
+####
+
+# state
+round(table(mu_mci_l1c$state) / (nrow(mu_mci_l1c) - sum(is.na(mu_mci_l1c$state))) * 100, 0)
 
 ####
 
