@@ -261,7 +261,6 @@ mu_mci$s2_chl_split <- (mu_mci$MCI - intercept.mci) / slope.mci'
 chla_conv <- "s2_chl_erie" # <<<** s2_chl_ontario, s2_chl_erie, s2_chl_lotw, s2_chl_mollaee, s2_chl_custom, s2_chl_split
 mu_mci$chla_s2 <- mu_mci[, which(colnames(mu_mci) == chla_conv)] # select column for s2 chla
 mu_mci$chla_conv <- chla_conv # specify which conversion used
-mu_mci <- mu_mci[mu_mci$chla_s2 >= 0, ] # remove negatives
 
 
 sum(mu_mci$chla_s2 < 0)
@@ -520,13 +519,13 @@ mu_mci_final <- mu_mci
 ### ---------------------------------------------------------------------------------------------------
 
 # choose chla conversion
-chl_file <- "ontario" # ontario, erie
-mu_mci <- read.csv(sprintf("mu_mci_finalset_2019-11-07_s2_chl_%s.csv", chl_file), stringsAsFactors = FALSE)
+#chl_file <- "ontario" # ontario, erie
+#mu_mci <- read.csv(sprintf("mu_mci_finalset_2019-11-07_s2_chl_%s.csv", chl_file), stringsAsFactors = FALSE)
 
-mu_mci$month <- as.numeric(substr(mu_mci$samp_localTime, 2, 3))
+#mu_mci$month <- as.numeric(substr(mu_mci$samp_localTime, 2, 3))
 
 # cut below 10?
-mu_mci <- mu_mci[mu_mci$chla_corr >= 10, ]
+#mu_mci <- mu_mci[mu_mci$chla_corr >= 10, ]
 #mu_mci <- mu_mci[mu_mci$chla_s2 >= 10, ]
 
 ### validation plot  -----------------------------------------------------------------------------------
@@ -574,6 +573,8 @@ cat(sprintf("S2 -> chl relationship: *** %s *** \nS2 regression slope = %s; inte
 ####
 
 # MCI coefficients from Binding et al. 2013
+mu_mci_pre_messing <- mu_mci
+mu_mci <- mu_mci[-which(mu_mci$MCI_BRR_1 == 4.999496), ]
 plot(mu_mci$chla_corr, mu_mci$MCI_BRR_1, xlab = "in situ chl a (ug/L)", ylab = "MCI, BRR")
 
 curve(0.0002 * x - 0.0012, add = TRUE, col = "brown3") # ontario
@@ -588,10 +589,16 @@ text(55, 0.015, "LotW", col = "green3")
 
 # L1C vs BRR
 
+sum(mu_mci$MCI_BRR_1 > mu_mci$MCI_L1C_1, na.rm = TRUE) # 32
+sum(mu_mci$MCI_BRR_1 < mu_mci$MCI_L1C_1, na.rm = TRUE) # 20
+sum(mu_mci$MCI_BRR_1 == mu_mci$MCI_L1C_1, na.rm = TRUE) # 7
+mean(mu_mci$MCI_BRR_1 - mu_mci$MCI_L1C_1, na.rm = TRUE)
+median(mu_mci$MCI_BRR_1 - mu_mci$MCI_L1C_1, na.rm = TRUE)
+
 mu_mcix <- mu_mci[-which(mu_mci$MCI_BRR_1 == 4.999496), ]
 
-mu_mcix$chl_l1c <- mu_mcix$MCI_L1C_1 * 2500 + 10.5
-mu_mcix$chl_brr <- mu_mcix$MCI_BRR_1 * 2500 + 10.5
+mu_mcix$chl_l1c <- mu_mcix$MCI_L1C_1 * 2500 + 10.5 # erie
+mu_mcix$chl_brr <- mu_mcix$MCI_BRR_1 * 2500 + 10.5 # erie
 
 plot(mu_mcix$chl_l1c, mu_mcix$chl_brr,
      xlab = "S2 chl a, L1C (ug/L)", ylab = "S2 chl a, BRR(ug/L)",
