@@ -35,62 +35,81 @@ library(raster)
 # set image folder paths
 #img_folder <- "C:/Users/WSalls/Desktop/s2_imgs_agu/mci/jordan" #jordan or utah
 #img_folder <- "/Users/wilsonsalls/Desktop/EPA/Presentations/AGU2018/data/mci/jordan"
-img_folder <- "/Users/wilsonsalls/Desktop/EPA/Sentinel2/Images/mci_demo_paper"
-img_folder <- "O:/PRIV/NERL_ORD_CYAN/Salls_working/Presentations/AGU2018/data/mci/jordan"
+#img_folder <- "O:/PRIV/NERL_ORD_CYAN/Salls_working/Presentations/AGU2018/data/mci/jordan"
+img_folder <- "O:/PRIV/NERL_ORD_CYAN/Sentinel2/Images/jordan_imagery"
 
-
-imgs <- list.files(img_folder, pattern = ".data")
-imgs <- c("mci_resample20_S2B_MSIL1C_20180429T155859_N0206_R097_T17SPV_20180429T194054.data")
-
-# load lake shp
-#lakes <- readOGR("O:/PRIV/NERL_ORD_CYAN/Salls_working/geospatial_general/resolvableLakes/NHD_NLA_shoredist", "nhd_nla_subset_shore_dist")
-#lakes <- readOGR("/Users/wilsonsalls/Desktop/EPA/geosp_general/resolvableLakes/NHD_NLA_shoredist", "nhd_nla_subset_shore_dist")
+# specify MCI img location
+#imgs <- list.files(img_folder, pattern = ".data")
+#imgs <- c("mci_resample20_S2B_MSIL1C_20180429T155859_N0206_R097_T17SPV_20180429T194054.data") # L1C
+imgs <- c("mci_rayleigh_resample20_S2B_MSIL1C_20180429T155859_N0206_R097_T17SPV_20180429T194054.data") # BRR
 
 lakename <- "jordan" # jordan OR utah
 
-# select lake; reproject to UTM for use with rasters, loading a raster first to get CRS
-lake_poly_raw <- lakes[which(lakes$COMID == 166755060), ] #166755060 for jordan; xx for utah
-#lake_poly_raw <- readOGR("/Users/wilsonsalls/Desktop/EPA/Presentations/AGU2018/data", "JordanLake")
-#lake_poly_raw <- readOGR("/Users/wilsonsalls/Desktop/EPA/Sentinel2/Validation/681_imgs/geospatial", "lakes_example")
-#lake_poly_raw <- readOGR("O:/PRIV/NERL_ORD_CYAN/Sentinel2/Validation/681_imgs/geospatial", "lakes_example")
+# load lake shp
+#lakes <- readOGR("O:/PRIV/NERL_ORD_CYAN/Salls_working/geospatial_general/resolvableLakes/NHD_NLA_shoredist", "nhd_nla_subset_shore_dist")
+#lake_poly_raw <- lakes[which(lakes$COMID == 166755060), ] #166755060 for jordan; xx for utah
+
+lake_poly_raw <- readOGR("O:/PRIV/NERL_ORD_CYAN/Sentinel2/Images/jordan_imagery", "JordanLake")
 
 rast <- raster(file.path(img_folder, imgs[1], "MCI.img"))
 lake_poly <- spTransform (lake_poly_raw, crs(rast))
 
-#lake_poly <- lake_poly_trans[which(lake_poly_trans$COMID == 1101766), ]
-
 ##
 
 #rast_out_dir <- file.path("/Users/wilsonsalls/Desktop/EPA/Presentations/AGU2018/data/mci_cropped/", lakename)
-rast_out_dir <- file.path("/Users/wilsonsalls/Desktop/EPA/Sentinel2/Images/mci_demo_paper")
-rast_out_dir <- "O:/PRIV/NERL_ORD_CYAN/Sentinel2/Images/JordanLake"
+#rast_out_dir <- file.path("/Users/wilsonsalls/Desktop/EPA/Sentinel2/Images/mci_demo_paper")
+rast_out_dir <- "O:/PRIV/NERL_ORD_CYAN/Sentinel2/Images/jordan_imagery"
+
+# specify BRR img location (for baseline slope calc)
+brr_dir <- "O:/PRIV/NERL_ORD_CYAN/Sentinel2/Images/jordan_imagery"
+
 
 ## clip, remove edges, convert to chlorophyll, save new rasters ---------------
 
 for (i in seq_along(imgs)) {
-  idate <- substr(imgs[i], 27, 34)
+  idate <- substr(imgs[i], 36, 43) #substr(imgs[i], 27, 34)
   print(sprintf("image %s of %s: %s", i, length(imgs), idate))
   
   # load raster
-  rast <- raster(file.path(img_folder, imgs[i], "MCI.img"))
+  mci <- raster(file.path(img_folder, imgs[i], "MCI.img"))
   
   # clip to lake
-  rast_mask <- mask(rast, lake_poly) # raster values
-  rast_crop <- crop(rast_mask, lake_poly) # raster extent
+  mci_mask <- mask(mci, lake_poly) # MCI raster values
+  mci_crop <- crop(mci_mask, lake_poly) # MCI raster extent
   
   # remove edges
-  rast_crop <- focal(rast_crop, matrix(c(0,0,0,0,1,0,0,0,0), nrow = 3))
+  mci_crop <- focal(mci_crop, matrix(c(0,0,0,0,1,0,0,0,0), nrow = 3))
   
   # convert to chlorophyll
-  #rast_crop <- (rast_crop - (-0.0021)) / 0.0004 # erie
-  rast_crop <- (rast_crop - (-0.0012)) / 0.0002 # ontario
+  chl <- (mci_crop - (-0.0021)) / 0.0004 # erie
+  #chl <- (mci_crop - (-0.0012)) / 0.0002 # ontario
   
   # remove negative chl
-  values(rast_crop)[which(values(rast_crop) < 0)] <- NA
+  values(chl)[which(values(chl) < 0)] <- NA
+  
+  ## remove sediment affected water
+  
+  # load rasters
+  brr_folder <- file.path(brr_dir, paste0("rayleigh_resample20_", sub("mci_resample20_", "", imgs[i])))
+  b4 <- raster(file.path(brr_folder, list.files(brr_folder, "*_B4.img")))
+  b6 <- raster(file.path(brr_folder, list.files(brr_folder, "*_B6.img")))
+  
+  brr_brick <- brick(c(b4, b6))
+  
+  brr_brick_mask <- mask(brr_brick, mask = lake_poly)
+  brr_brick_lake <- crop(brr_brick_mask, lake_poly)
+  
+  # calculate slope
+  baseline_slope <- (brr_brick_lake[[2]] - brr_brick_lake[[1]]) / (740 - 655) * 10000 # expressed as 10^-4 nm-1
+  
+  # apply sediment filter to image
+  chl[baseline_slope < -1.5] <- NA
+  
+  #
   
   # write raster
-  writeRaster(rast_crop, file.path(rast_out_dir, 
-                                   sprintf("chlorophyll_%s_%s.png", lakename, idate)), "GTiff")
+  writeRaster(chl, file.path(rast_out_dir, 
+                                   sprintf("chlorophyll_BRRx_%s_%s.png", lakename, idate)), "GTiff")
 }
 
 
@@ -138,7 +157,7 @@ for (i in seq_along(chl_rasts)) {
        breaks = c(seq(1, max.color.val, length.out = max.color.val), 120),
        legend = FALSE,
        colNA = NA)
-  #plot(lake_poly, add = TRUE)
+  plot(lake_poly, add = TRUE)
   dev.off()
   
   # get min and max to improve plotting

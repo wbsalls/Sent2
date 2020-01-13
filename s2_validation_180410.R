@@ -464,6 +464,8 @@ sum(brr_bands$X.3 %in% mu_mci$X.3)
 mu_mci <- merge(mu_mci, brr_bands, by = "X.3", all.x = TRUE)
 
 # calculate slope
+# L1C is given as refl * 10000; BRR is refl.
+# thus, slopes calculated here are both expressed as 10^-4 nm-1
 mu_mci$mci_baseline_slope_l1c <- (mu_mci$b6_1 - mu_mci$b4_1) / (740 - 655)
 sum(is.na(mu_mci$mci_baseline_slope_l1c))
 
