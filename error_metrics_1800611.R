@@ -163,8 +163,8 @@ plot_error_metrics <- function(x, y,
   else if (equal_axes == TRUE) {
     plot(df$x, df$y, log = log_axes, xlab = xname, ylab = yname, main = title, 
          xaxt = pxaxt, yaxt = pyaxt,
-         #xlim = c(min(df$x, df$y), max(df$x, df$y)), 
-         #ylim = c(min(df$x, df$y), max(df$x, df$y)),
+         xlim = c(min(df$x, df$y), max(df$x, df$y)), 
+         ylim = c(min(df$x, df$y), max(df$x, df$y)),
          ...) # col = alpha("black", 0.3), pch = 20
     
     if (plot_abline == TRUE) {
@@ -216,8 +216,8 @@ plot_error_metrics <- function(x, y,
   
   text(x = text_x, y = text_y, adj = c(0, 1), 
        paste0(#"y = ", signif(err_metr$slope, digits = 3), "x + ", signif(err_metr$int, digits = 3), "\n",
-              "MAE_mult = ", signif(err_metr$MAE, digits = 3), "\n", 
-              "bias_mult = ", signif(err_metr$bias, digits = 3), "\n", 
+              "MAE = ", signif(err_metr$MAE, digits = 3), "\n", 
+              "bias = ", signif(err_metr$bias, digits = 3), "\n", 
               if (mape == TRUE) {paste0("MAPE = ", signif(err_metr$MAPE, digits = 3), "\n")}, 
               if (rand_error == TRUE) {paste0("random error = ", signif(err_metr$rand.err, digits = 3), "\n")}, 
               if (regr_stats == TRUE) {paste0("slope = ", round(err_metr$slope, 2), "\n",
