@@ -87,7 +87,7 @@ mu_mci$MCI_BRR_mean <- apply(mu_mci[, mci_val_colindex], 1, mean)
 
 
 # choose which MCI to use *******
-mci_type <- "MCI_L1C_1" # <<<** MCI_L1C_1 (single), MCI_L1C_mean, MCI_BRR_1 (single), MCI_BRR_mean
+mci_type <- "MCI_BRR_1" # <<<** MCI_L1C_1 (single), MCI_L1C_mean, MCI_BRR_1 (single), MCI_BRR_mean
 mu_mci$MCI <- mu_mci[, which(colnames(mu_mci) == mci_type)]
 mu_mci$mci_type <- mci_type
 
@@ -258,7 +258,7 @@ mu_mci$s2_chl_split <- (mu_mci$MCI - intercept.mci) / slope.mci'
 
 # choose which MCI-chla conversion to use *******
 # using erie for now since ontario removes 28 additional negatives
-chla_conv <- "s2_chl_erie" # <<<** s2_chl_ontario, s2_chl_erie, s2_chl_lotw, s2_chl_mollaee, s2_chl_custom, s2_chl_split
+chla_conv <- "s2_chl_ontario" # <<<** s2_chl_ontario, s2_chl_erie, s2_chl_lotw, s2_chl_mollaee, s2_chl_custom, s2_chl_split
 mu_mci$chla_s2 <- mu_mci[, which(colnames(mu_mci) == chla_conv)] # select column for s2 chla
 mu_mci$chla_conv <- chla_conv # specify which conversion used
 
@@ -716,7 +716,7 @@ mu_mci$mci_sd <- apply(mu_mci[, mci_val_colindex], 1, sd_pop)
 mu_mci$mci_cv <- mu_mci$mci_sd / mu_mci$mci_mean
 
 # perform subset
-#mu_mci <- mu_mci[abs(mu_mci$mci_cv) <= 0.15, ] # *try adjusting cv threshold
+mu_mci <- mu_mci[abs(mu_mci$mci_cv) <= 1, ] # *try adjusting cv threshold; bAILEY AND werdell recommend 0.15
 
 
 
@@ -978,13 +978,15 @@ par(mfrow = c(1,1))
 
 
 ## satellite ---------------
-boxplot(error_chla_abs ~ SPACECRAFT_NAME, data = mu_mci,
-        ylab = "chl a residual",
+boxplot(pct_error_chla_abs ~ SPACECRAFT_NAME, data = mu_mci,
+        ylab = "S2 chl a abs % error",
         xlab = "Satellite")
 text(0.7, 150, paste0("n = ", table(mu_mci$SPACECRAFT_NAME)[1]))
 text(1.7, 150, paste0("n = ", table(mu_mci$SPACECRAFT_NAME)[2]))
 abline(v=0)
 
+# tests ???
+t.test(mu_mci$pct_error_chla_abs ~ mu_mci$SPACECRAFT_NAME)
 
 ## glint ---------
 boxplot(error_chla ~ glint, data = mu_mci,

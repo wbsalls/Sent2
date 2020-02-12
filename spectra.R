@@ -44,11 +44,12 @@ lines(c(5, 5), c((sum(spectra_all[which(mu_mci$mci_baseline_slope == min(mu_mci$
 
 
 ## MCI calculation
-mci_examp <- c(750, 1100, 700) / 10000
+mci_examp <- c(700, 1100, 800) / 10000
 plot(c(4, 5, 6), mci_examp, 
      ylim = c(0, max(mci_examp) * 1.2), pch = 20, 
-     xlab = "S2 band #", ylab = "reflectance", xaxt="n", yaxt = "n")
-axis(1, xaxp=c(4, 6, 2))
+     xlab = "band", ylab = "reflectance", xaxt = "n", yaxt = "n")
+#axis(1, xaxp=c(4, 6, 2))
+axis(1, at = c(4, 5, 6), labels = c("a", "b", "c"))
 lines(c(4, 5, 6), mci_examp, col = "black", lty = 1)
 lines(c(4, 6), mci_examp[c(1, 3)], col = "gray", lty = 2)
 #lines(c(5, 5), c((sum(spectra_all[which(mu_mci$MCI_BRR_1 == max(mu_mci$MCI_BRR_1)), c(1, 3)]) / 2), 
@@ -62,7 +63,7 @@ text(5.15, 0.085, "MCI peak", col = "black", font = 2)
 
 ### band ranges ----------------------------------------
 
-bands <- read.csv("O:/PRIV/NERL_ORD_CYAN/Sentinel2/bands.csv")
+bands <- read.csv("O:/PRIV/NERL_ORD_CYAN/Sentinel2/Images/bands.csv")
 
 plot(c(600, 800), c(0, 3), type = "n", xlab = "wavelength (nm)", ylab = "", yaxt = "n")
 # MERIS
