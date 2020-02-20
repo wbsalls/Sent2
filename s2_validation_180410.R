@@ -203,12 +203,6 @@ offset_threshold <- offset_min:offset_max
 mu_mci <- mu_mci[mu_mci$offset_days %in% offset_threshold, ]
 
 
-if (offset_min == offset_max) {
-  plot_title <- sprintf("+/- %s day", offset_min)
-} else {
-  plot_title <- sprintf("+/- %s-%s days", offset_min, offset_max)
-}
-
 ## for reset
 mu_mci_cleaned <- mu_mci
 
@@ -438,7 +432,7 @@ mu_mci <- merge(mu_mci, img_comments[, which(colnames(img_comments) %in% c("X.3"
 sum(is.na(mu_mci$tier)) # should be 0
 #boxplot(error_chla_abs ~ tier, data = mu_mci)
 
-# investigate file to see make sure img comments weren't lost in duplicates
+# investigate file to make sure img comments weren't lost in duplicates
 #write.csv(mu_mci, "mu_mci_imgComments.csv")
 
 # apply removal
@@ -532,6 +526,15 @@ mu_mci_final <- mu_mci
 
 ### validation plot  -----------------------------------------------------------------------------------
 
+'
+if (offset_min == offset_max) {
+  plot_title <- sprintf("+/- %s day", offset_min)
+} else {
+  plot_title <- sprintf("+/- %s-%s days", offset_min, offset_max)
+}
+'
+plot_title <- paste0(mci_type, ", ", chla_conv)
+
 # reset
 mu_mci <- mu_mci_final
 mu_mci$pid <- 1:nrow(mu_mci) # for viewing point IDs
@@ -542,20 +545,19 @@ plot_error_metrics(x = mu_mci$chla_corr, y = mu_mci$chla_s2, # export 800 x 860;
                    yname = "S2-derived chlorophyll-a (ug/l)", 
                    #yname = "S2-derived chlorophyll-a (ug/l, from MCI using L1C reflectance)", 
                    #title = plot_title, 
-                   #title = paste0(method_sub, ", ", plot_title), # if subsetting by method
                    equal_axes = TRUE, 
                    log_axes = "xy", # xy, x, y, ""
-                   log_space = T, # T, F
+                   log_space = TRUE, # T, F
                    plot_abline = FALSE,
-                   text_x = 0.04, # 0.04; min(mu_mci$chla_corr, mu_mci$chla_s2)
+                   #text_x = min(mu_mci$chla_corr, mu_mci$chla_s2),
                    #text_y = ,
                    mape = FALSE,
                    rand_error = FALSE,
                    regr_stats = FALSE,
-                   states = mu_mci$state,
-                   lakes = mu_mci$comid,
-                   xlim = c(0.04, max(mu_mci$chla_corr, mu_mci$chla_s2)), # 0.04 (min 0.05)
-                   ylim = c(0.04, max(mu_mci$chla_corr, mu_mci$chla_s2)),
+                   #states = mu_mci$state,
+                   #lakes = mu_mci$comid,
+                   xlim = c(min(mu_mci$chla_corr, mu_mci$chla_s2, na.rm = T), max(mu_mci$chla_corr, mu_mci$chla_s2, na.rm = T)),
+                   ylim = c(min(mu_mci$chla_corr, mu_mci$chla_s2, na.rm = T), max(mu_mci$chla_corr, mu_mci$chla_s2, na.rm = T)),
                    show_metrics = TRUE, 
                    #xaxt="n",
                    #yaxt="n",
@@ -563,6 +565,7 @@ plot_error_metrics(x = mu_mci$chla_corr, y = mu_mci$chla_s2, # export 800 x 860;
                    #col = mu_mci$sedimentf,
                    #col = mu_mci$state_col,
                    pch = 20)
+
 cat(sprintf("S2 -> chl relationship: *** %s *** \nS2 regression slope = %s; intercept = %s \n%s images\n", 
             chla_conv,
             signif(slope.mci, digits = 2), signif(intercept.mci, digits = 2),
@@ -609,6 +612,41 @@ abline(0, 1)
 
 max(abs(mu_mcix$chl_brr - mu_mcix$chl_l1c), na.rm =T)
 data.frame(mu_mcix$chl_l1c, mu_mcix$chl_brr, (mu_mcix$chl_brr - mu_mcix$chl_l1c))
+
+# save
+mu_mci_proc <- mu_mci
+
+# reset
+mu_mci <- mu_mci_proc
+
+plot_error_metrics(x = mu_mci$MCI_L1C_1, y = mu_mci$MCI_BRR_1, # export 800 x 860; 600 x 645 for paper
+                   xname = "L1C MCI", 
+                   yname = "BRR MCI", 
+                   equal_axes = TRUE, 
+                   log_axes = "", # xy, x, y, ""
+                   log_space = T, # T, F
+                   plot_abline = FALSE,
+                   #text_x = min(mu_mci$MCI_L1C_1, mu_mci$MCI_BRR_1),
+                   #text_y = ,
+                   mape = FALSE,
+                   rand_error = FALSE,
+                   regr_stats = FALSE,
+                   states = mu_mci$state,
+                   lakes = mu_mci$comid,
+                   xlim = c(min(mu_mci$MCI_L1C_1, mu_mci$MCI_BRR_1, na.rm = T), max(mu_mci$MCI_L1C_1, mu_mci$MCI_BRR_1, na.rm = T)),
+                   ylim = c(min(mu_mci$MCI_L1C_1, mu_mci$MCI_BRR_1, na.rm = T), max(mu_mci$MCI_L1C_1, mu_mci$MCI_BRR_1, na.rm = T)),
+                   show_metrics = TRUE, 
+                   #xaxt="n",
+                   #yaxt="n",
+                   col = alpha("black", 0.4), 
+                   #col = mu_mci$sedimentf,
+                   #col = mu_mci$state_col,
+                   pch = 20)
+
+text(x = mu_mci$MCI_L1C_1, y = mu_mci$MCI_BRR_1, labels = mu_mci$pid)
+
+mu_mci <- mu_mci[-which(mu_mci$MCI_L1C_1 > 4 | mu_mci$MCI_BRR_1 > 4), ]
+mu_mci <- mu_mci[-which(mu_mci$MCI_L1C_1 == 0), ]
 
 ####
 
@@ -984,6 +1022,7 @@ boxplot(pct_error_chla_abs ~ SPACECRAFT_NAME, data = mu_mci,
 text(0.7, 150, paste0("n = ", table(mu_mci$SPACECRAFT_NAME)[1]))
 text(1.7, 150, paste0("n = ", table(mu_mci$SPACECRAFT_NAME)[2]))
 abline(v=0)
+table(mu_mci$SPACECRAFT_NAME)
 
 # tests ???
 t.test(mu_mci$pct_error_chla_abs ~ mu_mci$SPACECRAFT_NAME)

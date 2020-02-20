@@ -158,7 +158,7 @@ for (i in seq_along(chl_rasts)) {
   rast_crop <- raster(file.path(rast_out_dir, chl_rasts[i]))
   
   # plot
-  jpeg(sprintf("chl_%s_%s_%s.jpg", coeffs, lakename, idate), width = 600, height = 1200)
+  jpeg(sprintf("chl_%s_%s_%s.jpg", coeffs, lakename, idate), width = 1800, height = 3600, res = 300) #, width = 600, height = 1200, res = 300
   plot(rast_crop,
        #main = paste0(substr(idate, 1, 4), "-", substr(idate, 5, 6), "-", substr(idate, 7, 8)),
        cex.main = 4,
@@ -182,6 +182,8 @@ maxc
 # for legend
 #rast_crop <- raster(file.path(rast_out_dir, chl_rasts[i]))
 values(rast_crop)[values(rast_crop) > max.color.val] <- NA
+
+jpeg(sprintf("chl_leg_%s_%s_%s.jpg", coeffs, lakename, idate), width = 750, height = 500, res = 300)
 plot(rast_crop,
      #main = paste0(substr(idate, 1, 4), "-", substr(idate, 5, 6), "-", substr(idate, 7, 8)),
      cex.main = 4,
@@ -190,7 +192,7 @@ plot(rast_crop,
      col = viridis(max.color.val),
      #breaks = c(seq(1, max.color.val, length.out = max.color.val), 120),
      colNA = NA)
-
+dev.off()
 #
 
 ## plot trophic state, save ---------------
@@ -207,7 +209,7 @@ for (i in seq_along(chl_rasts)) {
   #rast_crop <- raster(file.path(rast_out_dir, chl_rasts[i]))
   
   # plot
-  jpeg(sprintf("trophic_%s_%s_%s.jpg", coeffs, lakename, idate), width = 600, height = 1200)
+  jpeg(sprintf("trophic_%s_%s_%s.jpg", coeffs, lakename, idate), width = 1800, height = 3600, res = 300)
   plot(rast_crop, 
        #main = paste0(substr(idate, 1, 4), "-", substr(idate, 5, 6), "-", substr(idate, 7, 8)),
        cex.main = 4,
@@ -230,13 +232,15 @@ plasma(4)
 rast_blank <- rast_crop
 values(rast_blank) <- NA
 
-jpeg("xblank_black.png", width = 600, height = 1200)
-plot(rast_blank, colNA = "black", xaxt = "n", yaxt = "n", box = FALSE, bty = "n")
-dev.off()
 
 jpeg("xblank_white.png", width = 600, height = 1200)
 plot(rast_blank, colNA = NA, xaxt = "n", yaxt = "n", box = FALSE, bty = "n")
 dev.off()
+
+jpeg("xblank_black.png", width = 600, height = 1200)
+plot(rast_blank, colNA = "black", xaxt = "n", yaxt = "n", box = FALSE, bty = "n")
+dev.off()
+
 
 
 ## pie charts----------------------------
@@ -283,7 +287,7 @@ clrs <- plasma(4)
 
 #trophic_counts <- data.frame()
 
-rast_crop <- raster("chlorophyll_BRR_jordan_sed_NAneg1_20180429.tif")
+#rast_crop <- raster("chlorophyll_BRR_jordan_sed_NAneg1_20180429.tif")
 
 #for (i in seq_along(chl_rasts)) {
   idate <- substr(chl_rasts[i], 28, 35)
@@ -306,9 +310,9 @@ rast_crop <- raster("chlorophyll_BRR_jordan_sed_NAneg1_20180429.tif")
   
   #trophic_counts <- rbind(trophic_counts, data.frame(oligotrophic, mesotrophic, eutrophic, hypereutrophic, total))
   
-  jpeg(sprintf("pie_%s_%s_NAs_%s.jpg", coeffs, lakename, idate), width = 600, height = 600)
+  jpeg(sprintf("pie_%s_%s_NAs_%s.jpg", coeffs, lakename, idate), width = 1800, height = 1800, res = 300)
   pie(c(oligotrophic, mesotrophic, eutrophic, hypereutrophic, na),
-      clockwise = TRUE, init.angle = 90, labels=NA, col= c(clrs, "white"), main = sprintf("%s: %s", lakename, idate))
+      clockwise = TRUE, init.angle = 90, labels=NA, col= c(clrs, "white")) #, main = sprintf("%s: %s", lakename, idate)
   dev.off()
 #}
 

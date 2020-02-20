@@ -40,9 +40,9 @@ calc_rmse <- function(observed, modeled, log_space = TRUE) {
 }
 
 calc_mape <- function(observed, modeled) {
-    mmape <- (sum(
-      abs((modeled) - (observed)) / abs((observed))
-    ) / length(observed))
+  mmape <- (sum(
+    abs((modeled) - (observed)) / abs((observed))
+  ) / length(observed))
   return(mmape * 100)
 }
 
@@ -98,7 +98,7 @@ plot_error_metrics <- function(x, y,
                                equal_axes = FALSE, 
                                log_axes = "",
                                plot_abline = TRUE,
-                               text_x = 0.05,
+                               text_x = min(x, y, na.rm = TRUE),
                                text_y = max(x, y, na.rm = TRUE),
                                mape = TRUE,
                                rand_error = TRUE,
@@ -163,8 +163,8 @@ plot_error_metrics <- function(x, y,
   else if (equal_axes == TRUE) {
     plot(df$x, df$y, log = log_axes, xlab = xname, ylab = yname, main = title, 
          xaxt = pxaxt, yaxt = pyaxt,
-         xlim = c(min(df$x, df$y), max(df$x, df$y)), 
-         ylim = c(min(df$x, df$y), max(df$x, df$y)),
+         #xlim = c(min(df$x, df$y), max(df$x, df$y)), 
+         #ylim = c(min(df$x, df$y), max(df$x, df$y)),
          ...) # col = alpha("black", 0.3), pch = 20
     
     if (plot_abline == TRUE) {
@@ -185,10 +185,10 @@ plot_error_metrics <- function(x, y,
   
   ## add axes if log transformed and axes withheld
   if (grepl("x", log_axes)) {
-  axis(1, at = c(10^(-1:3)), labels = c(10^(-1:3)))
+    axis(1, at = c(10^(-1:3)), labels = c(10^(-1:3)))
   }
   if (grepl("y", log_axes)) {
-  axis(2, at = c(10^(-1:3)), labels = c(10^(-1:3)))
+    axis(2, at = c(10^(-1:3)), labels = c(10^(-1:3)))
   }
   
   ## add metrics text
@@ -214,17 +214,25 @@ plot_error_metrics <- function(x, y,
   }
 '
   
+  if (log_space == TRUE) {
+    mae_label <- "MAE_mult = "
+    bias_label <- "bias_mult = "
+  } else if (log_space == FALSE) {
+    mae_label <- "MAE = "
+    bias_label <- "bias = "
+  }
+  
   text(x = text_x, y = text_y, adj = c(0, 1), 
        paste0(#"y = ", signif(err_metr$slope, digits = 3), "x + ", signif(err_metr$int, digits = 3), "\n",
-              "MAE = ", signif(err_metr$MAE, digits = 3), "\n", 
-              "bias = ", signif(err_metr$bias, digits = 3), "\n", 
-              if (mape == TRUE) {paste0("MAPE = ", signif(err_metr$MAPE, digits = 3), "\n")}, 
-              if (rand_error == TRUE) {paste0("random error = ", signif(err_metr$rand.err, digits = 3), "\n")}, 
-              if (regr_stats == TRUE) {paste0("slope = ", round(err_metr$slope, 2), "\n",
-                                              "intercept = ", round(err_metr$int, 2), "\n",
-                                              "R-sq. = ", round(err_metr$r.sq, 2), "\n")},
-              "n = ", err_metr$n, 
-              add.text))
+         mae_label, signif(err_metr$MAE, digits = 3), "\n", 
+         bias_label, signif(err_metr$bias, digits = 3), "\n", 
+         if (mape == TRUE) {paste0("MAPE = ", signif(err_metr$MAPE, digits = 3), "\n")}, 
+         if (rand_error == TRUE) {paste0("random error = ", signif(err_metr$rand.err, digits = 3), "\n")}, 
+         if (regr_stats == TRUE) {paste0("slope = ", round(err_metr$slope, 2), "\n",
+                                         "intercept = ", round(err_metr$int, 2), "\n",
+                                         "R-sq. = ", round(err_metr$r.sq, 2), "\n")},
+         "n = ", err_metr$n, 
+         add.text))
   
   if (show_metrics == TRUE){
     err_metr_print <- rbind(calc_error_metrics(df$x, df$y, rtype = rtype_plot, log_space = FALSE), 
