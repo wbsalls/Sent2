@@ -471,7 +471,7 @@ mu_mci$mci_baseline_slope <- mu_mci$mci_baseline_slope_brr
 mu_mci$mci_baseline_slope[which(is.na(mu_mci$mci_baseline_slope))] <- 
   mu_mci$mci_baseline_slope_l1c[which(is.na(mu_mci$mci_baseline_slope))]
 
-mu_mci$mci_baseline_slope <- mu_mci$mci_baseline_slope_l1c # or use L1C for all
+#mu_mci$mci_baseline_slope <- mu_mci$mci_baseline_slope_l1c # or use L1C for all
 
 #plot(mu_mci$mci_baseline_slope, rep(1, nrow(mu_mci)))
 #plot(mu_mci$mci_baseline_slope, mu_mci$error_chla)
@@ -539,11 +539,14 @@ plot_title <- paste0(mci_type, ", ", chla_conv)
 mu_mci <- mu_mci_final
 mu_mci$pid <- 1:nrow(mu_mci) # for viewing point IDs
 
-#jpeg(sprintf("val_%s_%s.png", offset_min, offset_max), width = 800, height = 860)
+
+jpeg(sprintf("val_%s_%s.jpg", offset_min, offset_max), width = 800*4.5, height = 800*4.5, res = 600)
+par(mar = c(5, 5, 2, 2))
 plot_error_metrics(x = mu_mci$chla_corr, y = mu_mci$chla_s2, # export 800 x 860; 600 x 645 for paper
-                   xname = "in situ chlorophyll-a (ug/l)", 
-                   yname = "S2-derived chlorophyll-a (ug/l)", 
-                   #yname = "S2-derived chlorophyll-a (ug/l, from MCI using L1C reflectance)", 
+                   xname = expression(italic("in situ") * " chl " * italic(a) * " (" * mu * "g " * L^-1 * ")"), 
+                   yname = expression("S2-derived chl " * italic(a) * " (" * mu * "g " * L^-1 * ")"), 
+                   #yname = "S2-derived chlorophyll a (ug/L)", 
+                   #yname = "S2-derived chlorophyll a (ug/L, from MCI using L1C reflectance)", 
                    #title = plot_title, 
                    equal_axes = TRUE, 
                    log_axes = "xy", # xy, x, y, ""
@@ -565,13 +568,13 @@ plot_error_metrics(x = mu_mci$chla_corr, y = mu_mci$chla_s2, # export 800 x 860;
                    #col = mu_mci$sedimentf,
                    #col = mu_mci$state_col,
                    pch = 20)
+dev.off()
 
 cat(sprintf("S2 -> chl relationship: *** %s *** \nS2 regression slope = %s; intercept = %s \n%s images\n", 
             chla_conv,
             signif(slope.mci, digits = 2), signif(intercept.mci, digits = 2),
             length(unique(mu_mci$GRANULE_ID))))
 #legend("bottomright", legend = unique(mu_mci$sedimentf), col = c("black", "red"), border = NULL)
-#dev.off()
 #mu_mci$pid <- 1:nrow(mu_mci)
 #text(x = mu_mci$chla_corr, y = mu_mci$chla_s2, labels = mu_mci$pid)
 
@@ -818,11 +821,16 @@ plot(mu_mci$depth_m_stdized, mu_mci$chla_corr)
 ## sediment -------------------------------
 table(mu_mci$sediment)
 
+#jpeg("6_sediment_error.jpg", width = 800*6, height = 600*6, res = 600)
+#jpeg("6_sediment_error.jpg", width = 6, height = 4.5, units = "in", res = 600)
+bitmap("6_sediment_error.jpg", type = "jpeg", width = 6.5, height = 5, units = "in",  res = 600)
 plot(mu_mci$mci_baseline_slope, mu_mci$pct_error_chla, 
-     pch = 20, xlab = "MCI baseline slope (e-4 nm-1)", ylab = "S2 chl-a % error")
+     pch = 20, 
+     xlab = expression("MCI baseline slope (10" ^ -4 * ~nm ^ -1 * ")"), 
+     ylab = expression("S2 chl " * italic(a) * " % error"))
 abline(v = -1.5, lty = 3)
 abline(h=0)
-#abline(v=-0.15)
+dev.off()
 # 800 x 600 plot
 
 boxplot(pct_error_chla ~ sediment, data = mu_mci,
@@ -849,6 +857,7 @@ slice_boxplot <- 50
 mu_mci$dist_shore_m_interval <- cut(mu_mci$dist_shore_m, seq(0, max_depth_boxplot, slice_boxplot))
 
 # error vs dist
+jpeg("7_shoredist_error.jpg", width = 800*6, height = 600*6, res = 600)
 par(mfrow = c(2,1))
 #layout(matrix(c(1,2,2), nrow = 4, ncol = 1, byrow = TRUE))
 par(mar = c(0.5, 4.1, 10, 2.1)) # par(mar = c(bottom, left, top, right))
@@ -859,10 +868,11 @@ boxplot(mu_mci$pct_error_chla_abs ~ dist_shore_m_interval, data = mu_mci,
         las = 3,
         xaxt = 'n',
         xlab = "distance from shore (m)",
-        ylab = "S2 chl a abs % error")
+        ylab = expression("S2 chl " * italic(a) * " abs % error"))
 axis(side = 1, las = 3,
      at = seq(from = 0.5, to = max_depth_boxplot / slice_boxplot + 0.5, by = 1), 
      labels = c(rbind(seq(from = 0, to = max_depth_boxplot, by = slice_boxplot * 2), ""))[1:(max_depth_boxplot / slice_boxplot + 1)])
+dev.off()
 par(opar)
 
 # chla vs dist
@@ -1016,12 +1026,17 @@ par(mfrow = c(1,1))
 
 
 ## satellite ---------------
+#jpeg("8_error_satellite.jpg", width = 550*6, height = 350*6, res = 600)
+jpeg("8_error_satellite.jpg", width = 5, height = 3, units = "in", res = 600)
+par(mar = c(5, 5, 2, 2))
 boxplot(pct_error_chla_abs ~ SPACECRAFT_NAME, data = mu_mci,
-        ylab = "S2 chl a abs % error",
+        ylab = expression("S2 chl " * italic(a) * " abs % error"),
         xlab = "Satellite")
-text(0.7, 150, paste0("n = ", table(mu_mci$SPACECRAFT_NAME)[1]))
-text(1.7, 150, paste0("n = ", table(mu_mci$SPACECRAFT_NAME)[2]))
-abline(v=0)
+dev.off()
+
+#text(0.7, 150, paste0("n = ", table(mu_mci$SPACECRAFT_NAME)[1]))
+#text(1.7, 150, paste0("n = ", table(mu_mci$SPACECRAFT_NAME)[2]))
+#abline(v=0)
 table(mu_mci$SPACECRAFT_NAME)
 
 # tests ???

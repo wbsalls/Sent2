@@ -234,7 +234,19 @@ plot_error_metrics <- function(x, y,
          "n = ", err_metr$n, 
          add.text))
   
-  if (show_metrics == TRUE){
+  'text(x = text_x, y = text_y, adj = c(0, 1), 
+       substitute(paste0(
+         MAE[mult] * " = ", signif(err_metr$MAE, digits = 3), "\n", 
+         bias_label, signif(err_metr$bias, digits = 3), "\n", 
+         if (mape == TRUE) {paste0("MAPE = ", signif(err_metr$MAPE, digits = 3), "\n")}, 
+         if (rand_error == TRUE) {paste0("random error = ", signif(err_metr$rand.err, digits = 3), "\n")}, 
+         if (regr_stats == TRUE) {paste0("slope = ", round(err_metr$slope, 2), "\n",
+                                         "intercept = ", round(err_metr$int, 2), "\n",
+                                         "R-sq. = ", round(err_metr$r.sq, 2), "\n")},
+         "n = ", err_metr$n, 
+         add.text)))'
+  
+  if (show_metrics == TRUE) {
     err_metr_print <- rbind(calc_error_metrics(df$x, df$y, rtype = rtype_plot, log_space = FALSE), 
                             calc_error_metrics(df$x, df$y, rtype = rtype_plot, log_space = TRUE))
     rownames(err_metr_print) <- c("linear", "multiplicative")
