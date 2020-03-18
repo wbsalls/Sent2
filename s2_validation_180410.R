@@ -540,34 +540,46 @@ mu_mci <- mu_mci_final
 mu_mci$pid <- 1:nrow(mu_mci) # for viewing point IDs
 
 
-jpeg(sprintf("val_%s_%s.jpg", offset_min, offset_max), width = 800*4.5, height = 800*4.5, res = 600)
+jpeg("val.jpg", width = 800*4.5, height = 800*4.5, res = 600)
 par(mar = c(5, 5, 2, 2))
-plot_error_metrics(x = mu_mci$chla_corr, y = mu_mci$chla_s2, # export 800 x 860; 600 x 645 for paper
-                   xname = expression(italic("in situ") * " chl " * italic(a) * " (" * mu * "g " * L^-1 * ")"), 
-                   yname = expression("S2-derived chl " * italic(a) * " (" * mu * "g " * L^-1 * ")"), 
-                   #yname = "S2-derived chlorophyll a (ug/L)", 
-                   #yname = "S2-derived chlorophyll a (ug/L, from MCI using L1C reflectance)", 
-                   #title = plot_title, 
-                   equal_axes = TRUE, 
-                   log_axes = "xy", # xy, x, y, ""
-                   log_space = TRUE, # T, F
-                   plot_abline = FALSE,
-                   #text_x = min(mu_mci$chla_corr, mu_mci$chla_s2),
-                   #text_y = ,
-                   mape = FALSE,
-                   rand_error = FALSE,
-                   regr_stats = FALSE,
-                   #states = mu_mci$state,
-                   #lakes = mu_mci$comid,
-                   xlim = c(min(mu_mci$chla_corr, mu_mci$chla_s2, na.rm = T), max(mu_mci$chla_corr, mu_mci$chla_s2, na.rm = T)),
-                   ylim = c(min(mu_mci$chla_corr, mu_mci$chla_s2, na.rm = T), max(mu_mci$chla_corr, mu_mci$chla_s2, na.rm = T)),
-                   show_metrics = TRUE, 
-                   #xaxt="n",
-                   #yaxt="n",
-                   col = alpha("black", 0.4), 
-                   #col = mu_mci$sedimentf,
-                   #col = mu_mci$state_col,
-                   pch = 20)
+val_metrics <- plot_error_metrics(x = mu_mci$chla_corr, y = mu_mci$chla_s2, # export 800 x 860; 600 x 645 for paper
+                                  xname = expression(italic("in situ") * " chl " * italic(a) * " (" * mu * "g " * L^-1 * ")"), 
+                                  yname = expression("S2-derived chl " * italic(a) * " (" * mu * "g " * L^-1 * ")"), 
+                                  #yname = "S2-derived chlorophyll a (ug/L)", 
+                                  #yname = "S2-derived chlorophyll a (ug/L, from MCI using L1C reflectance)", 
+                                  #title = plot_title, 
+                                  equal_axes = TRUE, 
+                                  log_axes = "xy", # xy, x, y, ""
+                                  log_space = TRUE, # T, F
+                                  plot_abline = FALSE,
+                                  #text_x = min(mu_mci$chla_corr, mu_mci$chla_s2),
+                                  #text_y = ,
+                                  mape = FALSE,
+                                  rand_error = FALSE,
+                                  regr_stats = FALSE,
+                                  #states = mu_mci$state,
+                                  #lakes = mu_mci$comid,
+                                  xlim = c(min(mu_mci$chla_corr, mu_mci$chla_s2, na.rm = T), max(mu_mci$chla_corr, mu_mci$chla_s2, na.rm = T)),
+                                  ylim = c(min(mu_mci$chla_corr, mu_mci$chla_s2, na.rm = T), max(mu_mci$chla_corr, mu_mci$chla_s2, na.rm = T)),
+                                  show_metrics = TRUE, 
+                                  #xaxt="n",
+                                  #yaxt="n",
+                                  col = alpha("black", 0.4), 
+                                  #col = mu_mci$sedimentf,
+                                  #col = mu_mci$state_col,
+                                  pch = 20)
+text(min(mu_mci$chla_corr, mu_mci$chla_s2, na.rm = T), 
+     max(mu_mci$chla_corr, mu_mci$chla_s2, na.rm = T),
+     adj = c(0, 1),
+     bquote(MAE[mult] * " = " * .(signif(val_metrics$MAE[2], digits = 3))))
+text(min(mu_mci$chla_corr, mu_mci$chla_s2, na.rm = T), 
+     80,
+     adj = c(0, 1),
+     bquote(bias[mult] * " = " * .(signif(val_metrics$bias[2], digits = 3))))
+text(min(mu_mci$chla_corr, mu_mci$chla_s2, na.rm = T), 
+     55,
+     adj = c(0, 1),
+     paste0("n = ", val_metrics$n[2]))
 dev.off()
 
 cat(sprintf("S2 -> chl relationship: *** %s *** \nS2 regression slope = %s; intercept = %s \n%s images\n", 

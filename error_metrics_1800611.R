@@ -222,7 +222,7 @@ plot_error_metrics <- function(x, y,
     bias_label <- "bias = "
   }
   
-  text(x = text_x, y = text_y, adj = c(0, 1), 
+  'text(x = text_x, y = text_y, adj = c(0, 1), 
        paste0(#"y = ", signif(err_metr$slope, digits = 3), "x + ", signif(err_metr$int, digits = 3), "\n",
          mae_label, signif(err_metr$MAE, digits = 3), "\n", 
          bias_label, signif(err_metr$bias, digits = 3), "\n", 
@@ -232,7 +232,7 @@ plot_error_metrics <- function(x, y,
                                          "intercept = ", round(err_metr$int, 2), "\n",
                                          "R-sq. = ", round(err_metr$r.sq, 2), "\n")},
          "n = ", err_metr$n, 
-         add.text))
+         add.text))'
   
   'text(x = text_x, y = text_y, adj = c(0, 1), 
        substitute(paste0(
