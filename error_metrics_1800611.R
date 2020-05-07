@@ -151,7 +151,7 @@ plot_error_metrics <- function(x, y,
   }
   
   if (equal_axes == FALSE) {
-    plot(df$x, df$y, log = log_axes, pch = 1, xlab = xname, ylab = yname, main = title,
+    plot(df$x, df$y, log = log_axes, xlab = xname, ylab = yname, main = title,
          xaxt = pxaxt, yaxt = pyaxt, ...)
     abline(line.int, line.slope, untf = TRUE) # show model line
     #abline(0, 0, lty = 2) # show y = 0 line

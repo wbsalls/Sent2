@@ -176,7 +176,7 @@ hist(mu_mci_499$chla_corr)
 '
 
 # plot raw MCI
-#plot(mu_mci$chla_corr, mu_mci$MCI, xlab = "in situ chlorophyll-a (ug/l)", ylab = "MCI (Level 1C)")
+#plot(mu_mci$chla_corr, mu_mci$MCI, xlab = "in situ chlorophyll-a (ug/l)", ylab = "MCI")
 
 ## remove MCI = 0
 sum(mu_mci$MCI == 0)
@@ -252,7 +252,7 @@ mu_mci$s2_chl_split <- (mu_mci$MCI - intercept.mci) / slope.mci'
 
 # choose which MCI-chla conversion to use *******
 # using erie for now since ontario removes 28 additional negatives
-chla_conv <- "s2_chl_ontario" # <<<** s2_chl_ontario, s2_chl_erie, s2_chl_lotw, s2_chl_mollaee, s2_chl_custom, s2_chl_split
+chla_conv <- "s2_chl_lotw" # <<<** s2_chl_ontario, s2_chl_erie, s2_chl_lotw, s2_chl_mollaee, s2_chl_custom, s2_chl_split; MCI
 mu_mci$chla_s2 <- mu_mci[, which(colnames(mu_mci) == chla_conv)] # select column for s2 chla
 mu_mci$chla_conv <- chla_conv # specify which conversion used
 
@@ -490,6 +490,7 @@ sprintf("%s/%s points retained (removing %s)",
         nrow(mu_mci), nrow(mu_mci) - sum(mu_mci$mci_baseline_slope > sed_cutoff))
 
 # apply cutoff
+mu_mci_sed <- mu_mci[mu_mci$mci_baseline_slope <= sed_cutoff, ]
 mu_mci <- mu_mci[mu_mci$mci_baseline_slope > sed_cutoff, ]
 
 # ------
@@ -540,7 +541,7 @@ mu_mci <- mu_mci_final
 mu_mci$pid <- 1:nrow(mu_mci) # for viewing point IDs
 
 
-jpeg("val.jpg", width = 800*4.5, height = 800*4.5, res = 600)
+jpeg(sprintf("val_%s.jpg", sub("s2_chl_", "", chla_conv)), width = 800*4.5, height = 800*4.5, res = 600)
 par(mar = c(5, 5, 2, 2))
 val_metrics <- plot_error_metrics(x = mu_mci$chla_corr, y = mu_mci$chla_s2, # export 800 x 860; 600 x 645 for paper
                                   xname = expression(italic("in situ") * " chl " * italic(a) * " (" * mu * "g " * L^-1 * ")"), 
@@ -559,8 +560,10 @@ val_metrics <- plot_error_metrics(x = mu_mci$chla_corr, y = mu_mci$chla_s2, # ex
                                   regr_stats = FALSE,
                                   #states = mu_mci$state,
                                   #lakes = mu_mci$comid,
-                                  xlim = c(min(mu_mci$chla_corr, mu_mci$chla_s2, na.rm = T), max(mu_mci$chla_corr, mu_mci$chla_s2, na.rm = T)),
-                                  ylim = c(min(mu_mci$chla_corr, mu_mci$chla_s2, na.rm = T), max(mu_mci$chla_corr, mu_mci$chla_s2, na.rm = T)),
+                                  #xlim = c(min(mu_mci$chla_corr, mu_mci$chla_s2, na.rm = T), max(mu_mci$chla_corr, mu_mci$chla_s2, na.rm = T)),
+                                  #ylim = c(min(mu_mci$chla_corr, mu_mci$chla_s2, na.rm = T), max(mu_mci$chla_corr, mu_mci$chla_s2, na.rm = T)),
+                                  xlim = c(0.01706488, 175.78009722), 
+                                  ylim = c(0.01706488, 175.78009722), 
                                   show_metrics = TRUE, 
                                   #xaxt="n",
                                   #yaxt="n",
@@ -568,16 +571,16 @@ val_metrics <- plot_error_metrics(x = mu_mci$chla_corr, y = mu_mci$chla_s2, # ex
                                   #col = mu_mci$sedimentf,
                                   #col = mu_mci$state_col,
                                   pch = 20)
-text(min(mu_mci$chla_corr, mu_mci$chla_s2, na.rm = T), 
-     max(mu_mci$chla_corr, mu_mci$chla_s2, na.rm = T),
+text(0.02, 
+     175.78009722,
      adj = c(0, 1),
      bquote(MAE[mult] * " = " * .(signif(val_metrics$MAE[2], digits = 3))))
-text(min(mu_mci$chla_corr, mu_mci$chla_s2, na.rm = T), 
-     80,
+text(0.02, 
+     105,
      adj = c(0, 1),
      bquote(bias[mult] * " = " * .(signif(val_metrics$bias[2], digits = 3))))
-text(min(mu_mci$chla_corr, mu_mci$chla_s2, na.rm = T), 
-     55,
+text(0.02, 
+     60,
      adj = c(0, 1),
      paste0("n = ", val_metrics$n[2]))
 dev.off()
@@ -589,6 +592,56 @@ cat(sprintf("S2 -> chl relationship: *** %s *** \nS2 regression slope = %s; inte
 #legend("bottomright", legend = unique(mu_mci$sedimentf), col = c("black", "red"), border = NULL)
 #mu_mci$pid <- 1:nrow(mu_mci)
 #text(x = mu_mci$chla_corr, y = mu_mci$chla_s2, labels = mu_mci$pid)
+
+
+###
+# MCI vs in situ chl
+#options(scipen=0) # default
+options(scipen=999)
+
+#mu_mci <- mu_mci[mu_mci$MCI >= - 0.0075, ]
+
+val_metrics <- plot_error_metrics(x = mu_mci$chla_corr, y = mu_mci$chla_s2, # export 800 x 860; 600 x 645 for paper
+                                  xname = expression(italic("in situ") * " chl " * italic(a) * " (" * mu * "g " * L^-1 * ")"), 
+                                  yname = "MCI", 
+                                  #yname = "S2-derived chlorophyll a (ug/L)", 
+                                  #yname = "S2-derived chlorophyll a (ug/L, from MCI using L1C reflectance)", 
+                                  #title = plot_title, 
+                                  equal_axes = F, 
+                                  log_axes = "", # xy, x, y, ""
+                                  log_space = F, # T, F
+                                  plot_abline = FALSE,
+                                  #text_x = min(mu_mci$chla_corr, mu_mci$chla_s2),
+                                  #text_y = ,
+                                  mape = FALSE,
+                                  rand_error = FALSE,
+                                  regr_stats = FALSE,
+                                  #states = mu_mci$state,
+                                  #lakes = mu_mci$comid,
+                                  #xlim = c(min(mu_mci$chla_corr, mu_mci$chla_s2, na.rm = T), max(mu_mci$chla_corr, mu_mci$chla_s2, na.rm = T)),
+                                  #ylim = c(min(mu_mci$chla_corr, mu_mci$chla_s2, na.rm = T), max(mu_mci$chla_corr, mu_mci$chla_s2, na.rm = T)),
+                                  xlim = c(0.01706488, 175.78009722), 
+                                  #ylim = c(0.01706488, 175.78009722), 
+                                  ylim = c(min(mu_mci$chla_s2, na.rm = T), max(mu_mci$chla_s2, na.rm = T)),
+                                  show_metrics = TRUE, 
+                                  #xaxt="n",
+                                  #yaxt="n",
+                                  col = alpha("black", 0.4), 
+                                  #col = mu_mci$sedimentf,
+                                  #col = mu_mci$state_col,
+                                  pch = 20)
+text(100, 
+     0.010,
+     adj = c(0, 1),
+     bquote("MCI = " * .(round(val_metrics$slope[1], digits = 4)) * "chl - " * .(round(- val_metrics$int[1], digits = 4))))
+text(100, 
+     0.007,
+     adj = c(0, 1),
+     bquote(R^2 * " = " * .(round(val_metrics$r.sq[1], digits = 2))))
+text(100, 
+     0.002,
+     adj = c(0, 1),
+     paste0("n = ", val_metrics$n[2]))
 
 ####
 
