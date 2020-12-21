@@ -13,7 +13,7 @@ library(scales) # for alpha transparency
 library(ggplot2)
 library(dplyr)
 
-source("C:/Users/WSalls/Desktop/Git/Sent2/error_metrics_1800611.R")
+source("C:/Users/WSALLS/Git/Sent2/error_metrics_1800611.R")
 #source("/Users/wilsonsalls/Desktop/Git/Sent2/error_metrics_1800611.R")
 
 setwd("O:/PRIV/NERL_ORD_CYAN/Sentinel2/Validation/681_imgs")
@@ -516,8 +516,8 @@ mu_mci_final <- mu_mci
 ### ---------------------------------------------------------------------------------------------------
 
 # choose chla conversion
-#chl_file <- "ontario" # ontario, erie
-#mu_mci <- read.csv(sprintf("mu_mci_finalset_2019-11-07_s2_chl_%s.csv", chl_file), stringsAsFactors = FALSE)
+chl_file <- "ontario" # ontario, erie
+mu_mci <- read.csv(sprintf("mu_mci_finalset_2019-11-07_s2_chl_%s.csv", chl_file), stringsAsFactors = FALSE)
 
 #mu_mci$month <- as.numeric(substr(mu_mci$samp_localTime, 2, 3))
 
@@ -537,7 +537,7 @@ if (offset_min == offset_max) {
 plot_title <- paste0(mci_type, ", ", chla_conv)
 
 # reset
-mu_mci <- mu_mci_final
+#mu_mci <- mu_mci_final
 mu_mci$pid <- 1:nrow(mu_mci) # for viewing point IDs
 
 

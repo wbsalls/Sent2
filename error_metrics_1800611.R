@@ -46,6 +46,17 @@ calc_mape <- function(observed, modeled) {
   return(mmape * 100)
 }
 
+calc_bias_mult <- function(observed, modeled) {
+  mbiast <- sum(modeled / observed) / length(observed)
+  return(mbiast)
+}
+
+calc_mae_mult <- function(observed, modeled) {
+  mmaet <- sum(10 ^ abs(log10(modeled / observed))) / length(observed)
+  
+  return(mmaet)
+}
+
 # ------------------
 
 calc_error_metrics <- function(x, y, log_space = TRUE, rtype = 2) {
