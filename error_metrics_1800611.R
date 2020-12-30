@@ -153,7 +153,7 @@ plot_error_metrics <- function(x, y,
   }
   # create log model to plot model abline properly
   if (log_axes == "xy") {
-    logm <- lmodel2(log(df$y) ~ log(df$x))
+    logm <- lmodel2(log10(df$y) ~ log10(df$x))
     line.int <- logm$regression.results$Intercept[rtype_plot] # *** change if switching regression type
     line.slope <- logm$regression.results$Slope[rtype_plot] # *** change if switching regression type
   } else {

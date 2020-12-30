@@ -844,6 +844,8 @@ text(x = mu_mci$chla_corr, y = mu_mci$MCI_BRR_mean, labels = rownames(mu_mci),
 
 ## residual vs. in situ value - what's happening with points above 1:1 line?
 plot(mu_mci$chla_corr, mu_mci$error_chla, xlab = "in situ chlorophyll-a (ug/l)", ylab = "chl a error (ug/L)")
+plot(mu_mci$chla_corr, abs(mu_mci$error_chla), xlab = "in situ chlorophyll-a (ug/l)", ylab = "abs chl a error (ug/L)")
+
 
 ## check high error
 mu_mci_sort <- mu_mci[order(-mu_mci$error_chla), ]
