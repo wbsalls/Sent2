@@ -252,7 +252,7 @@ mu_mci$s2_chl_split <- (mu_mci$MCI - intercept.mci) / slope.mci'
 
 # choose which MCI-chla conversion to use *******
 # using erie for now since ontario removes 28 additional negatives
-chla_conv <- "s2_chl_lotw" # <<<** s2_chl_ontario, s2_chl_erie, s2_chl_lotw, s2_chl_mollaee, s2_chl_custom, s2_chl_split; MCI
+chla_conv <- "s2_chl_ontario" # <<<** s2_chl_ontario, s2_chl_erie, s2_chl_lotw, s2_chl_mollaee, s2_chl_custom, s2_chl_split; MCI
 mu_mci$chla_s2 <- mu_mci[, which(colnames(mu_mci) == chla_conv)] # select column for s2 chla
 mu_mci$chla_conv <- chla_conv # specify which conversion used
 
@@ -517,7 +517,7 @@ mu_mci_final <- mu_mci
 
 # choose chla conversion
 chl_file <- "ontario" # ontario, erie
-mu_mci <- read.csv(sprintf("mu_mci_finalset_2019-11-07_s2_chl_%s.csv", chl_file), stringsAsFactors = FALSE)
+mu_mci <- read.csv(sprintf("mu_mci_finalset_2019-11-27_s2_chl_%s.csv", chl_file), stringsAsFactors = FALSE)
 
 #mu_mci$month <- as.numeric(substr(mu_mci$samp_localTime, 2, 3))
 
