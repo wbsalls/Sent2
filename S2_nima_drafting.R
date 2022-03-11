@@ -7,13 +7,14 @@ library(scales)
 library(plotrix)
 
 source("C:/Users/WSALLS/Git/Sent2/algorithms.R")
+source("C:/Users/WSALLS/Git/Sent2/error_metrics_220120.R")
 
 opar <- par()
 
-nima_path <- "C:/Users/WSALLS/OneDrive - Environmental Protection Agency (EPA)/Profile/Desktop/S2/Nima/"
+setwd("C:/Users/WSALLS/OneDrive - Environmental Protection Agency (EPA)/Profile/Desktop/S2")
 
-l2gen <- read.csv(file.path(nima_path, "Pahlevan_l2gen.csv"), stringsAsFactors = FALSE)
-acolite <- read.csv(file.path(nima_path, "Pahlevan_acolite.csv"), stringsAsFactors = FALSE)
+l2gen <- read.csv("Nima/Pahlevan_l2gen.csv", stringsAsFactors = FALSE)
+acolite <- read.csv("Nima/Pahlevan_acolite.csv", stringsAsFactors = FALSE)
 
 
 ## cross-check
@@ -25,31 +26,35 @@ sort(colnames(acolite)[!(colnames(acolite) %in% colnames(l2gen))])
 sort(colnames(l2gen)[!(colnames(l2gen) %in% colnames(acolite))])
 sort(colnames(l2gen)[!(colnames(l2gen) %in% colnames(acolite))])[18:34]
 
+## pick data source
+chldata <- l2gen
+
+
 ## chlorophyll
 
 # calculate MCI
-l2gen$MCI_rhot <- calc_mci(R1 = l2gen$rhot.665., R2 = l2gen$rhot.705., R3 = l2gen$rhot.740.)
-l2gen$DCI_rhot <- calc_dci(R1 = l2gen$rhot.665., R2 = l2gen$rhot.705., R3 = l2gen$rhot.740.)
-l2gen$NDCI_rhot <- calc_ndci(R1 = l2gen$rhot.665., R2 = l2gen$rhot.705.)
+chldata$MCI_rhot <- calc_mci(R1 = chldata$rhot.665., R2 = chldata$rhot.705., R3 = chldata$rhot.740.)
+chldata$DCI_rhot <- calc_dci(R1 = chldata$rhot.665., R2 = chldata$rhot.705., R3 = chldata$rhot.740.)
+chldata$NDCI_rhot <- calc_ndci(R1 = chldata$rhot.665., R2 = chldata$rhot.705.)
 
-l2gen$MCI_rhos <- calc_mci(R1 = l2gen$rhos.665., R2 = l2gen$rhos.705., R3 = l2gen$rhos.740.)
-l2gen$DCI_rhos <- calc_dci(R1 = l2gen$rhos.665., R2 = l2gen$rhos.705., R3 = l2gen$rhos.740.)
-l2gen$NDCI_rhos <- calc_ndci(R1 = l2gen$rhos.665., R2 = l2gen$rhos.705.)
+chldata$MCI_rhos <- calc_mci(R1 = chldata$rhos.665., R2 = chldata$rhos.705., R3 = chldata$rhos.740.)
+chldata$DCI_rhos <- calc_dci(R1 = chldata$rhos.665., R2 = chldata$rhos.705., R3 = chldata$rhos.740.)
+chldata$NDCI_rhos <- calc_ndci(R1 = chldata$rhos.665., R2 = chldata$rhos.705.)
 
-l2gen$MCI_Rrs <- calc_mci(R1 = l2gen$Rrs.665., R2 = l2gen$Rrs.705., R3 = l2gen$Rrs.740.)
-l2gen$DCI_Rrs <- calc_dci(R1 = l2gen$Rrs.665., R2 = l2gen$Rrs.705., R3 = l2gen$Rrs.740.)
-l2gen$NDCI_Rrs <- calc_ndci(R1 = l2gen$Rrs.665., R2 = l2gen$Rrs.705.)
+chldata$MCI_Rrs <- calc_mci(R1 = chldata$Rrs.665., R2 = chldata$Rrs.705., R3 = chldata$Rrs.740.)
+chldata$DCI_Rrs <- calc_dci(R1 = chldata$Rrs.665., R2 = chldata$Rrs.705., R3 = chldata$Rrs.740.)
+chldata$NDCI_Rrs <- calc_ndci(R1 = chldata$Rrs.665., R2 = chldata$Rrs.705.)
 
 # add chl (manually) - rhos MCI, sed not removed
-l2gen$chla_rhos <- (l2gen$MCI_rhos + 0.00069) / 0.00017 # coefficients from rhos_noSed calibration
+chldata$chla_rhos <- (chldata$MCI_rhos + 0.00069) / 0.00017 # coefficients from rhos_noSed calibration
 
 # error
-l2gen$chla_err_add <- l2gen$chla_rhos - l2gen$In.Situ.chl
-l2gen$chla_err_mult <- l2gen$chla_rhos / l2gen$In.Situ.chl
+chldata$chla_err_add <- chldata$chla_rhos - chldata$In.Situ.chl
+chldata$chla_err_mult <- chldata$chla_rhos / chldata$In.Situ.chl
 
 
-hist(l2gen$chla_err_add)
-hist(l2gen$chla_err_mult)
+hist(chldata$chla_err_add)
+hist(chldata$chla_err_mult)
 
 
 
@@ -58,100 +63,118 @@ hist(l2gen$chla_err_mult)
 ## time density --------------------------------------------------
 # including timezone checks/correction
 
-summary(l2gen$Overpass.time.difference..minutes.)
-hist(l2gen$Overpass.time.difference..minutes. / 60)
+summary(chldata$Overpass.time.difference..minutes.)
+hist(chldata$Overpass.time.difference..minutes. / 60)
 
 
 
 # parse date/time
-l2gen$sat_year <- as.numeric(substr(l2gen$Overpass.datetime, 1, 4))
-l2gen$sat_month <- as.numeric(substr(l2gen$Overpass.datetime, 6, 7))
-l2gen$sat_day <- as.numeric(substr(l2gen$Overpass.datetime, 9, 10))
-l2gen$sat_hour <- as.numeric(substr(l2gen$Overpass.datetime, 12, 13)) +
-  round((as.numeric(substr(l2gen$Overpass.datetime, 15, 16)) / 60), 2)
-l2gen$ins_hour <- as.numeric(substr(l2gen$In.Situ.datetime, 12, 13)) +
-  round((as.numeric(substr(l2gen$In.Situ.datetime, 15, 16)) / 60), 2)
+chldata$sat_year <- as.numeric(substr(chldata$Overpass.datetime, 1, 4))
+chldata$sat_month <- as.numeric(substr(chldata$Overpass.datetime, 6, 7))
+chldata$sat_day <- as.numeric(substr(chldata$Overpass.datetime, 9, 10))
+chldata$sat_hour <- as.numeric(substr(chldata$Overpass.datetime, 12, 13)) +
+  round((as.numeric(substr(chldata$Overpass.datetime, 15, 16)) / 60), 2)
+chldata$ins_hour <- as.numeric(substr(chldata$In.Situ.datetime, 12, 13)) +
+  round((as.numeric(substr(chldata$In.Situ.datetime, 15, 16)) / 60), 2)
 
 # all
 par(mfrow = c(2, 1))
 
-hist(l2gen$sat_hour)
-plot(l2gen$In.Situ.lon, l2gen$sat_hour,
+hist(chldata$sat_hour)
+plot(chldata$In.Situ.lon, chldata$sat_hour,
      xlab = "longitude", ylab = "satellite hour") # NOTE: Overpass.datetime appears to be in UTC
 
-hist(l2gen$ins_hour)
-plot(l2gen$In.Situ.lon, l2gen$ins_hour,
+hist(chldata$ins_hour)
+plot(chldata$In.Situ.lon, chldata$ins_hour,
      xlab = "longitude", ylab = "in situ hour") # NOTE: In.Situ.datetime appears to be in local time
-hist(l2gen$ins_hour[l2gen$In.Situ.lon < -50], xlab = "in situ hour", main = "lat < -50 (US, etc.)")
-hist(l2gen$ins_hour[l2gen$In.Situ.lon > -50], xlab = "in situ hour", main = "lat > -50 (Europe, etc.)")
+hist(chldata$ins_hour[chldata$In.Situ.lon < -50], xlab = "in situ hour", main = "lat < -50 (Western Hemi)")
+hist(chldata$ins_hour[chldata$In.Situ.lon > -50], xlab = "in situ hour", main = "lat > -50 (Eastern Hemi)")
 # *** This likely means Overpass.time.difference..minutes. is incorrect, and that matchups don't fully reflect same-day
 
-plot(l2gen$In.Situ.lon, l2gen$In.Situ.lat)
+plot(chldata$In.Situ.lon, chldata$In.Situ.lat)
 
-hist(l2gen$Overpass.time.difference..minutes. / 60)
+hist(chldata$Overpass.time.difference..minutes. / 60)
 
-summary(l2gen$In.Situ.datetime - l2gen$Overpass.datetime)
+summary(chldata$In.Situ.datetime - chldata$Overpass.datetime)
 
-sum((l2gen$In.Situ.datetime - l2gen$Overpass.datetime) == l2gen$Overpass.time.difference..minutes.)
+sum((chldata$In.Situ.datetime - chldata$Overpass.datetime) == chldata$Overpass.time.difference..minutes.)
 
 
 # US
-l2gen_us <- l2gen[l2gen$In.Situ.lon < -50 & l2gen$In.Situ.lat > 25 & l2gen$In.Situ.lat < 49, ]
+chldata_us <- chldata[chldata$In.Situ.lon < -50 & chldata$In.Situ.lat > 25 & chldata$In.Situ.lat < 49, ]
 
-hist(l2gen_us$sat_hour)
-plot(l2gen_us$In.Situ.lon, l2gen_us$sat_hour)
+hist(chldata_us$sat_hour)
+plot(chldata_us$In.Situ.lon, chldata_us$sat_hour)
 
-hist(l2gen_us$ins_hour)
-plot(l2gen_us$In.Situ.lon, l2gen_us$ins_hour)
+hist(chldata_us$ins_hour)
+plot(chldata_us$In.Situ.lon, chldata_us$ins_hour)
 
-hist(l2gen_us$Overpass.time.difference..minutes. / 60)
+hist(chldata_us$Overpass.time.difference..minutes. / 60)
 
 
 
 mdays <- c(31, 28.25, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31)
-l2gen$tseriesday <- (l2gen$year - 2015)*365.25 + (l2gen$month * mean(mdays)) + l2gen$day
-hist(l2gen$tseriesday)
-l2gen$tseriesmonth <- substr(l2gen$Overpass.datetime, 1, 7)
+chldata$tseriesday <- (chldata$year - 2015)*365.25 + (chldata$month * mean(mdays)) + chldata$day
+hist(chldata$tseriesday)
+chldata$tseriesmonth <- substr(chldata$Overpass.datetime, 1, 7)
 
-plot(table(l2gen$tseriesmonth))
+plot(table(chldata$tseriesmonth))
 
+# diff data sources
+table(chldata$Database)
+length(unique(chldata$Database))
 
+table(chldata_us$Database)
+length(unique(chldata_us$Database))
+
+summary(chldata$In.Situ.lon)
+
+par(mfrow = c(4, 7), mar = c(2, 2, 2, 1))
+for (d in unique(chldata$Database)) {
+  chldata_d <- chldata[chldata$Database == d, ]
+  plot(chldata_d$In.Situ.lon, chldata_d$ins_hour,
+       xlim = c(-180, 180),
+       ylim = c(0, 24),
+       xlab = "longitude", ylab = "in situ hour", main = d)
+  #abline(h = c(7, 19)) # rough daylight hours in local time
+  #abline(h = c(11, 3), lty = 3) # rough daylight hours, UTC, most liberal window (EST to WDT)
+  rect(xleft = -180, ybottom = 7, xright = 180, ytop = 19, 
+       col = alpha("orange", 0.3))
+  rect(xleft = -180, ybottom = 11, xright = -50, ytop = 24, 
+       col = alpha("blue", 0.3))
+  rect(xleft = -180, ybottom = 0, xright = -50, ytop = 3, 
+       col = alpha("blue", 0.3))
+}
+#plot.new() # to fill empty plot lattice slots
+
+par(opar)
 
 ## duplicates ------------------------------------------------------------
 
-l2gen$overpass.date <- (substr(l2gen$Overpass.datetime, 1, 10))
-l2gen$insitu.date <- (substr(l2gen$In.Situ.datetime, 1, 10))
+chldata$overpass.date <- (substr(chldata$Overpass.datetime, 1, 10))
+chldata$insitu.date <- (substr(chldata$In.Situ.datetime, 1, 10))
 
 
 # no duplicates with "In.Situ.lat", "In.Situ.lon", "insitu.date"
 dup_fields <- c("In.Situ.lat", "In.Situ.lon", "insitu.date")
-l2gen_dupcols <- l2gen[, which(colnames(l2gen) %in% dup_fields)]
-sum(duplicated(l2gen_dupcols))
+chldata_dupcols <- chldata[, which(colnames(chldata) %in% dup_fields)]
+sum(duplicated(chldata_dupcols))
 
 # 3 duplicates with "In.Situ.lat", "In.Situ.lon", "Scene.ID"
 dup_fields <- c("In.Situ.lat", "In.Situ.lon", "Scene.ID")
-l2gen$dupstring <- apply(l2gen[, which(colnames(l2gen) %in% dup_fields)], 1, paste0, collapse = ",")
-sum(duplicated(l2gen$dupstring))
+chldata$dupstring <- apply(chldata[, which(colnames(chldata) %in% dup_fields)], 1, paste0, collapse = ",")
+sum(duplicated(chldata$dupstring))
 
-l2gen_duppairs <- l2gen[l2gen$dupstring %in% l2gen$dupstring[duplicated(l2gen$dupstring)], ]
-l2gen_duppairs <- l2gen_duppairs[order(l2gen_duppairs$dupstring), ]
-l2gen_duppairs[, c(dup_fields, "dupstring", "insitu.date", "Overpass.time.difference..minutes.")]
+chldata_duppairs <- chldata[chldata$dupstring %in% chldata$dupstring[duplicated(chldata$dupstring)], ]
+chldata_duppairs <- chldata_duppairs[order(chldata_duppairs$dupstring), ]
+chldata_duppairs[, c(dup_fields, "dupstring", "insitu.date", "Overpass.time.difference..minutes.")]
 
-#l2gen_duprm <- l2gen[!duplicated(l2gen_dupcols), ]
+#chldata_duprm <- chldata[!duplicated(chldata_dupcols), ]
 
 ## **being pulled from an adjacent day
 #   is that ok? I'd say no... check entire dataset for those. need to get timezones down first.
 
 
-
-for (r in 1:nrow(l2gen_dups)) {
-  these_dups <- l2gen[l2gen[, which(colnames(l2gen) %in% c(
-    "In.Situ.lat", "In.Situ.lon", "Scene.ID"
-  ))], ]
-  
-  which()
-  
-}
 
 
 
@@ -159,8 +182,8 @@ for (r in 1:nrow(l2gen_dups)) {
 
 # make point file
 
-#chlpts <- SpatialPointsDataFrame(coords = l2gen[, c("In.Situ.lon", "In.Situ.lat")], data = l2gen, proj4string = CRS("+proj=longlat +ellps=WGS84"))
-chlpts <- SpatialPointsDataFrame(coords = l2gen[, c("In.Situ.lon", "In.Situ.lat")], data = l2gen,
+#chlpts <- SpatialPointsDataFrame(coords = chldata[, c("In.Situ.lon", "In.Situ.lat")], data = chldata, proj4string = CRS("+proj=longlat +ellps=WGS84"))
+chlpts <- SpatialPointsDataFrame(coords = chldata[, c("In.Situ.lon", "In.Situ.lat")], data = chldata,
                                  proj4string = CRS("+init=epsg:4326"))
 
 
@@ -223,27 +246,27 @@ plot(chlpts_nhd, col = color.scale(log(abs(chlpts_nhd$chla_err_mult)), c(0, 1, 1
 
 par(mfrow = c(1, 2))
 
-plot(l2gen$In.Situ.lon, l2gen$In.Situ.lat)
+plot(chldata$In.Situ.lon, chldata$In.Situ.lat)
 abline(h = 25)
 abline(h = 49)
 abline(v = -50)
 
-nrow(l2gen[l2gen$In.Situ.lon < -50 & l2gen$In.Situ.lat > 25, ]) # US/Canada
-nrow(l2gen[l2gen$In.Situ.lon < -50 & l2gen$In.Situ.lat > 25 & l2gen$In.Situ.lat < 49, ]) # CONUS
-# l2gen: 1721/2808 in US/Canada; 1636 in CONUS
+nrow(chldata[chldata$In.Situ.lon < -50 & chldata$In.Situ.lat > 25, ]) # US/Canada
+nrow(chldata[chldata$In.Situ.lon < -50 & chldata$In.Situ.lat > 25 & chldata$In.Situ.lat < 49, ]) # CONUS
+# chldata: 1721/2808 in US/Canada; 1636 in CONUS
 # acolite: 2202/3053 in US/Canada; 2050 in CONUS
 
-l2gen_conus <- l2gen[l2gen$In.Situ.lon < -50 & l2gen$In.Situ.lat > 25 & l2gen$In.Situ.lat < 49, ]
-plot(l2gen_conus$In.Situ.lon, l2gen_conus$In.Situ.lat)
+chldata_conus <- chldata[chldata$In.Situ.lon < -50 & chldata$In.Situ.lat > 25 & chldata$In.Situ.lat < 49, ]
+plot(chldata_conus$In.Situ.lon, chldata_conus$In.Situ.lat)
 points(c(-92, -87.3, -86.9, -88.3, -122.3), c(46.8, 41.6, 46.2, 46, 38), col = "red")
 
 par(opar)
 
 
 
-## MCI validation ---------------------------------------------------------------
+### MCI validation ---------------------------------------------------------------
 
-chl_inds <- colnames(l2gen)[which(grepl("MCI_", colnames(l2gen)))]
+chl_inds <- colnames(chldata)[which(grepl("MCI_", colnames(chldata)))]
 
 
 par(mfrow = c(3, 2))
@@ -258,7 +281,7 @@ for (c in seq_along(chl_inds)) {
   proc_level <- substr(chl_inds[c], 5, 8)
   ra_name <- paste0(proc_level, ".665.")
   rc_name <- paste0(proc_level, ".740.")
-  this_data <- l2gen
+  this_data <- chldata
   
   # error metrics
   mc <- lm(this_data[[chl_inds[c]]] ~ this_data$In.Situ.chl)
@@ -306,12 +329,12 @@ for (c in seq_along(chl_inds)) {
 
 par(opar)
 
-plot(l2gen$In.Situ.chl, l2gen$mci_rrs, log = "", main = "MCI",
+plot(chldata$In.Situ.chl, chldata$mci_rrs, log = "", main = "MCI",
      ylim = c(-0.02, 0.02))
-#ylim = c(min(l2gen$mci_rrs, l2gen$dci_rrs, na.rm = T), max(l2gen$mci_rrs, l2gen$dci_rrs, na.rm = T)))
-plot(l2gen$In.Situ.chl, l2gen$dci_rrs, log = "", main = "DCI",
+#ylim = c(min(chldata$mci_rrs, chldata$dci_rrs, na.rm = T), max(chldata$mci_rrs, chldata$dci_rrs, na.rm = T)))
+plot(chldata$In.Situ.chl, chldata$dci_rrs, log = "", main = "DCI",
      ylim = c(-0.02, 0.02))
-#ylim = c(min(l2gen$mci_rrs, l2gen$dci_rrs, na.rm = T), max(l2gen$mci_rrs, l2gen$dci_rrs, na.rm = T)))
+#ylim = c(min(chldata$mci_rrs, chldata$dci_rrs, na.rm = T), max(chldata$mci_rrs, chldata$dci_rrs, na.rm = T)))
 
 abline(0.0012, 0.0002) #ontario
 abline(0.0021, 0.0004) #erie
@@ -321,20 +344,20 @@ slope.mci <- 0.0004 # from Binding et al. 2013 - Erie # 2500
 intercept.mci <- 0.0021 # from Binding et al. 2013 - Erie # 10.5
 
 
-mlm <- lm(l2gen$mci_rrs ~ l2gen$In.Situ.chl)
+mlm <- lm(chldata$mci_rrs ~ chldata$In.Situ.chl)
 summary(mlm)
 
-dlm <- lm(l2gen$dci_rrs ~ l2gen$In.Situ.chl)
+dlm <- lm(chldata$dci_rrs ~ chldata$In.Situ.chl)
 summary(dlm)
 
 
-val_metrics <- plot_error_metrics(x = l2gen$In.Situ.chl, y = l2gen$dci_rrs, # export 800 x 860; 600 x 645 for paper
+val_metrics <- plot_error_metrics(x = chldata$In.Situ.chl, y = chldata$chla_rhos, # export 800 x 860; 600 x 645 for paper
                                   #xname = expression(italic("in situ") * " chl " * italic(a) * " (" * mu * "g " * L^-1 * ")"), 
                                   #yname = expression("S2-derived chl " * italic(a) * " (" * mu * "g " * L^-1 * ")"), 
                                   #yname = "S2-derived chlorophyll a (ug/L)", 
                                   #yname = "S2-derived chlorophyll a (ug/L, from MCI using L1C reflectance)", 
                                   #title = plot_title, 
-                                  equal_axes = F, 
+                                  equal_axes = TRUE, 
                                   log_axes = "xy", # xy, x, y, ""
                                   log_space = TRUE, # T, F
                                   plot_abline = TRUE,
@@ -355,3 +378,19 @@ val_metrics <- plot_error_metrics(x = l2gen$In.Situ.chl, y = l2gen$dci_rrs, # ex
                                   #col = mu_mci$sedimentf,
                                   #col = mu_mci$state_col,
                                   pch = 20)
+
+### plot Seegers data
+
+seegers <- read.csv("CyANChlBS_Matchups_2021June23.csv", stringsAsFactors = FALSE)
+
+seegers$MERIS_chl <- 6620 * seegers$MERIS_ci_cyano - 3.1
+
+# add to existing plot
+plot(seegers$chl, seegers$MERIS_chl, add = TRUE)
+
+# separate plotting
+plot(seegers$chl, seegers$MERIS_chl, 
+     xlim = c(0, 150), ylim = c(0, 150))
+plot(chldata$In.Situ.chl, chldata$chla_rhos, 
+     xlim = c(0, 150), ylim = c(0, 150))
+
