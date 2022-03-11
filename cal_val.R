@@ -68,6 +68,10 @@ cal_val <- function(obs, p1,
     val_set$pred[val_set$pred < 0] <- 0.00001
   }
   
+  if (is.null(xylim_val)) {
+    xylim_val <- c(0.01, max(c(val_set$obs, val_set$pred), na.rm = TRUE))
+  }
+  
   # validation metrics & plot
   val_metrics <- plot_error_metrics(x = val_set$obs, y = val_set$pred,
                                     xname = expression(italic("in situ") * " chl " * italic(a) * " (" * mu * "g " * L^-1 * ")"), 

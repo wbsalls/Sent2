@@ -11,6 +11,11 @@ calc_baseline_slope <- function(R1, R3, w1 = 665, w3 = 740) {
   return(bslope)
 }
 
+calc_ndci <- function(R1, R2) {
+  ndci <- (R2 - R1) / (R2 + R1)
+  return(ndci)
+}
+
 
 calc_dci <- function(R1, R2, R3, w1 = 665, w2 = 705, w3 = 740) {
   if (NA %in% c(R1, R2, R3)) {

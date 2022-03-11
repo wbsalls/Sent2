@@ -1,4 +1,12 @@
 
+library(sp)
+library(rgdal)
+library(rgeos)
+library(rnaturalearth)
+library(scales)
+library(plotrix)
+
+source("C:/Users/WSALLS/Git/Sent2/algorithms.R")
 
 opar <- par()
 
@@ -17,33 +25,60 @@ sort(colnames(acolite)[!(colnames(acolite) %in% colnames(l2gen))])
 sort(colnames(l2gen)[!(colnames(l2gen) %in% colnames(acolite))])
 sort(colnames(l2gen)[!(colnames(l2gen) %in% colnames(acolite))])[18:34]
 
+## chlorophyll
+
+# calculate MCI
+l2gen$MCI_rhot <- calc_mci(R1 = l2gen$rhot.665., R2 = l2gen$rhot.705., R3 = l2gen$rhot.740.)
+l2gen$DCI_rhot <- calc_dci(R1 = l2gen$rhot.665., R2 = l2gen$rhot.705., R3 = l2gen$rhot.740.)
+l2gen$NDCI_rhot <- calc_ndci(R1 = l2gen$rhot.665., R2 = l2gen$rhot.705.)
+
+l2gen$MCI_rhos <- calc_mci(R1 = l2gen$rhos.665., R2 = l2gen$rhos.705., R3 = l2gen$rhos.740.)
+l2gen$DCI_rhos <- calc_dci(R1 = l2gen$rhos.665., R2 = l2gen$rhos.705., R3 = l2gen$rhos.740.)
+l2gen$NDCI_rhos <- calc_ndci(R1 = l2gen$rhos.665., R2 = l2gen$rhos.705.)
+
+l2gen$MCI_Rrs <- calc_mci(R1 = l2gen$Rrs.665., R2 = l2gen$Rrs.705., R3 = l2gen$Rrs.740.)
+l2gen$DCI_Rrs <- calc_dci(R1 = l2gen$Rrs.665., R2 = l2gen$Rrs.705., R3 = l2gen$Rrs.740.)
+l2gen$NDCI_Rrs <- calc_ndci(R1 = l2gen$Rrs.665., R2 = l2gen$Rrs.705.)
+
+# add chl (manually) - rhos MCI, sed not removed
+l2gen$chla_rhos <- (l2gen$MCI_rhos + 0.00069) / 0.00017 # coefficients from rhos_noSed calibration
+
+# error
+l2gen$chla_err_add <- l2gen$chla_rhos - l2gen$In.Situ.chl
+l2gen$chla_err_mult <- l2gen$chla_rhos / l2gen$In.Situ.chl
+
+
+hist(l2gen$chla_err_add)
+hist(l2gen$chla_err_mult)
+
+
 
 ## duplicates
 
 l2gen$overpass.date <- (substr(l2gen$Overpass.datetime, 1, 10))
 l2gen$insitu.date <- (substr(l2gen$In.Situ.datetime, 1, 10))
 
-# with these four columns - none!
-l2gen_dupfields <- l2gen[, which(colnames(l2gen) %in% c(
-  "In.Situ.lat", "In.Situ.lon", "Scene.ID", "insitu.date"
-))]
-l2gen_duprm <- l2gen[!duplicated(l2gen_dupfields), ]
 
 # no duplicates with "In.Situ.lat", "In.Situ.lon", "insitu.date"
-l2gen_dupfields <- l2gen[, which(colnames(l2gen) %in% c(
-  "In.Situ.lat", "In.Situ.lon", "insitu.date"
-))]
-l2gen_duprm <- l2gen[!duplicated(l2gen_dupfields), ]
+dup_fields <- c("In.Situ.lat", "In.Situ.lon", "insitu.date")
+l2gen_dupcols <- l2gen[, which(colnames(l2gen) %in% dup_fields)]
+sum(duplicated(l2gen_dupcols))
 
 # 3 duplicates with "In.Situ.lat", "In.Situ.lon", "Scene.ID"
-l2gen_dupfields <- l2gen[, which(colnames(l2gen) %in% c(
-  "In.Situ.lat", "In.Situ.lon", "Scene.ID"
-))]
-l2gen_duprm <- l2gen[!duplicated(l2gen_dupfields), ]
-l2gen_dups <- l2gen[duplicated(l2gen_dupfields), ]
+dup_fields <- c("In.Situ.lat", "In.Situ.lon", "Scene.ID")
+l2gen$dupstring <- apply(l2gen[, which(colnames(l2gen) %in% dup_fields)], 1, paste0, collapse = ",")
+sum(duplicated(l2gen$dupstring))
 
-## **check what's up with these dups. probably being pulled from an adjacent day
+l2gen_duppairs <- l2gen[l2gen$dupstring %in% l2gen$dupstring[duplicated(l2gen$dupstring)], ]
+l2gen_duppairs <- l2gen_duppairs[order(l2gen_duppairs$dupstring), ]
+l2gen_duppairs[, c(dup_fields, "dupstring", "insitu.date", "Overpass.time.difference..minutes.")]
+
+#l2gen_duprm <- l2gen[!duplicated(l2gen_dupcols), ]
+
+## **being pulled from an adjacent day
 #   is that ok? I'd say no... check entire dataset for those
+
+
 
 for (r in 1:nrow(l2gen_dups)) {
   these_dups <- l2gen[l2gen[, which(colnames(l2gen) %in% c(
@@ -55,10 +90,11 @@ for (r in 1:nrow(l2gen_dups)) {
 }
 
 
-## time density
+## time density --------------------------------------------------
 
 summary(l2gen$Overpass.time.difference..minutes.)
-hist(l2gen$Overpass.time.difference..minutes.)
+hist(l2gen$Overpass.time.difference..minutes. / 60)
+
 
 
 # parse date/time
@@ -71,14 +107,26 @@ l2gen$ins_hour <- as.numeric(substr(l2gen$In.Situ.datetime, 12, 13)) +
   round((as.numeric(substr(l2gen$In.Situ.datetime, 15, 16)) / 60), 2)
 
 # all
+par(mfrow = c(2, 1))
+
 hist(l2gen$sat_hour)
-plot(l2gen$In.Situ.lon, l2gen$sat_hour) # NOTE: Overpass.datetime is in UTC
+plot(l2gen$In.Situ.lon, l2gen$sat_hour,
+     xlab = "longitude", ylab = "satellite hour") # NOTE: Overpass.datetime appears to be in UTC
 
 hist(l2gen$ins_hour)
-plot(l2gen$In.Situ.lon, l2gen$ins_hour) # NOTE: In.Situ.datetime appears to be in local time
-# *** This may mean a discrepancy in time difference
+plot(l2gen$In.Situ.lon, l2gen$ins_hour,
+     xlab = "longitude", ylab = "in situ hour") # NOTE: In.Situ.datetime appears to be in local time
+hist(l2gen$ins_hour[l2gen$In.Situ.lon < -50], xlab = "in situ hour", main = "lat < -50 (US, etc.)")
+hist(l2gen$ins_hour[l2gen$In.Situ.lon > -50], xlab = "in situ hour", main = "lat > -50 (Europe, etc.)")
+# *** This likely means Overpass.time.difference..minutes. is incorrect, and that matchups don't fully reflect same-day
+
+plot(l2gen$In.Situ.lon, l2gen$In.Situ.lat)
 
 hist(l2gen$Overpass.time.difference..minutes. / 60)
+
+summary(l2gen$In.Situ.datetime - l2gen$Overpass.datetime)
+
+sum((l2gen$In.Situ.datetime - l2gen$Overpass.datetime) == l2gen$Overpass.time.difference..minutes.)
 
 
 # US
@@ -102,7 +150,7 @@ l2gen$tseriesmonth <- substr(l2gen$Overpass.datetime, 1, 7)
 plot(table(l2gen$tseriesmonth))
 
 
-## space
+## rough space
 
 par(mfrow = c(1, 2))
 
@@ -122,17 +170,72 @@ points(c(-92, -87.3, -86.9, -88.3, -122.3), c(46.8, 41.6, 46.2, 46, 38), col = "
 
 par(opar)
 
+
+## geospatial --------------------------------------------------
+
+# make point file
+
+#chlpts <- SpatialPointsDataFrame(coords = l2gen[, c("In.Situ.lon", "In.Situ.lat")], data = l2gen, proj4string = CRS("+proj=longlat +ellps=WGS84"))
+chlpts <- SpatialPointsDataFrame(coords = l2gen[, c("In.Situ.lon", "In.Situ.lat")], data = l2gen,
+                                 proj4string = CRS("+init=epsg:4326"))
+
+
+world <- ne_countries(scale = "medium", returnclass = "sp")
+#us <- world[world$admin == "United States of America", ]
+
+plot(world, border = "gray")
+plot(chlpts, col = alpha("red", 0.3), pch = 20, add = TRUE)
+plot(chlpts, col = color.scale(chlpts$chla_err_add, c(0, 1, 1), c(1, 1, 0), 0), pch = 20, add = TRUE)
+plot(chlpts, col = color.scale(log(abs(chlpts$chla_err_add)), c(0, 1, 1), c(1, 1, 0), 0), pch = 20, add = TRUE)
+plot(chlpts, col = color.scale(chlpts$chla_err_mult, c(0, 1, 1), c(1, 1, 0), 0), pch = 20, add = TRUE)
+plot(chlpts, col = color.scale(log(abs(chlpts$chla_err_mult)), c(0, 1, 1) ,c(1, 1, 0), 0), pch = 20, add = TRUE)
+
+
+
+## NHD lakes
+
+# read in MERIS resolvable lakes shapefile (revised version from Erin and Blake) - for shore dist.
+nhd <- readOGR(dsn = "C:/Users/WSALLS/OneDrive - Environmental Protection Agency (EPA)/Profile/Desktop/S2/geosp/NHD_NLA_shoredist",
+               layer = "nhd_nla_subset_shore_dist")
+nhd_backup <- nhd
+
+# transform CRS of NHD and points 
+nhd_aea <- spTransform(nhd, proj4string(CRS("+init=epsg:5070")))
+chlpts_aea <- spTransform(chlpts, proj4string(CRS("+init=epsg:5070")))
+identicalCRS(chlpts_aea, nhd_aea)
+
+# filter points to those within NHD lakes
+chlpts_nhd <- chlpts_aea[nhd_aea, ]
+plot(chlpts_nhd)
+
+# convert lake polygons to lines for calculating distance from shore
+nhd_lines <- as(nhd_aea, "SpatialLines")
+
+# calculate distance to shore ***
+chlpts_nhd$dist_shore_m <- NA
+
+for (p in 1:nrow(chlpts_nhd)) {
+  chlpts_nhd$dist_shore_m[p] <- gDistance(chlpts_nhd[p, ], nhd_lines)
+  
+  if (p %% 10 == 0) {
+    print(sprintf("%s of %s done", p, nrow(chlpts_nhd)))
+  }
+}
+
+# shore dist filtering
+sum(chlpts_nhd$dist_shore_m < 30) # 2
+chlpts_nhd$dist_shore_m[chlpts_nhd$dist_shore_m < 30] # 0.3900913 3.9619915
+chlpts_nhd <- chlpts_nhd[chlpts_nhd$dist_shore_m > 30, ]
+
+# plotting points in NHD lakes
+plot(chlpts_nhd, col = color.scale(chlpts_nhd$chla_err_add, c(0, 1, 1), c(1, 1, 0), 0), pch = 20)
+plot(chlpts_nhd, col = color.scale(log(abs(chlpts_nhd$chla_err_add)), c(0, 1, 1), c(1, 1, 0), 0), pch = 20, add = TRUE)
+plot(chlpts_nhd, col = color.scale(chlpts_nhd$chla_err_mult, c(0, 1, 1), c(1, 1, 0), 0), pch = 20, add = TRUE)
+plot(chlpts_nhd, col = color.scale(log(abs(chlpts_nhd$chla_err_mult)), c(0, 1, 1) ,c(1, 1, 0), 0), pch = 20, add = TRUE)
+
+
+
 ## MCI validation
-
-l2gen$MCI_rhot <- calc_mci(R1 = l2gen$rhot.665., R2 = l2gen$rhot.705., R3 = l2gen$rhot.740.)
-l2gen$DCI_rhot <- calc_dci(R1 = l2gen$rhot.665., R2 = l2gen$rhot.705., R3 = l2gen$rhot.740.)
-
-l2gen$MCI_rhos <- calc_mci(R1 = l2gen$rhos.665., R2 = l2gen$rhos.705., R3 = l2gen$rhos.740.)
-l2gen$DCI_rhos <- calc_dci(R1 = l2gen$rhos.665., R2 = l2gen$rhos.705., R3 = l2gen$rhos.740.)
-
-l2gen$MCI_Rrs <- calc_mci(R1 = l2gen$Rrs.665., R2 = l2gen$Rrs.705., R3 = l2gen$Rrs.740.)
-l2gen$DCI_Rrs <- calc_dci(R1 = l2gen$Rrs.665., R2 = l2gen$Rrs.705., R3 = l2gen$Rrs.740.)
-
 
 chl_inds <- colnames(l2gen)[which(grepl("MCI_", colnames(l2gen)))]
 
