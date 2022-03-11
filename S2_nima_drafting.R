@@ -53,44 +53,10 @@ hist(l2gen$chla_err_mult)
 
 
 
-## duplicates
-
-l2gen$overpass.date <- (substr(l2gen$Overpass.datetime, 1, 10))
-l2gen$insitu.date <- (substr(l2gen$In.Situ.datetime, 1, 10))
-
-
-# no duplicates with "In.Situ.lat", "In.Situ.lon", "insitu.date"
-dup_fields <- c("In.Situ.lat", "In.Situ.lon", "insitu.date")
-l2gen_dupcols <- l2gen[, which(colnames(l2gen) %in% dup_fields)]
-sum(duplicated(l2gen_dupcols))
-
-# 3 duplicates with "In.Situ.lat", "In.Situ.lon", "Scene.ID"
-dup_fields <- c("In.Situ.lat", "In.Situ.lon", "Scene.ID")
-l2gen$dupstring <- apply(l2gen[, which(colnames(l2gen) %in% dup_fields)], 1, paste0, collapse = ",")
-sum(duplicated(l2gen$dupstring))
-
-l2gen_duppairs <- l2gen[l2gen$dupstring %in% l2gen$dupstring[duplicated(l2gen$dupstring)], ]
-l2gen_duppairs <- l2gen_duppairs[order(l2gen_duppairs$dupstring), ]
-l2gen_duppairs[, c(dup_fields, "dupstring", "insitu.date", "Overpass.time.difference..minutes.")]
-
-#l2gen_duprm <- l2gen[!duplicated(l2gen_dupcols), ]
-
-## **being pulled from an adjacent day
-#   is that ok? I'd say no... check entire dataset for those
-
-
-
-for (r in 1:nrow(l2gen_dups)) {
-  these_dups <- l2gen[l2gen[, which(colnames(l2gen) %in% c(
-    "In.Situ.lat", "In.Situ.lon", "Scene.ID"
-  ))], ]
-  
-  which()
-  
-}
 
 
 ## time density --------------------------------------------------
+# including timezone checks/correction
 
 summary(l2gen$Overpass.time.difference..minutes.)
 hist(l2gen$Overpass.time.difference..minutes. / 60)
@@ -150,25 +116,43 @@ l2gen$tseriesmonth <- substr(l2gen$Overpass.datetime, 1, 7)
 plot(table(l2gen$tseriesmonth))
 
 
-## rough space
 
-par(mfrow = c(1, 2))
+## duplicates ------------------------------------------------------------
 
-plot(l2gen$In.Situ.lon, l2gen$In.Situ.lat)
-abline(h = 25)
-abline(h = 49)
-abline(v = -50)
+l2gen$overpass.date <- (substr(l2gen$Overpass.datetime, 1, 10))
+l2gen$insitu.date <- (substr(l2gen$In.Situ.datetime, 1, 10))
 
-nrow(l2gen[l2gen$In.Situ.lon < -50 & l2gen$In.Situ.lat > 25, ]) # US/Canada
-nrow(l2gen[l2gen$In.Situ.lon < -50 & l2gen$In.Situ.lat > 25 & l2gen$In.Situ.lat < 49, ]) # CONUS
-# l2gen: 1721/2808 in US/Canada; 1636 in CONUS
-# acolite: 2202/3053 in US/Canada; 2050 in CONUS
 
-l2gen_conus <- l2gen[l2gen$In.Situ.lon < -50 & l2gen$In.Situ.lat > 25 & l2gen$In.Situ.lat < 49, ]
-plot(l2gen_conus$In.Situ.lon, l2gen_conus$In.Situ.lat)
-points(c(-92, -87.3, -86.9, -88.3, -122.3), c(46.8, 41.6, 46.2, 46, 38), col = "red")
+# no duplicates with "In.Situ.lat", "In.Situ.lon", "insitu.date"
+dup_fields <- c("In.Situ.lat", "In.Situ.lon", "insitu.date")
+l2gen_dupcols <- l2gen[, which(colnames(l2gen) %in% dup_fields)]
+sum(duplicated(l2gen_dupcols))
 
-par(opar)
+# 3 duplicates with "In.Situ.lat", "In.Situ.lon", "Scene.ID"
+dup_fields <- c("In.Situ.lat", "In.Situ.lon", "Scene.ID")
+l2gen$dupstring <- apply(l2gen[, which(colnames(l2gen) %in% dup_fields)], 1, paste0, collapse = ",")
+sum(duplicated(l2gen$dupstring))
+
+l2gen_duppairs <- l2gen[l2gen$dupstring %in% l2gen$dupstring[duplicated(l2gen$dupstring)], ]
+l2gen_duppairs <- l2gen_duppairs[order(l2gen_duppairs$dupstring), ]
+l2gen_duppairs[, c(dup_fields, "dupstring", "insitu.date", "Overpass.time.difference..minutes.")]
+
+#l2gen_duprm <- l2gen[!duplicated(l2gen_dupcols), ]
+
+## **being pulled from an adjacent day
+#   is that ok? I'd say no... check entire dataset for those. need to get timezones down first.
+
+
+
+for (r in 1:nrow(l2gen_dups)) {
+  these_dups <- l2gen[l2gen[, which(colnames(l2gen) %in% c(
+    "In.Situ.lat", "In.Situ.lon", "Scene.ID"
+  ))], ]
+  
+  which()
+  
+}
+
 
 
 ## geospatial --------------------------------------------------
@@ -235,7 +219,29 @@ plot(chlpts_nhd, col = color.scale(log(abs(chlpts_nhd$chla_err_mult)), c(0, 1, 1
 
 
 
-## MCI validation
+### rough space
+
+par(mfrow = c(1, 2))
+
+plot(l2gen$In.Situ.lon, l2gen$In.Situ.lat)
+abline(h = 25)
+abline(h = 49)
+abline(v = -50)
+
+nrow(l2gen[l2gen$In.Situ.lon < -50 & l2gen$In.Situ.lat > 25, ]) # US/Canada
+nrow(l2gen[l2gen$In.Situ.lon < -50 & l2gen$In.Situ.lat > 25 & l2gen$In.Situ.lat < 49, ]) # CONUS
+# l2gen: 1721/2808 in US/Canada; 1636 in CONUS
+# acolite: 2202/3053 in US/Canada; 2050 in CONUS
+
+l2gen_conus <- l2gen[l2gen$In.Situ.lon < -50 & l2gen$In.Situ.lat > 25 & l2gen$In.Situ.lat < 49, ]
+plot(l2gen_conus$In.Situ.lon, l2gen_conus$In.Situ.lat)
+points(c(-92, -87.3, -86.9, -88.3, -122.3), c(46.8, 41.6, 46.2, 46, 38), col = "red")
+
+par(opar)
+
+
+
+## MCI validation ---------------------------------------------------------------
 
 chl_inds <- colnames(l2gen)[which(grepl("MCI_", colnames(l2gen)))]
 
