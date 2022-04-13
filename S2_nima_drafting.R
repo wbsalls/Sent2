@@ -26,6 +26,7 @@ sort(colnames(acolite)[!(colnames(acolite) %in% colnames(l2gen))])
 sort(colnames(l2gen)[!(colnames(l2gen) %in% colnames(acolite))])
 sort(colnames(l2gen)[!(colnames(l2gen) %in% colnames(acolite))])[18:34]
 
+
 ## pick data source
 chldata <- l2gen
 
@@ -34,16 +35,17 @@ chldata <- l2gen
 
 # calculate MCI
 chldata$MCI_rhot <- calc_mci(R1 = chldata$rhot.665., R2 = chldata$rhot.705., R3 = chldata$rhot.740.)
-chldata$DCI_rhot <- calc_dci(R1 = chldata$rhot.665., R2 = chldata$rhot.705., R3 = chldata$rhot.740.)
 chldata$NDCI_rhot <- calc_ndci(R1 = chldata$rhot.665., R2 = chldata$rhot.705.)
+#chldata$DCI_rhot <- calc_dci(R1 = chldata$rhot.665., R2 = chldata$rhot.705., R3 = chldata$rhot.740.)
 
 chldata$MCI_rhos <- calc_mci(R1 = chldata$rhos.665., R2 = chldata$rhos.705., R3 = chldata$rhos.740.)
-chldata$DCI_rhos <- calc_dci(R1 = chldata$rhos.665., R2 = chldata$rhos.705., R3 = chldata$rhos.740.)
 chldata$NDCI_rhos <- calc_ndci(R1 = chldata$rhos.665., R2 = chldata$rhos.705.)
+#chldata$DCI_rhos <- calc_dci(R1 = chldata$rhos.665., R2 = chldata$rhos.705., R3 = chldata$rhos.740.)
 
 chldata$MCI_Rrs <- calc_mci(R1 = chldata$Rrs.665., R2 = chldata$Rrs.705., R3 = chldata$Rrs.740.)
-chldata$DCI_Rrs <- calc_dci(R1 = chldata$Rrs.665., R2 = chldata$Rrs.705., R3 = chldata$Rrs.740.)
 chldata$NDCI_Rrs <- calc_ndci(R1 = chldata$Rrs.665., R2 = chldata$Rrs.705.)
+#chldata$DCI_Rrs <- calc_dci(R1 = chldata$Rrs.665., R2 = chldata$Rrs.705., R3 = chldata$Rrs.740.)
+
 
 # add chl (manually) - rhos MCI, sed not removed
 chldata$chla_rhos <- (chldata$MCI_rhos + 0.00069) / 0.00017 # coefficients from rhos_noSed calibration
@@ -63,6 +65,58 @@ hist(chldata$chla_err_mult)
 ## time density --------------------------------------------------
 # including timezone checks/correction
 
+
+## correct time of select data sources
+
+
+# convert in situ and sat times to posix
+
+ETsources <- c("Boston_Harbor", "CBP", "EOTB", "Lake_Erie08", "St_Johns")
+CTsources <- c("Wisconsin")
+PTsources <- c(c("sfbay", "sfbay2"))
+
+chldataET <- chldata[chldata$Database %in% ETsources, ]
+
+chldataET$In.Situ.datetime_UTC[chldataET$Database %in% ETsources] <- 
+  as.POSIXct(chldataET$In.Situ.datetime[chldataET$Database %in% ETsources], tz = "America/New_York")
+
+chldataET$In.Situ.datetime_UTC[1:10]
+as.POSIXct(chldataET$In.Situ.datetime[1:10], tz = "America/New_York")
+
+as_datetime(1438692120)
+
+#
+chldata$In.Situ.datetime_UTC <- NA
+
+chldata$In.Situ.datetime_UTC[chldata$Database %in% ETsources] <- 
+  as.POSIXct(chldata$In.Situ.datetime[chldata$Database %in% ETsources], tz = "America/New_York")
+chldata$In.Situ.datetime_UTC[chldata$Database %in% CTsources] <- 
+  as.POSIXct(chldata$In.Situ.datetime[chldata$Database %in% CTsources], tz = "America/Chicago")
+chldata$In.Situ.datetime_UTC[chldata$Database %in% PTsources] <- 
+  as.POSIXct(chldata$In.Situ.datetime[chldata$Database %in% PTsources], tz = "America/Los_Angeles")
+chldata$In.Situ.datetime_UTC[!(chldata$Database %in% c(ETsources, CTsources, PTsources))] <- 
+  as.POSIXct(chldata$In.Situ.datetime[!(chldata$Database %in% c(ETsources, CTsources, PTsources))], tz = "UTC")
+
+#
+testtime <- as.POSIXct("2016-02-05 15:38:00", tz = "America/New_York")
+as.POSIXct(format(testtime, tz="UTC", usetz=TRUE), tz = "UTC")
+
+
+class(chldata$Overpass.datetime)
+as.POSIXct("2015-07-26 16:02:34", tz = "GMT")
+
+
+# create new in situ time col with adjusted select data sources using tz_corr
+
+
+# create new diff col with updated diffs
+
+
+# check for non-same-day
+
+
+
+##
 summary(chldata$Overpass.time.difference..minutes.)
 hist(chldata$Overpass.time.difference..minutes. / 60)
 
@@ -137,7 +191,7 @@ for (d in unique(chldata$Database)) {
        ylim = c(0, 24),
        xlab = "longitude", ylab = "in situ hour", main = d)
   #abline(h = c(7, 19)) # rough daylight hours in local time
-  #abline(h = c(11, 3), lty = 3) # rough daylight hours, UTC, most liberal window (EST to WDT)
+  #abline(h = c(11, 3), lty = 3) # rough daylight hours in the US, UTC, most liberal window (EST to WDT)
   rect(xleft = -180, ybottom = 7, xright = 180, ytop = 19, 
        col = alpha("orange", 0.3))
   rect(xleft = -180, ybottom = 11, xright = -50, ytop = 24, 
@@ -202,7 +256,7 @@ plot(chlpts, col = color.scale(log(abs(chlpts$chla_err_mult)), c(0, 1, 1) ,c(1, 
 ## NHD lakes
 
 # read in MERIS resolvable lakes shapefile (revised version from Erin and Blake) - for shore dist.
-nhd <- readOGR(dsn = "C:/Users/WSALLS/OneDrive - Environmental Protection Agency (EPA)/Profile/Desktop/S2/geosp/NHD_NLA_shoredist",
+nhd <- readOGR(dsn = "C:/Users/WSALLS/OneDrive - Environmental Protection Agency (EPA)/Profile/Desktop/geospatial_general/NHD_NLA_shoredist",
                layer = "nhd_nla_subset_shore_dist")
 nhd_backup <- nhd
 
@@ -265,6 +319,15 @@ par(opar)
 
 
 ### MCI validation ---------------------------------------------------------------
+
+## test boostrapping
+
+library(boot)
+
+
+
+
+## automated all
 
 chl_inds <- colnames(chldata)[which(grepl("MCI_", colnames(chldata)))]
 

@@ -66,7 +66,7 @@ for (c in seq_along(chl_inds)) {
   valc <- cal_val(obs = this_data$In.Situ.chl, p1 = this_data[[chl_inds[c]]], 
                   portion_cal = 0.8, main = chl_inds[c], 
                   neg.rm = TRUE,
-                  neg_0 = FALSE,
+                  negs2zero = FALSE,
                   log_axes_val = "xy",
                   xlim_cal = range(chldata$In.Situ.chl, na.rm = TRUE), 
                   ylim_cal = c(-1, 1), #range(chldata[, which(colnames(chldata) %in% chl_inds)], na.rm = TRUE), #c(-1, 1), #
@@ -85,7 +85,7 @@ for (c in seq_along(chl_inds)) {
     valc <- cal_val(obs = this_data$In.Situ.chl, p1 = this_data[[chl_inds[c]]], 
                     portion_cal = 0.8, main = paste0(chl_inds[c], "_noSed"),
                     neg.rm = TRUE,
-                    neg_0 = FALSE,
+                    negs2zero = FALSE,
                     log_axes_val = "xy",
                     xlim_cal = range(chldata$In.Situ.chl, na.rm = TRUE), 
                     ylim_cal = c(-1, 1), #range(chldata[, which(colnames(chldata) %in% chl_inds)], na.rm = TRUE), #c(-1, 1), #

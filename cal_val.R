@@ -7,7 +7,7 @@ cal_val <- function(obs, p1,
                     portion_cal = 0.8, 
                     set_seed = TRUE, 
                     neg.rm = TRUE, 
-                    neg_0 = FALSE,
+                    negs2zero = FALSE,
                     main = NULL, 
                     log_axes_val = "xy",
                     xlim_cal = range(obs, na.rm = TRUE), 
@@ -60,7 +60,7 @@ cal_val <- function(obs, p1,
   
   n_neg <- sum(val_set$pred < 0)
   
-  if (!neg_0) {
+  if (!negs2zero) {
     print(sprintf("Removing %s negative S2 chl a values", n_neg))
     val_set <- val_set[val_set$pred >= 0, ]
   } else {
