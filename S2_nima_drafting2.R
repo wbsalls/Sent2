@@ -266,15 +266,18 @@ plot(mu_conus_sed$baseline_slope, mu_conus_sed$MCI_rhos, col = mu_conus_sed$sedc
 plot(-mu_conus_sed$baseline_slope, mu_conus_sed$MCI_rhos, col = mu_conus_sed$sedcolor, pch = 20,
      xlab = "~ sediment conc", ylab = "MCI")
 
+# write data
+write.csv(mu_conus, "C:/Users/WSALLS/OneDrive - Environmental Protection Agency (EPA)/Profile/Desktop/S2/calvalready.csv")
 
 
-
-### MCI validation ---------------------------------------------------------------
+### MCI calibration ---------------------------------------------------------------
 
 library(lmodel2)
 library(boot)
 library(scales)
 library(ggpubr)
+
+mu_conus <- read.csv("C:/Users/WSALLS/OneDrive - Environmental Protection Agency (EPA)/Profile/Desktop/S2/calvalready.csv")
 
 # preliminary linear model fits; plotting
 
@@ -302,6 +305,7 @@ abline(fitis$coefficients[1], fitis$coefficients[2], untf = TRUE)
 fitmci2 <- lmodel2((mu_conus$MCI_rhos) ~ (mu_conus$In.Situ.chl),
                    range.y = "interval", range.x = "relative")
 
+# ** this is the one
 fitis2 <- lmodel2((mu_conus$In.Situ.chl) ~ (mu_conus$MCI_rhos),
                   range.y = "relative", range.x = "interval")
 
@@ -424,12 +428,13 @@ mu_conus_val <- mu_conus[-cal_ind, ]
 cal_is <- lmodel2((mu_conus_cal$In.Situ.chl) ~ (mu_conus_cal$MCI_rhos),
                   range.y = "relative", range.x = "interval")
 
-cal_mci <- lmodel2((mu_conus_cal$MCI_rhos) ~ (mu_conus_cal$In.Situ.chl),
+'cal_mci <- lmodel2((mu_conus_cal$MCI_rhos) ~ (mu_conus_cal$In.Situ.chl),
                   range.y = "interval", range.x = "relative")
 
 # cal log
 cal_islog <- lmodel2(log(mu_conus_cal$In.Situ.chl) ~ log(mu_conus_cal$MCI_rhos_trans),
                   range.y = "interval", range.x = "interval")
+'
 
 # set MCI chla
 b0 <- cal_is$regression.results$Intercept[4]
@@ -533,16 +538,10 @@ bs <- function(data, indices, formula) {
   return(coef(fit))
 }
 
-# function to obtain regression coefficients - type 2 regression
-bs2 <- function(data, indices, formula) {
-  d <- data[indices,] # allows boot to select sample
-  fit <- lm(formula, data=d)
-  return(coef(fit))
-}
 
 # bootstrapping with 1000 replications
 boots <- boot(data = mu_conus, statistic = bs,
-              R = 1000, formula = MCI_rhos ~ In.Situ.chl)
+              R = 228, formula = In.Situ.chl ~ MCI_rhos) # conf ints only work R >= 228
 boots
 plot(boots, index=1)
 plot(boots, index=2)
@@ -676,12 +675,13 @@ val_metrics <- plot_error_metrics(x = chldata$In.Situ.chl, y = chldata$chla_rhos
 
 ### plot Seegers data
 
-seegers <- read.csv("CyANChlBS_Matchups_2021June23.csv", stringsAsFactors = FALSE)
+seegers <- read.csv("S2/CyANChlBS_Matchups_2021June23.csv", stringsAsFactors = FALSE)
 
 seegers$MERIS_chl <- 6620 * seegers$MERIS_ci_cyano - 3.1
 
 # add to existing plot
-plot(seegers$chl, seegers$MERIS_chl, add = TRUE)
+plot(seegers$chl, seegers$MERIS_chl, add = TRUE, pch = 20, col = "red")
+points(seegers$chl, seegers$MERIS_chl, add = TRUE, pch = 20, col = "red")
 
 # separate plotting
 plot(seegers$chl, seegers$MERIS_chl, 

@@ -1,4 +1,4 @@
-# using Bridget Seegers's metrics (not 10-based)
+# using Bridget Seegers's metrics
 # this version uses:
 ## model-II regression
 ## log-log transformation **
@@ -49,7 +49,7 @@ calc_rmse <- function(observed, modeled) {
 
 # ------------------
 
-calc_error_metrics <- function(x, y) {
+calc_error_metrics <- function(x, y, neg.rm = TRUE) {
   # if lengths are different, return error
   if (length(x) != length(y)) {
     print("Lengths differ! Returning -9999")
@@ -63,6 +63,13 @@ calc_error_metrics <- function(x, y) {
   # remove NAs in y from both
   y2 <- y1[!is.na(y1)]
   x2 <- x1[!is.na(y1)]
+  
+  ## remove negatives, if requested
+  if (isTRUE(neg.rm)) {
+    # remove negatives in y from both (shouldn't occur in x since in situ)
+    x2 <- x2[y2 >= 0]
+    y2 <- y2[y2 >= 0]
+  }
   
   # select regression type: 1 for OLS (usually used for Type I?); 2 for major axis regression [MA] (usually for Type II?)
   # (standard major axis [SMA] and ranged major axis [RMA] also available - both for Type II?)

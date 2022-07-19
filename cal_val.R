@@ -6,14 +6,17 @@ source("C:/Users/WSALLS/Git/Sent2/error_metrics_220120.R")
 cal_val <- function(obs, p1, 
                     portion_cal = 0.8, 
                     set_seed = TRUE, 
-                    neg.rm = TRUE, 
-                    negs2zero = FALSE,
                     main = NULL, 
-                    log_axes_val = "xy",
+                    switch_y_cal = TRUE,
+                    regr_model_cal = 2, 
                     xlim_cal = range(obs, na.rm = TRUE), 
                     ylim_cal = range(p1, na.rm = TRUE), 
+                    neg.rm = TRUE, 
+                    negs2zero = FALSE,
+                    log_axes_val = "xy",
                     xylim_val = range(obs, na.rm = TRUE), 
                     pos_text_x_val = min(obs, p1, na.rm = TRUE),
+                    pos_text_y_val = max(obs, p1, na.rm = TRUE),
                     ...) {
   
   # set seed to retain same "randomness"
@@ -38,6 +41,25 @@ cal_val <- function(obs, p1,
   mcal_Rsq <- summary(mcal)$r.squared # R-squared
   
   # calibration plot
+  if (isTRUE(switch_y_cal)) {
+    
+    plot(cal_set$p1, cal_set$obs, 
+         xlim = xlim_cal,
+         ylim = ylim_cal,
+         col = alpha("black", 0.4), 
+         pch = 20,
+         main = main,
+         ylab = expression(italic("in situ") * " chl " * italic(a) * " (" * mu * "g " * L^-1 * ")"),
+         xlab = "MCI")
+    abline(mcal_b0, mcal_b1)
+    text(80, 0, paste0("R-sq = ", round(mcal_Rsq, 3),
+                       "\nslope = ", round(mcal_b1, 5), 
+                       "\nintercept = ", round(mcal_b0, 5), 
+                       "\nn = ", length(cal_set$obs)),
+         adj = c(0, 1))
+    
+  } else {
+  
   plot(cal_set$obs, cal_set$p1, 
        xlim = xlim_cal,
        ylim = ylim_cal,
@@ -52,7 +74,7 @@ cal_val <- function(obs, p1,
                       "\nintercept = ", round(mcal_b0, 5), 
                       "\nn = ", length(cal_set$obs)),
        adj = c(0, 1))
-  
+  }
   
   
   # predict on val set
