@@ -58,17 +58,17 @@ calc_error_metrics <- function(x, y, neg.rm = TRUE) {
   
   ## remove NAs
   # remove NAs in x from both
-  x1 <- x[!is.na(x)]
-  y1 <- y[!is.na(x)]
+  x0 <- x[!is.na(x)]
+  y0 <- y[!is.na(x)]
   # remove NAs in y from both
-  y2 <- y1[!is.na(y1)]
-  x2 <- x1[!is.na(y1)]
+  y1 <- y0[!is.na(y0)]
+  x1 <- x0[!is.na(y0)]
   
   ## remove negatives, if requested
   if (isTRUE(neg.rm)) {
     # remove negatives in y from both (shouldn't occur in x since in situ)
-    x2 <- x2[y2 >= 0]
-    y2 <- y2[y2 >= 0]
+    x2 <- x1[y1 >= 0]
+    y2 <- y1[y1 >= 0]
   }
   
   # select regression type: 1 for OLS (usually used for Type I?); 2 for major axis regression [MA] (usually for Type II?)
@@ -109,7 +109,7 @@ plot_error_metrics <- function(x, y,
                                metrics_mult_space = TRUE,
                                show_mape = FALSE, 
                                show_regr_stats = FALSE,
-                               pos_text_x = min(x, y, na.rm = TRUE),
+                               pos_text_x = NULL,
                                pos_text_y = NULL,
                                print_metrics = TRUE,
                                #xaxt = xaxt,
@@ -170,7 +170,7 @@ plot_error_metrics <- function(x, y,
     abline(line.int, line.slope, untf = TRUE) # show model line, transformed to log space
     legend("bottomright", y.intersp = 0.5, c("Fit model", "y = x"), lty = c(1, 3), bty = "n")
   } else {
-    legend("bottomright", y.intersp = 0.5, "y = x", lty = 3, bty = "n")
+    #legend("bottomright", y.intersp = 0.5, "y = x", lty = 3, bty = "n")
   }
   
   # add axes if log transformed
@@ -184,26 +184,24 @@ plot_error_metrics <- function(x, y,
   
   ## add metrics text to plot
   
+  if(is.null(pos_text_x)) {
+    plot_range_x <- par('usr')[2] - par('usr')[1]
+    pos_text_x <- par('usr')[1] + plot_range_x * 0.98
+  }
+  
   if(is.null(pos_text_y)) {
-    ymin <- min(x, y, na.rm = TRUE)
-    ymax <- max(x, y, na.rm = TRUE)
-    pos_text_y <- c(ymax, 
-                    (ymax - ymin) * 1 / 2, 
-                    (ymax - ymin) * 1 / 4)
+    plot_range_y <- par('usr')[4] - par('usr')[3]
+    pos_text_y <- par('usr')[3] + plot_range_y * 0.00
   }
   
   
   
   if (show_metrics) {
-    text(x = pos_text_x, y = pos_text_y[1], 
-         adj = c(0, 1),
-         bquote(MAE[mult] * " = " * .(signif(err_metr$MAE_mult, digits = 3))))
-    text(x = pos_text_x, y = pos_text_y[2],
-         adj = c(0, 1),
-         bquote(bias[mult] * " = " * .(signif(err_metr$bias_mult, digits = 3))))
-    text(x = pos_text_x, y = pos_text_y[3],
-         adj = c(0, 1),
-         paste0("n = ", err_metr$n))
+    text(x = pos_text_x, y = pos_text_y, 
+         adj = c(1, 0), cex = 1.7,
+         bquote(atop(atop(MAE[mult] * " = " * .(signif(err_metr$MAE_mult, digits = 3)),
+                     bias[mult] * " = " * .(signif(err_metr$bias_mult, digits = 3))),
+                     atop("n = " * .(err_metr$n)))))
   }
   
   # print to console

@@ -7,16 +7,15 @@ cal_val <- function(obs, p1,
                     portion_cal = 0.8, 
                     set_seed = TRUE, 
                     main = NULL, 
+                    alg_name = names(p1),
                     switch_y_cal = TRUE,
-                    regr_model_cal = 2, 
-                    xlim_cal = range(obs, na.rm = TRUE), 
-                    ylim_cal = range(p1, na.rm = TRUE), 
+                    regr_model_cal = 4, # corresponding to lmodel2() regression type
+                    #xlim_cal = range(obs, na.rm = TRUE), 
+                    #ylim_cal = range(p1, na.rm = TRUE), 
                     neg.rm = TRUE, 
                     negs2zero = FALSE,
                     log_axes_val = "xy",
-                    xylim_val = range(obs, na.rm = TRUE), 
-                    pos_text_x_val = min(obs, p1, na.rm = TRUE),
-                    pos_text_y_val = max(obs, p1, na.rm = TRUE),
+                    xylim_val = range(obs, na.rm = TRUE),
                     ...) {
   
   # set seed to retain same "randomness"
@@ -33,52 +32,81 @@ cal_val <- function(obs, p1,
   cal_set <- full_set[cal_index, ] # select 80% for cal
   val_set <- full_set[-cal_index, ] # retain remaining 20% for val
   
-  # fit linear model; set coefficients; plot
-  mcal <- lm(cal_set$p1 ~ cal_set$obs)
-  
-  mcal_b1 <- mcal$coefficients[2] # slope
-  mcal_b0 <- mcal$coefficients[1] # intercept
-  mcal_Rsq <- summary(mcal)$r.squared # R-squared
-  
   # calibration plot
   if (isTRUE(switch_y_cal)) {
     
+    # fit linear model; set coefficients; plot
+    mcal <- lmodel2(obs ~ p1,
+                    range.y = "relative", range.x = "interval")
+    
+    mcal_b1 <- mcal$regression.results$Slope[regr_model_cal] # slope
+    mcal_b0 <- mcal$regression.results$Intercept[regr_model_cal] # intercept
+    mcal_Rsq <- mcal$rsquare # R-squared
+    
     plot(cal_set$p1, cal_set$obs, 
-         xlim = xlim_cal,
-         ylim = ylim_cal,
+         #xlim = xlim_cal,
+         #ylim = ylim_cal,
+         col = alpha("black", 0.4), 
+         pch = 20,
+         main = paste0(main, " (fit)"),
+         ylab = expression(italic("in situ") * " chl " * italic(a) * " (" * mu * "g " * L^-1 * ")"),
+         xlab = alg_name)
+    abline(mcal_b0, mcal_b1)
+    
+    calplot_range_x <- par('usr')[2] - par('usr')[1]
+    calpos_text_x <- par('usr')[1] + calplot_range_x * 0.05
+  
+    calplot_range_y <- par('usr')[4] - par('usr')[3]
+    calpos_text_y <- par('usr')[3] + calplot_range_y * 0.95
+    
+    text(x = calpos_text_x, y = calpos_text_y, 
+         paste0("R-sq = ", round(mcal_Rsq, 3),
+                "\nslope = ", round(mcal_b1, 0), 
+                "\nintercept = ", round(mcal_b0, 2), 
+                "\nn = ", length(cal_set$obs)),
+         adj = c(0, 1), cex = 1.2)
+    
+  } else {
+    
+    # fit linear model; set coefficients; plot
+    mcal <- lmodel2(p1 ~ obs,
+                    range.y = "interval", range.x = "relative")
+    
+    mcal_b1 <- mcal$regression.results$Slope[regr_model_cal] # slope
+    mcal_b0 <- mcal$regression.results$Intercept[regr_model_cal] # intercept
+    mcal_Rsq <- mcal$rsquare # R-squared
+    
+    plot(cal_set$obs, cal_set$p1, 
+         #xlim = xlim_cal,
+         #ylim = ylim_cal,
          col = alpha("black", 0.4), 
          pch = 20,
          main = main,
-         ylab = expression(italic("in situ") * " chl " * italic(a) * " (" * mu * "g " * L^-1 * ")"),
-         xlab = "MCI")
+         xlab = expression(italic("in situ") * " chl " * italic(a) * " (" * mu * "g " * L^-1 * ")"),
+         ylab = alg_name)
     abline(mcal_b0, mcal_b1)
-    text(80, 0, paste0("R-sq = ", round(mcal_Rsq, 3),
+    
+    calplot_range_x <- par('usr')[2] - par('usr')[1]
+    calpos_text_x <- par('usr')[1] + calplot_range_x * 0.05
+    
+    calplot_range_y <- par('usr')[4] - par('usr')[3]
+    calpos_text_y <- par('usr')[3] + calplot_range_y * 0.95
+    
+    text(x = calpos_text_x, y = calpos_text_y, 
+         paste0("R-sq = ", round(mcal_Rsq, 3),
                        "\nslope = ", round(mcal_b1, 5), 
                        "\nintercept = ", round(mcal_b0, 5), 
                        "\nn = ", length(cal_set$obs)),
-         adj = c(0, 1))
-    
-  } else {
-  
-  plot(cal_set$obs, cal_set$p1, 
-       xlim = xlim_cal,
-       ylim = ylim_cal,
-       col = alpha("black", 0.4), 
-       pch = 20,
-       main = main,
-       xlab = expression(italic("in situ") * " chl " * italic(a) * " (" * mu * "g " * L^-1 * ")"),
-       ylab = "MCI")
-  abline(mcal_b0, mcal_b1)
-  text(80, 0, paste0("R-sq = ", round(mcal_Rsq, 3),
-                      "\nslope = ", round(mcal_b1, 5), 
-                      "\nintercept = ", round(mcal_b0, 5), 
-                      "\nn = ", length(cal_set$obs)),
-       adj = c(0, 1))
+         adj = c(0, 1), cex = 1.2)
   }
   
   
   # predict on val set
-  val_set$pred <- (val_set$p1 - mcal_b0) / mcal_b1
+  if (isTRUE(switch_y_cal)) {
+    val_set$pred <- (mcal_b1 * val_set$p1) + mcal_b0
+  } else {
+    val_set$pred <- (val_set$p1 - mcal_b0) / mcal_b1
+  }
   
   n_neg <- sum(val_set$pred < 0)
   
@@ -108,12 +136,10 @@ cal_val <- function(obs, p1,
                                     metrics_mult_space = TRUE,
                                     show_mape = FALSE, 
                                     show_regr_stats = FALSE,
-                                    pos_text_x = pos_text_x_val,
-                                    #pos_text_y = NULL,
                                     print_metrics = TRUE,
                                     col = alpha("black", 0.4), 
                                     pch = 20,
-                                    main = main)
+                                    main = paste0(main, " (validation)"))
   #abline(v = 10)
   #abline(h = 10)
   
