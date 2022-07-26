@@ -1,21 +1,23 @@
+####!!!! switch boot R back to 1000
+
 
 source("C:/Users/WSALLS/Git/Sent2/algorithms.R")
 source("C:/Users/WSALLS/Git/Sent2/error_metrics_220120.R")
 
 
-cal_val <- function(obs, p1, 
+cal_val <- function(obs_dat, p1_dat, 
                     portion_cal = 0.8, 
                     set_seed = TRUE, 
                     main = NULL, 
-                    alg_name = names(p1),
+                    alg_name = names(p1_dat),
                     switch_y_cal = TRUE,
                     regr_model_cal = 4, # corresponding to lmodel2() regression type
-                    #xlim_cal = range(obs, na.rm = TRUE), 
-                    #ylim_cal = range(p1, na.rm = TRUE), 
+                    #xlim_cal = range(obs_dat, na.rm = TRUE), 
+                    #ylim_cal = range(p1_dat, na.rm = TRUE), 
                     neg.rm = TRUE, 
                     negs2zero = FALSE,
                     log_axes_val = "xy",
-                    xylim_val = range(obs, na.rm = TRUE),
+                    xylim_val = range(obs_dat, na.rm = TRUE),
                     ...) {
   
   # set seed to retain same "randomness"
@@ -24,7 +26,8 @@ cal_val <- function(obs, p1,
   }
   
   # restrict to complete cases
-  full_set <- data.frame(obs, p1)
+  full_set <- data.frame(obs_dat, p1_dat)
+  colnames(full_set) <- c("obs", "p1") # to ensure no processes are using full data
   full_set <- full_set[complete.cases(full_set), ]
   
   # select cal and val sets
@@ -32,17 +35,47 @@ cal_val <- function(obs, p1,
   cal_set <- full_set[cal_index, ] # select 80% for cal
   val_set <- full_set[-cal_index, ] # retain remaining 20% for val
   
-  # calibration plot
+  'if (isTRUE(switch_y_cal)) {
+    ycal <- obs
+    xcal <- p1
+  } else if (isFALSE(switch_y_cal)) {
+    ycal <- p1
+    xcal <- obs
+  }'
+  
+  ### calibrate
+  
   if (isTRUE(switch_y_cal)) {
     
-    # fit linear model; set coefficients; plot
-    mcal <- lmodel2(obs ~ p1,
-                    range.y = "relative", range.x = "interval")
+    if (isTRUE(bstrap)) {
+      bsm2 <- function(data, indices, formula) {
+        d <- data[indices, ] # allows boot to select sample
+        fit <- lmodel2(formula, data = d,
+                       range.y = "relative", range.x = "interval")
+        return(c(fit$regression.results$Intercept[regr_model_cal],
+                 fit$regression.results$Slope[regr_model_cal],
+                 fit$rsquare))
+      }
+      
+      boot_m2 <- boot(data = cal_set, statistic = bsm2,
+                      R = 10, formula = obs ~ p1)
+      
+      mcal_b1 <- mean(boot_m2$t[, 2])
+      mcal_b0 <- mean(boot_m2$t[, 1])
+      mcal_Rsq <- mean(boot_m2$t[, 3])
+      
+    } else if (isFALSE(bstrap)) {
+      
+      # fit linear model; set coefficients
+      mcal <- lmodel2(obs ~ p1, data = cal_set,
+                      range.y = "relative", range.x = "interval")
+      
+      mcal_b1 <- mcal$regression.results$Slope[regr_model_cal] # slope
+      mcal_b0 <- mcal$regression.results$Intercept[regr_model_cal] # intercept
+      mcal_Rsq <- mcal$rsquare # R-squared
+    }
     
-    mcal_b1 <- mcal$regression.results$Slope[regr_model_cal] # slope
-    mcal_b0 <- mcal$regression.results$Intercept[regr_model_cal] # intercept
-    mcal_Rsq <- mcal$rsquare # R-squared
-    
+    # plot
     plot(cal_set$p1, cal_set$obs, 
          #xlim = xlim_cal,
          #ylim = ylim_cal,
@@ -55,7 +88,7 @@ cal_val <- function(obs, p1,
     
     calplot_range_x <- par('usr')[2] - par('usr')[1]
     calpos_text_x <- par('usr')[1] + calplot_range_x * 0.05
-  
+    
     calplot_range_y <- par('usr')[4] - par('usr')[3]
     calpos_text_y <- par('usr')[3] + calplot_range_y * 0.95
     
@@ -66,16 +99,36 @@ cal_val <- function(obs, p1,
                 "\nn = ", length(cal_set$obs)),
          adj = c(0, 1), cex = 1.2)
     
-  } else {
+  } else if (isFALSE(switch_y_cal)) {
+    if (isTRUE(bstrap)) {
+      bsm2 <- function(data, indices, formula) {
+        d <- data[indices, ] # allows boot to select sample
+        fit <- lmodel2(formula, data = d,
+                       range.y = "interval", range.x = "relative")
+        return(c(fit$regression.results$Intercept[regr_model_cal],
+                 fit$regression.results$Slope[regr_model_cal],
+                 fit$rsquare))
+      }
+      
+      boot_m2 <- boot(data = cal_set, statistic = bsm2,
+                      R = 10, formula = obs ~ p1)
+      
+      mcal_b1 <- mean(boot_m2$t[, 2])
+      mcal_b0 <- mean(boot_m2$t[, 1])
+      mcal_Rsq <- mean(boot_m2$t[, 3])
+      
+    } else if (isFALSE(bstrap)) {
     
-    # fit linear model; set coefficients; plot
-    mcal <- lmodel2(p1 ~ obs,
+    # fit linear model; set coefficients
+    mcal <- lmodel2(p1 ~ obs, data = cal_set,
                     range.y = "interval", range.x = "relative")
     
     mcal_b1 <- mcal$regression.results$Slope[regr_model_cal] # slope
     mcal_b0 <- mcal$regression.results$Intercept[regr_model_cal] # intercept
     mcal_Rsq <- mcal$rsquare # R-squared
+    }
     
+    # plot
     plot(cal_set$obs, cal_set$p1, 
          #xlim = xlim_cal,
          #ylim = ylim_cal,
@@ -94,14 +147,14 @@ cal_val <- function(obs, p1,
     
     text(x = calpos_text_x, y = calpos_text_y, 
          paste0("R-sq = ", round(mcal_Rsq, 3),
-                       "\nslope = ", round(mcal_b1, 5), 
-                       "\nintercept = ", round(mcal_b0, 5), 
-                       "\nn = ", length(cal_set$obs)),
+                "\nslope = ", round(mcal_b1, 5), 
+                "\nintercept = ", round(mcal_b0, 5), 
+                "\nn = ", length(cal_set$obs)),
          adj = c(0, 1), cex = 1.2)
   }
   
   
-  # predict on val set
+  ### predict and assess with val set
   if (isTRUE(switch_y_cal)) {
     val_set$pred <- (mcal_b1 * val_set$p1) + mcal_b0
   } else {
