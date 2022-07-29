@@ -1,4 +1,4 @@
-####!!!! switch boot R back to 1000
+
 
 
 source("C:/Users/WSALLS/Git/Sent2/algorithms.R")
@@ -11,6 +11,7 @@ cal_val <- function(obs_dat, p1_dat,
                     main = NULL, 
                     alg_name = names(p1_dat),
                     switch_y_cal = TRUE,
+                    nboots = 0, 
                     regr_model_cal = 4, # corresponding to lmodel2() regression type
                     #xlim_cal = range(obs_dat, na.rm = TRUE), 
                     #ylim_cal = range(p1_dat, na.rm = TRUE), 
@@ -21,8 +22,15 @@ cal_val <- function(obs_dat, p1_dat,
                     ...) {
   
   # set seed to retain same "randomness"
-  if(set_seed){
+  if (set_seed) {
     set.seed(1)
+  }
+  
+  # select whether bootstrap based on nboots
+  if (nboots == 0) {
+    bstrap <- FALSE
+  } else if (nboots > 0) {
+    bstrap <- TRUE
   }
   
   # restrict to complete cases
@@ -58,7 +66,7 @@ cal_val <- function(obs_dat, p1_dat,
       }
       
       boot_m2 <- boot(data = cal_set, statistic = bsm2,
-                      R = 10, formula = obs ~ p1)
+                      R = nboots, formula = obs ~ p1)
       
       mcal_b1 <- mean(boot_m2$t[, 2])
       mcal_b0 <- mean(boot_m2$t[, 1])
@@ -111,7 +119,7 @@ cal_val <- function(obs_dat, p1_dat,
       }
       
       boot_m2 <- boot(data = cal_set, statistic = bsm2,
-                      R = 10, formula = obs ~ p1)
+                      R = nboots, formula = obs ~ p1)
       
       mcal_b1 <- mean(boot_m2$t[, 2])
       mcal_b0 <- mean(boot_m2$t[, 1])
