@@ -17,6 +17,22 @@ setwd("C:/Users/WSALLS/OneDrive - Environmental Protection Agency (EPA)/Profile/
 l2gen <- read.csv("Nima/Pahlevan_l2gen.csv", stringsAsFactors = FALSE)
 acolite <- read.csv("Nima/Pahlevan_acolite.csv", stringsAsFactors = FALSE)
 
+l2gen$uniqueIDer <- paste(l2gen$Scene.ID, l2gen$In.Situ.datetime, l2gen$In.Situ.chl, sep = "; ")
+acolite$uniqueIDer <- paste(acolite$Scene.ID, acolite$In.Situ.datetime, acolite$In.Situ.chl, sep = "; ")
+
+merged_mus <- merge(l2gen, acolite, by = "uniqueIDer")
+
+colnames(merged_mus)
+
+plot(merged_mus$rhot.705..x, merged_mus$rhot.705..y)
+points(merged_mus$rhos.705..x, merged_mus$rhos.705..y, pch = 20, col = "blue")
+
+plot(merged_mus$rhos.705..x, merged_mus$rhos.705..y)
+
+plot(merged_mus$Rrs.705..x, merged_mus$Rrs.705..y)
+abline(0, 1, col = "red")
+
+
 ## pick data source
 chldata <- l2gen
 

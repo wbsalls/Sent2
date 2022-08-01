@@ -1,5 +1,6 @@
 
 
+library(boot)
 
 source("C:/Users/WSALLS/Git/Sent2/algorithms.R")
 source("C:/Users/WSALLS/Git/Sent2/error_metrics_220120.R")
@@ -81,6 +82,12 @@ cal_val <- function(obs_dat, p1_dat,
       mcal_b1 <- mcal$regression.results$Slope[regr_model_cal] # slope
       mcal_b0 <- mcal$regression.results$Intercept[regr_model_cal] # intercept
       mcal_Rsq <- mcal$rsquare # R-squared
+      
+      # set confidence intervals as NA since not bootstrapping
+      b0_lci <- NA
+      b0_uci <- NA
+      b1_lci <- NA
+      b1_uci <- NA
     }
     
     # plot
@@ -101,23 +108,24 @@ cal_val <- function(obs_dat, p1_dat,
                          max(cal_set$p1) + 1.2 * max(cal_set$p1), 
                          length.out=120)
       
-      
-      ci_b0 <- boot.ci(boot_m2, type="bca", index=1)
-      ci_b1 <- boot.ci(boot_m2, type="bca", index=2)
+      b0_lci <- boot.ci(boot_m2, type="bca", index=1)$bca[4]
+      b0_uci <- boot.ci(boot_m2, type="bca", index=1)$bca[5]
+      b1_lci <- boot.ci(boot_m2, type="bca", index=2)$bca[4]
+      b1_uci <- boot.ci(boot_m2, type="bca", index=2)$bca[5]
       
       # establish upper and lower confidence interval values for each value of x
       y_lci <- c()
       for (x in seq_along(xincrements)) {
-        y_lci_l <- ci_b1$bca[4] * xincrements[x] + ci_b0$bca[4]
-        y_lci_u <- ci_b1$bca[5] * xincrements[x] + ci_b0$bca[4]
+        y_lci_l <- b1_lci * xincrements[x] + b0_lci
+        y_lci_u <- b1_uci * xincrements[x] + b0_lci
         y_lcix <- min(y_lci_l, y_lci_u)
         y_lci <- c(y_lci, y_lcix)
       }
       
       y_uci <- c()
       for (x in seq_along(xincrements)) {
-        y_uci_l <- ci_b1$bca[4] * xincrements[x] + ci_b0$bca[5]
-        y_uci_u <- ci_b1$bca[5] * xincrements[x] + ci_b0$bca[5]
+        y_uci_l <- b1_lci * xincrements[x] + b0_uci
+        y_uci_u <- b1_uci * xincrements[x] + b0_uci
         y_ucix <- max(y_uci_l, y_uci_u)
         y_uci <- c(y_uci, y_ucix)
       }
@@ -126,11 +134,13 @@ cal_val <- function(obs_dat, p1_dat,
       polygon(c(xincrements, rev(xincrements)), c(y_lci, rev(y_uci)), col = "grey75", border = FALSE)
       lines(xincrements, y_lci, lty = 'dashed', col = 'red')
       lines(xincrements, y_uci, lty = 'dashed', col = 'red')
-      abline(b0, b1)
+      abline(mcal_b0, mcal_b1)
       
       # cover lines for negative y-values; redraw covered axis; redraw points
-      polygon(c(-0.005, 0, 0, -0.005), c(-10, -10, 0, 0), border = NA, col = "white")
-      axis(side = 1)
+      polygon(c(par('usr')[1], par('usr')[2], par('usr')[2], par('usr')[1]), 
+              c(par('usr')[3], par('usr')[3], 0, 0), 
+              border = NA, col = "white")
+      box(col = "black")
       points(cal_set$p1, cal_set$obs, pch = 20)
     }
     
@@ -242,8 +252,22 @@ cal_val <- function(obs_dat, p1_dat,
                                     col = alpha("black", 0.4), 
                                     pch = 20,
                                     main = paste0(main, " (validation)"))
-  #abline(v = 10)
-  #abline(h = 10)
+  
+  ## plot error bars on predictions, if bootstrapped
+  if(isTRUE(bstrap)) {
+    
+    # assign predicted chl based on bootstrapped coeffs, and 
+    val_set$pred_lci <- b1_lci * val_set$p1 + b0_lci
+    val_set$pred_uci <- b1_uci * val_set$p1 + b0_uci
+    
+    # plot each error bar
+    for (r in 1:nrow(val_set)) {
+      xc <- c(val_set$obs[r], val_set$obs[r])
+      yc <- c(val_set$pred_lci[r], val_set$pred_uci[r])
+      lines(x = xc, y = yc)
+    }
+    
+  }
   
   cal_val_metrics <- cbind(val_metrics, data.frame(val_minx = min(val_set$obs),
                                                    val_maxx = max(val_set$obs),
@@ -255,8 +279,12 @@ cal_val <- function(obs_dat, p1_dat,
                                                    val_mediany = median(val_set$p1),
                                                    n_neg_S2chla = n_neg,
                                                    Rsq_cal = mcal_Rsq,
-                                                   slope_cal = mcal_b1,
-                                                   intercept_cal = mcal_b0,
+                                                   b1_cal = mcal_b1,
+                                                   b1_lci = b1_lci,
+                                                   b1_uci = b1_uci,
+                                                   b0_cal = mcal_b0,
+                                                   b0_lci = b0_lci,
+                                                   b0_uci = b0_uci,
                                                    cal_minx = min(cal_set$obs),
                                                    cal_maxx = max(cal_set$obs),
                                                    cal_meanx = mean(cal_set$obs),

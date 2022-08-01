@@ -34,7 +34,7 @@ bs2 <- function(data, indices, formula) {
 }
 
 boot_m2 <- boot(data = mu_conus_cal, statistic = bs2,
-              R = 1000, formula = In.Situ.chl ~ MCI_rhos)
+              R = 200, formula = In.Situ.chl ~ MCI_rhos)
 
 1 / chl_m2$regression.results$Slope[4]
 chl_m2$regression.results$Intercept[4] / chl_m2$regression.results$Slope[4]

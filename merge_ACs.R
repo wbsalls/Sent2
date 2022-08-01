@@ -1,31 +1,11 @@
 
 setwd("C:/Users/WSALLS/OneDrive - Environmental Protection Agency (EPA)/Profile/Desktop/S2")
 
-l2gen <- read.csv("Nima/Pahlevan_l2gen.csv", stringsAsFactors = FALSE)
-acolite <- read.csv("Nima/Pahlevan_acolite.csv", stringsAsFactors = FALSE)
-
-l2gen$uniqueIDer <- paste(l2gen$Scene.ID, l2gen$In.Situ.datetime, l2gen$In.Situ.chl, sep = "; ")
-acolite$uniqueIDer <- paste(acolite$Scene.ID, acolite$In.Situ.datetime, acolite$In.Situ.chl, sep = "; ")
-
-merged_mus <- merge(l2gen, acolite, by = "uniqueIDer")
-
-colnames(merged_mus)
-
-plot(merged_mus$rhot.705..x, merged_mus$rhot.705..y)
-points(merged_mus$rhos.705..x, merged_mus$rhos.705..y, pch = 20, col = "blue")
-
-
-plot(merged_mus$rhos.705..x, merged_mus$rhos.705..y)
-
-
-plot(merged_mus$Rrs.705..x, merged_mus$Rrs.705..y)
-abline(0, 1, col = "red")
-
-
 ## compare ACs
 
 #merging acolite posthoc to existing l2gen df
 mu_conus$uniqueIDer <- paste(mu_conus$Scene.ID, mu_conus$In.Situ.datetime, mu_conus$In.Situ.chl, sep = "; ")
+acolite$uniqueIDer <- paste(acolite$Scene.ID, acolite$In.Situ.datetime, acolite$In.Situ.chl, sep = "; ")
 
 mu_conus_addAcolite <- merge(mu_conus, acolite, by = "uniqueIDer", all.x = TRUE, all.y = FALSE)
 
@@ -48,15 +28,16 @@ chl_algos_names <- c("rhot, l2gen", "rhos, l2gen", "Rrs, l2gen",
                     "rhot, Acolite", "rhos, Acolite", "Rrs, Acolite",
                     "rhot, l2gen", "rhos, l2gen", "Rrs, l2gen",
                     "rhot, Acolite", "rhos, Acolite", "Rrs, Acolite")
-
 chl_algos <- mu_conus_addAcolite[, chl_algos_vars]
-
 
 # plot all
 
 source("C:/Users/WSALLS/Git/Sent2/cal_val.R")
 
-#par(mfrow = c(3, 4))
+regr_model <- 4
+if (regr_model == 1) {m12 <- "M1"} else {m12 <- "M2"}
+
+switch_y <- TRUE
 
 layout.matrix <- matrix(c(1, 3, 5, 
                           2, 4, 6,
@@ -66,12 +47,11 @@ layout.matrix <- matrix(c(1, 3, 5,
 layout(layout.matrix)
 layout.show(12)
 
+# debuggin out
+'par(mfrow = c(1, 2))
+chl_algos <- data.frame(mu_conus_addAcolite[, "MCI_rhot"])'
+
 algo_df <- data.frame()
-
-regr_model <- 4
-if (regr_model == 1) {m12 <- "M1"} else {m12 <- "M2"}
-
-switch_y <- TRUE
 
 for (c in seq_along(colnames(chl_algos))) {
   
@@ -83,7 +63,7 @@ for (c in seq_along(colnames(chl_algos))) {
                   set_seed = TRUE, 
                   neg.rm = TRUE, 
                   negs2zero = FALSE, 
-                  nboots = 10,
+                  nboots = 1000,
                   switch_y_cal = switch_y, 
                   regr_model_cal = regr_model, 
                   main = paste0(chl_algos_names[c], " - ", m12),
@@ -104,6 +84,24 @@ for (c in seq_along(colnames(chl_algos))) {
 algo_df
 
 write.csv(algo_df, "C:/Users/WSALLS/OneDrive - Environmental Protection Agency (EPA)/Profile/Desktop/S2/out/algo_df.csv")
+
+
+'
+# debugging
+obs_dat = mu_conus_addAcolite$In.Situ.chl.x
+p1_dat = chl_algos[, c]
+portion_cal = 0.8
+set_seed = TRUE
+neg.rm = TRUE
+negs2zero = FALSE
+nboots = 200
+switch_y_cal = switch_y
+regr_model_cal = regr_model
+main = paste0(chl_algos_names[c], " - ", m12)
+alg_name = algc
+log_axes_val = ""
+xylim_val = range(obs_dat, na.rm = TRUE)'
+
 
 
 ## comparing processing levels (l2gen)
