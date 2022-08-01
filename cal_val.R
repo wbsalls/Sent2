@@ -94,6 +94,47 @@ cal_val <- function(obs_dat, p1_dat,
          xlab = alg_name)
     abline(mcal_b0, mcal_b1)
     
+    # confidence interval on regression line
+    if (isTRUE(bstrap)) {
+      # create vector of x values from which to calculate confidence interval values
+      xincrements <- seq(min(cal_set$p1), 
+                         max(cal_set$p1) + 1.2 * max(cal_set$p1), 
+                         length.out=120)
+      
+      
+      ci_b0 <- boot.ci(boot_m2, type="bca", index=1)
+      ci_b1 <- boot.ci(boot_m2, type="bca", index=2)
+      
+      # establish upper and lower confidence interval values for each value of x
+      y_lci <- c()
+      for (x in seq_along(xincrements)) {
+        y_lci_l <- ci_b1$bca[4] * xincrements[x] + ci_b0$bca[4]
+        y_lci_u <- ci_b1$bca[5] * xincrements[x] + ci_b0$bca[4]
+        y_lcix <- min(y_lci_l, y_lci_u)
+        y_lci <- c(y_lci, y_lcix)
+      }
+      
+      y_uci <- c()
+      for (x in seq_along(xincrements)) {
+        y_uci_l <- ci_b1$bca[4] * xincrements[x] + ci_b0$bca[5]
+        y_uci_u <- ci_b1$bca[5] * xincrements[x] + ci_b0$bca[5]
+        y_ucix <- max(y_uci_l, y_uci_u)
+        y_uci <- c(y_uci, y_ucix)
+      }
+      
+      # plot confidence range; plot confidence interval space & lines and regression line
+      polygon(c(xincrements, rev(xincrements)), c(y_lci, rev(y_uci)), col = "grey75", border = FALSE)
+      lines(xincrements, y_lci, lty = 'dashed', col = 'red')
+      lines(xincrements, y_uci, lty = 'dashed', col = 'red')
+      abline(b0, b1)
+      
+      # cover lines for negative y-values; redraw covered axis; redraw points
+      polygon(c(-0.005, 0, 0, -0.005), c(-10, -10, 0, 0), border = NA, col = "white")
+      axis(side = 1)
+      points(cal_set$p1, cal_set$obs, pch = 20)
+    }
+    
+    # text
     calplot_range_x <- par('usr')[2] - par('usr')[1]
     calpos_text_x <- par('usr')[1] + calplot_range_x * 0.05
     
@@ -126,14 +167,14 @@ cal_val <- function(obs_dat, p1_dat,
       mcal_Rsq <- mean(boot_m2$t[, 3])
       
     } else if (isFALSE(bstrap)) {
-    
-    # fit linear model; set coefficients
-    mcal <- lmodel2(p1 ~ obs, data = cal_set,
-                    range.y = "interval", range.x = "relative")
-    
-    mcal_b1 <- mcal$regression.results$Slope[regr_model_cal] # slope
-    mcal_b0 <- mcal$regression.results$Intercept[regr_model_cal] # intercept
-    mcal_Rsq <- mcal$rsquare # R-squared
+      
+      # fit linear model; set coefficients
+      mcal <- lmodel2(p1 ~ obs, data = cal_set,
+                      range.y = "interval", range.x = "relative")
+      
+      mcal_b1 <- mcal$regression.results$Slope[regr_model_cal] # slope
+      mcal_b0 <- mcal$regression.results$Intercept[regr_model_cal] # intercept
+      mcal_Rsq <- mcal$rsquare # R-squared
     }
     
     # plot

@@ -96,27 +96,8 @@ abline(-chl_m2$regression.results$Intercept[4] / chl_m2$regression.results$Slope
 mean(mu_conus_cal$MCI_rhos)
 mean(mu_conus_cal$In.Situ.chl)
 
-## confidence intervals - query and plot
-boot_m2
 
-b0 <- mean(boot_m2$t[, 1])
-b1 <- mean(boot_m2$t[, 2])
-
-boot.ci(boot_m2, index=1) # intercept
-boot.ci(boot_m2, index=2) # slope
-
-boot.ci(boot_m2, type="bca", index=1)
-ci_b0$bca[4]
-ci_b0$bca[5]
-
-
-#https://stackoverflow.com/questions/14069629/how-can-i-plot-data-with-confidence-intervals
-mtest <- lm(mu_conus_cal$In.Situ.chl ~ mu_conus_cal$MCI_rhos)
-newx <- data.frame(x = seq(min(mu_conus_cal$In.Situ.chl), max(mu_conus_cal$In.Situ.chl), length.out=100))
-preds <- predict(mtest, newdata = newx, interval = 'confidence')
-
-
-###
+### confidence intervals
 
 # pull values and CIs
 b0 <- mean(boot_m2$t[, 1])
@@ -128,23 +109,40 @@ ci_b1 <- boot.ci(boot_m2, type="bca", index=2)
 
 ## confidence interval on regression line
 
-#xincrements <- data.frame(x = seq(min(mu_conus_cal$MCI_rhos), max(mu_conus_cal$MCI_rhos), length.out=100))
-xincrements <- seq(min(mu_conus_cal$MCI_rhos), max(mu_conus_cal$MCI_rhos), length.out=100)
-y_lci <- ci_b1$bca[4] * xincrements + ci_b0$bca[4]
-y_uci <- ci_b1$bca[5] * xincrements + ci_b0$bca[5]
+# create vector of x values from which to calculate confidence interval values
+xincrements <- seq(min(mu_conus_cal$MCI_rhos), 
+                   max(mu_conus_cal$MCI_rhos) + 1.2 * max(mu_conus_cal$MCI_rhos), 
+                   length.out=120)
 
+# establish upper and lower confidence interval values for each value of x
+y_lci <- c()
+for (x in seq_along(xincrements)) {
+  y_lci_l <- ci_b1$bca[4] * xincrements[x] + ci_b0$bca[4]
+  y_lci_u <- ci_b1$bca[5] * xincrements[x] + ci_b0$bca[4]
+  y_lcix <- min(y_lci_l, y_lci_u)
+  y_lci <- c(y_lci, y_lcix)
+}
 
+y_uci <- c()
+for (x in seq_along(xincrements)) {
+  y_uci_l <- ci_b1$bca[4] * xincrements[x] + ci_b0$bca[5]
+  y_uci_u <- ci_b1$bca[5] * xincrements[x] + ci_b0$bca[5]
+  y_ucix <- max(y_uci_l, y_uci_u)
+  y_uci <- c(y_uci, y_ucix)
+}
 
+# establish plot space; plot confidence range; plot confidence interval space & lines and regression line
 plot(mu_conus_cal$MCI_rhos, mu_conus_cal$In.Situ.chl, pch = 20)
-abline(b0, b1)
-
-# intervals ****FIX THIS*****
+polygon(c(xincrements, rev(xincrements)), c(y_lci, rev(y_uci)), col = "grey75", border = FALSE)
 lines(xincrements, y_lci, lty = 'dashed', col = 'red')
 lines(xincrements, y_uci, lty = 'dashed', col = 'red')
-abline(h = 0)
+abline(b0, b1)
 
-points(xincrements, y_lci, col = 'red', pch = ".")
-lines(xincrements, y_uci, lty = 'dashed', col = 'red')
+# cover lines for negative y-values; redraw covered axis; redraw points
+polygon(c(-0.005, 0, 0, -0.005), c(-10, -10, 0, 0), border = NA, col = "white")
+axis(side = 1)
+points(mu_conus_cal$MCI_rhos, mu_conus_cal$In.Situ.chl, pch = 20)
+
 
 
 ## error bars on predictions
