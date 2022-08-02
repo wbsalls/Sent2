@@ -8,6 +8,7 @@ mu_conus$uniqueIDer <- paste(mu_conus$Scene.ID, mu_conus$In.Situ.datetime, mu_co
 acolite$uniqueIDer <- paste(acolite$Scene.ID, acolite$In.Situ.datetime, acolite$In.Situ.chl, sep = "; ")
 
 mu_conus_addAcolite <- merge(mu_conus, acolite, by = "uniqueIDer", all.x = TRUE, all.y = FALSE)
+mu_conus_addAcolite <- merge(mu_conus, acolite, by = "uniqueIDer")
 
 # calculate indices
 mu_conus_addAcolite$MCI_rhot_aco <- calc_mci(R1 = mu_conus_addAcolite$rhot.665..y, R2 = mu_conus_addAcolite$rhot.705..y, R3 = mu_conus_addAcolite$rhot.740..y)
@@ -48,8 +49,8 @@ layout(layout.matrix)
 layout.show(12)
 
 # debuggin out
-'par(mfrow = c(1, 2))
-chl_algos <- data.frame(mu_conus_addAcolite[, "MCI_rhot"])'
+#par(mfrow = c(1, 2))
+#chl_algos <- data.frame(mu_conus_addAcolite[, "MCI_rhot"])
 
 algo_df <- data.frame()
 
@@ -66,7 +67,7 @@ for (c in seq_along(colnames(chl_algos))) {
                   nboots = 1000,
                   switch_y_cal = switch_y, 
                   regr_model_cal = regr_model, 
-                  main = paste0(chl_algos_names[c], " - ", m12),
+                  main = paste0(chl_algos_names[c], " - "), #, m12
                   alg_name = algc,
                   log_axes_val = "")
   

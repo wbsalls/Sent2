@@ -20,6 +20,7 @@ cal_val <- function(obs_dat, p1_dat,
                     negs2zero = FALSE,
                     log_axes_val = "xy",
                     xylim_val = range(obs_dat, na.rm = TRUE),
+                    returnObjects = FALSE,
                     ...) {
   
   # set seed to retain same "randomness"
@@ -95,8 +96,8 @@ cal_val <- function(obs_dat, p1_dat,
          #xlim = xlim_cal,
          #ylim = ylim_cal,
          col = alpha("black", 0.4), 
-         pch = 20,
-         main = paste0(main, " (fit)"),
+         pch = "", # suppressed so transparency isn't affected with below points()
+         main = paste0(main, " fit"),
          ylab = expression(italic("in situ") * " chl " * italic(a) * " (" * mu * "g " * L^-1 * ")"),
          xlab = alg_name)
     abline(mcal_b0, mcal_b1)
@@ -131,7 +132,7 @@ cal_val <- function(obs_dat, p1_dat,
       }
       
       # plot confidence range; plot confidence interval space & lines and regression line
-      polygon(c(xincrements, rev(xincrements)), c(y_lci, rev(y_uci)), col = "grey75", border = FALSE)
+      polygon(c(xincrements, rev(xincrements)), c(y_lci, rev(y_uci)), col = "grey90", border = FALSE)
       lines(xincrements, y_lci, lty = 'dashed', col = 'red')
       lines(xincrements, y_uci, lty = 'dashed', col = 'red')
       abline(mcal_b0, mcal_b1)
@@ -141,8 +142,9 @@ cal_val <- function(obs_dat, p1_dat,
               c(par('usr')[3], par('usr')[3], 0, 0), 
               border = NA, col = "white")
       box(col = "black")
-      points(cal_set$p1, cal_set$obs, pch = 20)
     }
+    
+    points(cal_set$p1, cal_set$obs, col = alpha("black", 0.4), pch = 20)
     
     # text
     calplot_range_x <- par('usr')[2] - par('usr')[1]
@@ -250,8 +252,8 @@ cal_val <- function(obs_dat, p1_dat,
                                     show_regr_stats = FALSE,
                                     print_metrics = TRUE,
                                     col = alpha("black", 0.4), 
-                                    pch = 20,
-                                    main = paste0(main, " (validation)"))
+                                    pch = "", # suppressed so transparency isn't affected with below points()
+                                    main = paste0(main, " validation"))
   
   ## plot error bars on predictions, if bootstrapped
   if(isTRUE(bstrap)) {
@@ -264,10 +266,14 @@ cal_val <- function(obs_dat, p1_dat,
     for (r in 1:nrow(val_set)) {
       xc <- c(val_set$obs[r], val_set$obs[r])
       yc <- c(val_set$pred_lci[r], val_set$pred_uci[r])
-      lines(x = xc, y = yc)
+      xwidth <- (par('usr')[2] - par('usr')[1]) * 0.01
+      lines(x = xc, y = yc, col = "gray")
+      lines(x = xc + c(-xwidth, xwidth), y = rep(yc[1], 2), col = "gray")
+      lines(x = xc + c(-xwidth, xwidth), y = rep(yc[2], 2), col = "gray")
     }
-    
   }
+  
+  points(x = val_set$obs, y = val_set$pred, col = alpha("black", 0.4), pch = 20)
   
   cal_val_metrics <- cbind(val_metrics, data.frame(val_minx = min(val_set$obs),
                                                    val_maxx = max(val_set$obs),
@@ -294,6 +300,14 @@ cal_val <- function(obs_dat, p1_dat,
                                                    cal_meany = mean(cal_set$p1),
                                                    cal_mediany = median(cal_set$p1),
                                                    cal_n = nrow(cal_set)))
+  if (isFALSE(returnObjects)) {
+    return(cal_val_metrics)
+  } else {
+    if (isTRUE(bstrap)) {
+      return(list(cal_val_metrics, cal_set, boot_m2, val_set))
+    } else {
+      return(list(cal_val_metrics, cal_set, val_set))
+    }
+  }
   
-  return(cal_val_metrics)
 }
