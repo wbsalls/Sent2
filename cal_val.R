@@ -6,7 +6,7 @@ source("C:/Users/WSALLS/Git/Sent2/algorithms.R")
 source("C:/Users/WSALLS/Git/Sent2/error_metrics_220120.R")
 
 
-cal_val <- function(obs_dat, p1_dat, 
+cal_val <- function(data, obs_name, p1_name,
                     portion_cal = 0.8, 
                     set_seed = TRUE, 
                     main = NULL, 
@@ -19,7 +19,7 @@ cal_val <- function(obs_dat, p1_dat,
                     neg.rm = TRUE, 
                     negs2zero = FALSE,
                     log_axes_val = "xy",
-                    xylim_val = range(obs_dat, na.rm = TRUE),
+                    xylim_val = range(data[, obs_name], na.rm = TRUE),
                     returnObjects = FALSE,
                     ...) {
   
@@ -35,23 +35,22 @@ cal_val <- function(obs_dat, p1_dat,
     bstrap <- TRUE
   }
   
+  # assign index for subsequent data re-joining
+  data$index_assigned <- 1:nrow(data)
+  
   # restrict to complete cases
-  full_set <- data.frame(obs_dat, p1_dat)
-  colnames(full_set) <- c("obs", "p1") # to ensure no processes are using full data
+  full_set <- data[, colnames(data) %in% c(obs_name, p1_name, "index_assigned")]
   full_set <- full_set[complete.cases(full_set), ]
+  
+  # rename observed and predictor columns
+  colnames(full_set)[which(colnames(full_set) == obs_name)] <- "obs"
+  colnames(full_set)[which(colnames(full_set) == p1_name)] <- "p1"
   
   # select cal and val sets
   cal_index <- sample(1:nrow(full_set), size = floor(nrow(full_set) * portion_cal), replace = FALSE)
   cal_set <- full_set[cal_index, ] # select 80% for cal
   val_set <- full_set[-cal_index, ] # retain remaining 20% for val
   
-  'if (isTRUE(switch_y_cal)) {
-    ycal <- obs
-    xcal <- p1
-  } else if (isFALSE(switch_y_cal)) {
-    ycal <- p1
-    xcal <- obs
-  }'
   
   ### calibrate
   
@@ -67,12 +66,12 @@ cal_val <- function(obs_dat, p1_dat,
                  fit$rsquare))
       }
       
-      boot_m2 <- boot(data = cal_set, statistic = bsm2,
+      mboot <- boot(data = cal_set, statistic = bsm2,
                       R = nboots, formula = obs ~ p1)
       
-      mcal_b1 <- mean(boot_m2$t[, 2])
-      mcal_b0 <- mean(boot_m2$t[, 1])
-      mcal_Rsq <- mean(boot_m2$t[, 3])
+      mcal_b1 <- mean(mboot$t[, 2])
+      mcal_b0 <- mean(mboot$t[, 1])
+      mcal_Rsq <- mean(mboot$t[, 3])
       
     } else if (isFALSE(bstrap)) {
       
@@ -109,10 +108,10 @@ cal_val <- function(obs_dat, p1_dat,
                          max(cal_set$p1) + 1.2 * max(cal_set$p1), 
                          length.out=120)
       
-      b0_lci <- boot.ci(boot_m2, type="bca", index=1)$bca[4]
-      b0_uci <- boot.ci(boot_m2, type="bca", index=1)$bca[5]
-      b1_lci <- boot.ci(boot_m2, type="bca", index=2)$bca[4]
-      b1_uci <- boot.ci(boot_m2, type="bca", index=2)$bca[5]
+      b0_lci <- boot.ci(mboot, type="bca", index=1)$bca[4]
+      b0_uci <- boot.ci(mboot, type="bca", index=1)$bca[5]
+      b1_lci <- boot.ci(mboot, type="bca", index=2)$bca[4]
+      b1_uci <- boot.ci(mboot, type="bca", index=2)$bca[5]
       
       # establish upper and lower confidence interval values for each value of x
       y_lci <- c()
@@ -154,9 +153,9 @@ cal_val <- function(obs_dat, p1_dat,
     calpos_text_y <- par('usr')[3] + calplot_range_y * 0.95
     
     text(x = calpos_text_x, y = calpos_text_y, 
-         paste0("R-sq = ", round(mcal_Rsq, 3),
-                "\nslope = ", round(mcal_b1, 0), 
-                "\nintercept = ", round(mcal_b0, 2), 
+         paste0("y = ", round(mcal_b1, 0), 
+                "x + ", round(mcal_b0, 2), 
+                "\nR-sq = ", round(mcal_Rsq, 3),
                 "\nn = ", length(cal_set$obs)),
          adj = c(0, 1), cex = 1.2)
     
@@ -171,12 +170,12 @@ cal_val <- function(obs_dat, p1_dat,
                  fit$rsquare))
       }
       
-      boot_m2 <- boot(data = cal_set, statistic = bsm2,
+      mboot <- boot(data = cal_set, statistic = bsm2,
                       R = nboots, formula = obs ~ p1)
       
-      mcal_b1 <- mean(boot_m2$t[, 2])
-      mcal_b0 <- mean(boot_m2$t[, 1])
-      mcal_Rsq <- mean(boot_m2$t[, 3])
+      mcal_b1 <- mean(mboot$t[, 2])
+      mcal_b0 <- mean(mboot$t[, 1])
+      mcal_Rsq <- mean(mboot$t[, 3])
       
     } else if (isFALSE(bstrap)) {
       
@@ -253,10 +252,11 @@ cal_val <- function(obs_dat, p1_dat,
                                     print_metrics = TRUE,
                                     col = alpha("black", 0.4), 
                                     pch = "", # suppressed so transparency isn't affected with below points()
-                                    main = paste0(main, " validation"))
+                                    main = paste0(main, " validation"),
+                                    ...)
   
   ## plot error bars on predictions, if bootstrapped
-  if(isTRUE(bstrap)) {
+  if(isTRUE(bstrap) & log_axes_val == "") {
     
     # assign predicted chl based on bootstrapped coeffs, and 
     val_set$pred_lci <- b1_lci * val_set$p1 + b0_lci
@@ -304,9 +304,14 @@ cal_val <- function(obs_dat, p1_dat,
     return(cal_val_metrics)
   } else {
     if (isTRUE(bstrap)) {
-      return(list(cal_val_metrics, cal_set, boot_m2, val_set))
+      return(list(metrics = cal_val_metrics, 
+                  cal_data = cal_set, 
+                  val_data = val_set,
+                  cal_boot = mboot))
     } else {
-      return(list(cal_val_metrics, cal_set, val_set))
+      return(list(metrics = cal_val_metrics, 
+                  cal_data = cal_set, 
+                  val_data = val_set))
     }
   }
   
