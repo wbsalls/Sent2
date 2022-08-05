@@ -4,21 +4,25 @@ setwd("C:/Users/WSALLS/OneDrive - Environmental Protection Agency (EPA)/Profile/
 ## compare ACs
 
 #merging acolite posthoc to existing l2gen df
-mu_conus$uniqueIDer <- paste(mu_conus$Scene.ID, mu_conus$In.Situ.datetime, mu_conus$In.Situ.chl, sep = "; ")
-acolite$uniqueIDer <- paste(acolite$Scene.ID, acolite$In.Situ.datetime, acolite$In.Situ.chl, sep = "; ")
+mu_conus$uniqueID_built <- paste(mu_conus$Scene.ID, mu_conus$In.Situ.datetime, mu_conus$In.Situ.chl, sep = "; ")
+acolite$uniqueID_built <- paste(acolite$Scene.ID, acolite$In.Situ.datetime, acolite$In.Situ.chl, sep = "; ")
+colnames(acolite)
+aco_cols <- c(which(colnames(acolite) == "Rrs.443."):which(colnames(acolite) == "rhot.2202."), which(colnames(acolite) == "uniqueID_built"))
 
-mu_conus_addAcolite <- merge(mu_conus, acolite, by = "uniqueIDer", all.x = TRUE, all.y = FALSE)
-#mu_conus_addAcolite <- merge(mu_conus, acolite, by = "uniqueIDer")
+mu_conus_addAcolite <- merge(mu_conus, acolite[, aco_cols], by = "uniqueID_built", 
+                             all.x = TRUE, all.y = FALSE, suffixes = c("l2gen", "aco")) # retains all l2gen
+#mu_conus_addAcolite <- merge(mu_conus, acolite[, aco_cols], by = "uniqueID_built") # retains only matching cases
+#mu_conus_addAcolite <- merge(mu_conus, acolite[, aco_cols], by = "uniqueID_built", all.x = FALSE, all.y = TRUE) # retains all acolite
 
 # calculate indices
-mu_conus_addAcolite$MCI_rhot_aco <- calc_mci(R1 = mu_conus_addAcolite$rhot.665..y, R2 = mu_conus_addAcolite$rhot.705..y, R3 = mu_conus_addAcolite$rhot.740..y)
-mu_conus_addAcolite$NDCI_rhot_aco <- calc_ndci(R1 = mu_conus_addAcolite$rhot.665..y, R2 = mu_conus_addAcolite$rhot.705..y)
+mu_conus_addAcolite$MCI_rhot_aco <- calc_mci(R1 = mu_conus_addAcolite$rhot.665.aco, R2 = mu_conus_addAcolite$rhot.705.aco, R3 = mu_conus_addAcolite$rhot.740.aco)
+mu_conus_addAcolite$NDCI_rhot_aco <- calc_ndci(R1 = mu_conus_addAcolite$rhot.665.aco, R2 = mu_conus_addAcolite$rhot.705.aco)
 
-mu_conus_addAcolite$MCI_rhos_aco <- calc_mci(R1 = mu_conus_addAcolite$rhos.665..y, R2 = mu_conus_addAcolite$rhos.705..y, R3 = mu_conus_addAcolite$rhos.740..y)
-mu_conus_addAcolite$NDCI_rhos_aco <- calc_ndci(R1 = mu_conus_addAcolite$rhos.665..y, R2 = mu_conus_addAcolite$rhos.705..y)
+mu_conus_addAcolite$MCI_rhos_aco <- calc_mci(R1 = mu_conus_addAcolite$rhos.665.aco, R2 = mu_conus_addAcolite$rhos.705.aco, R3 = mu_conus_addAcolite$rhos.740.aco)
+mu_conus_addAcolite$NDCI_rhos_aco <- calc_ndci(R1 = mu_conus_addAcolite$rhos.665.aco, R2 = mu_conus_addAcolite$rhos.705.aco)
 
-mu_conus_addAcolite$MCI_Rrs_aco <- calc_mci(R1 = mu_conus_addAcolite$Rrs.665..y, R2 = mu_conus_addAcolite$Rrs.705..y, R3 = mu_conus_addAcolite$Rrs.740..y)
-mu_conus_addAcolite$NDCI_Rrs_aco <- calc_ndci(R1 = mu_conus_addAcolite$Rrs.665..y, R2 = mu_conus_addAcolite$Rrs.705..y)
+mu_conus_addAcolite$MCI_Rrs_aco <- calc_mci(R1 = mu_conus_addAcolite$Rrs.665.aco, R2 = mu_conus_addAcolite$Rrs.705.aco, R3 = mu_conus_addAcolite$Rrs.740.aco)
+mu_conus_addAcolite$NDCI_Rrs_aco <- calc_ndci(R1 = mu_conus_addAcolite$Rrs.665.aco, R2 = mu_conus_addAcolite$Rrs.705.aco)
 
 # compile all vars to iterate chl calibration
 chl_algos_vars <- c("MCI_rhot", "MCI_rhos", "MCI_Rrs",
@@ -46,9 +50,9 @@ layout.matrix <- matrix(c(1, 3, 5,
                           8, 10, 12), 
                         nrow = 3, ncol = 4)
 layout(layout.matrix)
-layout.show(12)
+#layout.show(12)
 
-# debuggin out
+# debugging
 #par(mfrow = c(1, 2))
 #chl_algos <- data.frame(mu_conus_addAcolite[, "MCI_rhot"])
 
@@ -58,8 +62,9 @@ for (c in seq_along(colnames(chl_algos))) {
   
   algc <- strsplit(chl_algos_vars[c], split = "_")[[1]][1]
   
-  cvm2 <- cal_val(obs_dat = mu_conus_addAcolite$In.Situ.chl.x, 
-                  p1_dat = chl_algos[, c], 
+  cvm2 <- cal_val(data = mu_conus_addAcolite,
+                  obs_name = "In.Situ.chl.x", 
+                  p1_name = chl_algos_vars[c], 
                   portion_cal = 0.8, 
                   set_seed = TRUE, 
                   neg.rm = TRUE, 
