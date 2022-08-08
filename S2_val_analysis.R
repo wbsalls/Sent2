@@ -1,3 +1,4 @@
+setwd("C:/Users/WSALLS/OneDrive - Environmental Protection Agency (EPA)/Profile/Desktop/S2/out")
 source("C:/Users/WSALLS/Git/Sent2/cal_val.R")
 
 
@@ -34,44 +35,44 @@ cal_boot <- cvm2$cal_boot
 
 # specify cal or val for each row
 mu_conus_addAcolite$set <- NA
-mu_conus_addAcolite$set[caldat$index_assigned] <- "cal"
-mu_conus_addAcolite$set[valdat$index_assigned] <- "val"
+mu_conus_addAcolite$set[caldat$row_inputdata] <- "cal"
+mu_conus_addAcolite$set[valdat$row_inputdata] <- "val"
+table(mu_conus_addAcolite$set)
 
 # merge validation predictions to full table, creating index based on row numbers to match index in output
-mu_conus_addAcolite$index_assigned <- as.numeric(rownames(mu_conus_addAcolite))
+mu_conus_addAcolite$row_inputdata <- as.numeric(rownames(mu_conus_addAcolite))
 mu_conus_addAcolite_pred <- merge(mu_conus_addAcolite, valdat,
-                                  by = "index_assigned",
+                                  by = "row_inputdata",
                                   all.x = TRUE)
 
-valdat_all <- mu_conus_addAcolite_pred[mu_conus_addAcolite_pred$set == "val", ]
+valdat_all <- mu_conus_addAcolite_pred[which(mu_conus_addAcolite_pred$set == "val"), ]
 
-plot(mu_conus_addAcolite_pred[valdat$index_assigned, c("In.Situ.chl.x", "pred")])
-abline(0, 1)
 
 # calculate pred chl for all (including calibration; consider use for analysis of factors)
 mu_conus_addAcolite_pred$chla_rhos <- cvm2$metrics$b1_cal * mu_conus_addAcolite_pred$MCI_rhos + cvm2$metrics$b0_cal
+
+# investigate and remove negative pred chl values
+plot(sort(mu_conus_addAcolite_pred$In.Situ.chl[(mu_conus_addAcolite_pred$chla_rhos < 0)]))
+plot(mu_conus_addAcolite_pred$In.Situ.chl[(mu_conus_addAcolite_pred$chla_rhos < 0)], 
+     mu_conus_addAcolite_pred$chla_rhos[(mu_conus_addAcolite_pred$chla_rhos < 0)],
+     xlab = "in situ chl", ylab = "pred chl")
 mu_conus_addAcolite_pred$chla_rhos[mu_conus_addAcolite_pred$chla_rhos < 0] <- NA
 
+
+
 # specify which dataframe to use for analysis
-andata <- mu_conus_addAcolite_pred[valdat$index_assigned, ]
-andata <-mu_conus_addAcolite_pred
+#andata <- mu_conus_addAcolite_pred[valdat$row_inputdata, ]
+andata <- mu_conus_addAcolite_pred
 
 # calc error
-andata$error_chla <- (andata$pred - andata$In.Situ.chl.x) # error
+andata$error_chla <- (andata$chla_rhos - andata$In.Situ.chl) # error
 andata$error_chla_abs <- abs(andata$error_chla) # abs error
-andata$pct_error_chla <- ((andata$pred - andata$In.Situ.chl.x) / andata$In.Situ.chl.x) * 100 # % error
+andata$pct_error_chla <- ((andata$chla_rhos - andata$In.Situ.chl) / andata$In.Situ.chl) * 100 # % error
 andata$pct_error_chla_abs <- abs(andata$pct_error_chla) # abs error
 
 
 
 ### analyze factors
-
-# location
-plot(mu_conus_addAcolite_pred[mu_conus_addAcolite_pred$set=="cal", ]$lon.x, 
-     mu_conus_addAcolite_pred[mu_conus_addAcolite_pred$set=="cal", ]$lat.x)
-points(mu_conus_addAcolite_pred[mu_conus_addAcolite_pred$set=="val", ]$lon.x, 
-       mu_conus_addAcolite_pred[mu_conus_addAcolite_pred$set=="val", ]$lat.x,
-       pch = 20, col = "red")
 
 # sediment
 plot(andata$baseline_slope, andata$error_chla)
@@ -79,24 +80,33 @@ plot(andata$baseline_slope, andata$error_chla)
 # shoredist
 plot(andata$dist_shore_m, andata$error_chla)
 
+# location
+plot(mu_conus_addAcolite_pred[mu_conus_addAcolite_pred$set=="cal", ]$lon, 
+     mu_conus_addAcolite_pred[mu_conus_addAcolite_pred$set=="cal", ]$lat)
+points(mu_conus_addAcolite_pred[mu_conus_addAcolite_pred$set=="val", ]$lon, 
+       mu_conus_addAcolite_pred[mu_conus_addAcolite_pred$set=="val", ]$lat,
+       pch = 20, col = "red")
+
 # lat/lon
 data.frame(mu_conus$In.Situ.lat, mu_conus$lat)
 sum(mu_conus$In.Situ.lat == mu_conus$lat)
 summary(mu_conus$In.Situ.lat - mu_conus$lat)
-plot(andata$lat.x, andata$error_chla)
-plot(andata$lon.x, andata$error_chla)
+plot(andata$lat, andata$error_chla)
+plot(andata$lon, andata$error_chla)
 
 # time diff
-plot(abs(andata$Overpass.time.difference..minutes..x), andata$error_chla)
+plot(abs(andata$Overpass.time.difference..minutes.), andata$error_chla)
 
 
 #
-plot(andata$In.Situ.tss.x, andata$error_chla)
-plot(andata$In.Situ.cdom.x, andata$error_chla)
+plot(as.numeric(andata$In.Situ.tss), andata$error_chla)
+plot(andata$In.Situ.cdom, andata$error_chla)
 
 
-### satellite comparison
-head(valdat_all$Scene.ID.x)
+# satellite comparison
+andata$satellite <- substr(andata$Scene.ID, 1, 3)
+table(andata$satellite)
+boxplot(error_chla ~ satellite, data = andata)
 
 
 ### analyze all factors
@@ -133,9 +143,8 @@ for (i in factor_list) {
   
   if (ploti) {
     plot(xi, err,
-         xlab = colnames(andata)[i],
-         ylab = err_type,
-         pch = 20)
+         xlab = colnames(andata)[i], ylab = err_type,
+         pch = 20, main = i)
     abline(h = 0, lty = 2)
     abline(coef(mi)[1], coef(mi)[2])
     text(par('usr')[1], par('usr')[4], adj = c(0, 1),
@@ -149,6 +158,78 @@ factor_df[order(factor_df$rsq, decreasing = TRUE), ] # TSS, NO2
 
 
 ### map
+
+library(rgdal)
+library(sp)
+library(raster)
+library(GISTools)
+library(plotrix)
+
+
+# read us shp for state names
+us_raw <- readOGR("C:/Users/WSALLS/OneDrive - Environmental Protection Agency (EPA)/Profile/Desktop/geospatial_general/conus_shp", "cb_2015_us_state_20m")
+conus_raw <- us_raw[!(us_raw$NAME %in% c("Alaska", "Hawaii", "Puerto Rico")), ]
+conus <- spTransform(conus_raw, CRS("+init=epsg:5070")) # to AEA
+
+#us <- spTransform(us_raw, CRS("+init=epsg:5070")) # to AEA
+#conus <- us[!(us$NAME %in% c("Alaska", "Hawaii", "Puerto Rico")), ]
+
+pts_andata <- SpatialPointsDataFrame(coords = andata[, c("lon", "lat")], data = andata,
+                                     proj4string = CRS("+init=epsg:4326"))
+pts_andata_proj <- spTransform(pts_andata, crs(conus))
+
+par(mar = c(2, 2, 2, 2))
+
+jpeg("3_map.jpg", width = 900*6, height = 625*6, res = 600)
+plot(conus, col = "grey94", border = "white") # 900 x 625
+plot(pts_andata_proj[which(pts_andata_proj$set == "cal"), ], add = TRUE, pch = 19, col = alpha("black", 0.3))
+plot(pts_andata_proj[which(pts_andata_proj$set == "val"), ], add = TRUE, pch = 18, col = alpha("orange", 0.5), bg = NULL)
+legend(-2.2e+06, 0.6e+06, legend=c("Calibration points", "Validation points"),
+       col=c(alpha("black", 0.3), alpha("orange", 0.5)), pch = c(19, 18))
+#north.arrow(-2.1e+06, 0.7e+06, len = 100000, lab = "N")
+dev.off()
+
+
+### geographic analysis
+library(ggplot2)
+library(ggspatial)
+library(sf)
+
+# error distribution
+plot(sort((pts_andata_proj$In.Situ.chl)))
+plot(sort((pts_andata_proj$chla_rhos)))
+abline(h = 0)
+plot(sort((pts_andata_proj$error_chla)))
+abline(h = 0)
+abline(v = 114)
+
+# base plot
+plot(conus, col = "grey94", border = "white") # 900 x 625
+plot(pts_andata_proj, col = color.scale(pts_andata_proj$error_chla_abs, c(0, 1, 1), c(1, 1, 0), 0), pch = 20, add = TRUE)
+plot(pts_andata_proj, col = color.scale(log10(pts_andata_proj$pct_error_chla_abs), c(0, 1, 1), c(1, 1, 0), 0), pch = 20, add = TRUE)
+
+# ggplot 
+# testing
+ggplot(andata[!is.na(andata$error_chla), ], aes(lon, lat, error_chla)) +
+  geom_point(aes(color = error_chla), size = 2) +
+  scale_color_gradient2(low = "yellow", mid = "white", high = "blue", midpoint = 0)
+
+ggplot() + geom_polygon(data = conus, aes(x = long, y = lat, group = group), colour = "black", fill = NA) + 
+  geom_point(data = andata, aes(x = lon, y = lat)) +
+  theme_void()
+
+# works
+sites <- st_as_sf(andata[!is.na(andata$error_chla), ], coords = c("lon", "lat"), 
+                   crs = 4326, agr = "constant")
+
+ggplot() +
+  geom_polygon(data = conus_raw, aes(x = long, y = lat, group = group), 
+               colour = "black", fill = "gray90") +
+  geom_sf(data = sites, aes(color = error_chla), size = 2, alpha = 3) +
+  geom_sf(data = sites, size = 2, shape = 1, alpha = 0.3) +
+  scale_color_gradient2(low = "red", mid = "white", high = "blue", midpoint = 0) + 
+  theme_void()
+
 
 
 
@@ -174,8 +255,8 @@ chl_trophicState <- function(x) {
 
 trophic_levels <- c("oligotrophic", "mesotrophic", "eutrophic", "hypereutrophic")
 
-valdat_all$troph_is <- sapply(valdat_all$In.Situ.chl.x, chl_trophicState)
-valdat_all$troph_s2 <- sapply(valdat_all$pred, chl_trophicState)
+valdat_all$troph_is <- sapply(valdat_all$In.Situ.chl, chl_trophicState)
+valdat_all$troph_s2 <- sapply(valdat_all$chla_rhos, chl_trophicState)
 sum(valdat_all$troph_is == valdat_all$troph_s2, na.rm = TRUE)
 sum(!is.na(valdat_all$troph_s2))
 valdat_all$troph_is <- factor(valdat_all$troph_is, 
@@ -193,8 +274,8 @@ class_metrics <- data.frame()
 
 for (l in trophic_levels) {
   valdat_l <- valdat_all[which(valdat_all$troph_is == l), ]
-  mae_l <- calc_mae(valdat_l$In.Situ.chl.x, valdat_l$pred)
-  bias_l <- calc_bias(valdat_l$In.Situ.chl.x, valdat_l$pred)
+  mae_l <- calc_mae(valdat_l$In.Situ.chl, valdat_l$chla_rhos)
+  bias_l <- calc_bias(valdat_l$In.Situ.chl, valdat_l$chla_rhos)
   
   class_metrics <- rbind(class_metrics, data.frame(trophic_class = l,
                                                    MAE_mult = round(mae_l, 2),

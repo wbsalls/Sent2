@@ -557,7 +557,7 @@ bs <- function(data, indices, formula) {
 
 # bootstrapping with 1000 replications
 boots <- boot(data = mu_conus, statistic = bs,
-              R = 228, formula = In.Situ.chl ~ MCI_rhos) # conf ints only work R >= 228
+              R = 228, formula = In.Situ.chl ~ MCI_rhos) # conf ints only work R >= n observations
 boots
 plot(boots, index=1)
 plot(boots, index=2)

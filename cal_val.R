@@ -36,10 +36,10 @@ cal_val <- function(data, obs_name, p1_name,
   }
   
   # assign index for subsequent data re-joining
-  data$index_assigned <- 1:nrow(data)
+  data$row_inputdata <- 1:nrow(data)
   
   # restrict to complete cases
-  full_set <- data[, colnames(data) %in% c(obs_name, p1_name, "index_assigned")]
+  full_set <- data[, colnames(data) %in% c(obs_name, p1_name, "row_inputdata")]
   full_set <- full_set[complete.cases(full_set), ]
   
   # rename observed and predictor columns
