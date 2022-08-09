@@ -24,6 +24,7 @@ cvm2 <- cal_val(data = mu_conus_addAcolite,
                 #pos_text_y = 0.07
 )
 
+par(mfrow = c(1, 1))
 
 ### prepare data for factor analysis
 
@@ -59,7 +60,6 @@ plot(mu_conus_addAcolite_pred$In.Situ.chl[(mu_conus_addAcolite_pred$chla_rhos < 
 mu_conus_addAcolite_pred$chla_rhos[mu_conus_addAcolite_pred$chla_rhos < 0] <- NA
 
 
-
 # specify which dataframe to use for analysis
 #andata <- mu_conus_addAcolite_pred[valdat$row_inputdata, ]
 andata <- mu_conus_addAcolite_pred
@@ -69,6 +69,14 @@ andata$error_chla <- (andata$chla_rhos - andata$In.Situ.chl) # error
 andata$error_chla_abs <- abs(andata$error_chla) # abs error
 andata$pct_error_chla <- ((andata$chla_rhos - andata$In.Situ.chl) / andata$In.Situ.chl) * 100 # % error
 andata$pct_error_chla_abs <- abs(andata$pct_error_chla) # abs error
+
+# error distribution
+plot(sort((pts_andata_proj$In.Situ.chl)))
+plot(sort((pts_andata_proj$chla_rhos)))
+abline(h = 0)
+plot(sort((pts_andata_proj$error_chla)))
+abline(h = 0)
+abline(v = 114)
 
 
 
@@ -88,14 +96,12 @@ points(mu_conus_addAcolite_pred[mu_conus_addAcolite_pred$set=="val", ]$lon,
        pch = 20, col = "red")
 
 # lat/lon
-data.frame(mu_conus$In.Situ.lat, mu_conus$lat)
-sum(mu_conus$In.Situ.lat == mu_conus$lat)
-summary(mu_conus$In.Situ.lat - mu_conus$lat)
+summary(andata$In.Situ.lat - andata$lat) # check if same
 plot(andata$lat, andata$error_chla)
 plot(andata$lon, andata$error_chla)
 
 # time diff
-plot(abs(andata$Overpass.time.difference..minutes.), andata$error_chla)
+plot(abs(andata$Overpass.time.difference..minutes.), andata$error_chla_abs)
 
 
 #
@@ -133,7 +139,7 @@ for (i in factor_list) {
   }
   
   mi <- lm(err ~ xi)
-  slope_std <- round(coef(mi)[2] * (sd(xi, na.rm = TRUE) / sd(err)), 2)
+  slope_std <- round(coef(mi)[2] * (sd(xi, na.rm = TRUE) / sd(err, na.rm = TRUE)), 2)
   
   factor_df <- rbind(factor_df, data.frame(factor = colnames(andata)[i],
                                            factor_index = i,
@@ -155,6 +161,9 @@ for (i in factor_list) {
 }
 
 factor_df[order(factor_df$rsq, decreasing = TRUE), ] # TSS, NO2
+
+par(mfrow = c(1, 1))
+
 
 
 ### map
@@ -178,10 +187,9 @@ pts_andata <- SpatialPointsDataFrame(coords = andata[, c("lon", "lat")], data = 
                                      proj4string = CRS("+init=epsg:4326"))
 pts_andata_proj <- spTransform(pts_andata, crs(conus))
 
-par(mar = c(2, 2, 2, 2))
-
+#par(mar = c(2, 2, 2, 2))
 jpeg("3_map.jpg", width = 900*6, height = 625*6, res = 600)
-plot(conus, col = "grey94", border = "white") # 900 x 625
+plot(conus, col = "grey95", border = "black") # 900 x 625
 plot(pts_andata_proj[which(pts_andata_proj$set == "cal"), ], add = TRUE, pch = 19, col = alpha("black", 0.3))
 plot(pts_andata_proj[which(pts_andata_proj$set == "val"), ], add = TRUE, pch = 18, col = alpha("orange", 0.5), bg = NULL)
 legend(-2.2e+06, 0.6e+06, legend=c("Calibration points", "Validation points"),
@@ -195,20 +203,88 @@ library(ggplot2)
 library(ggspatial)
 library(sf)
 
-# error distribution
-plot(sort((pts_andata_proj$In.Situ.chl)))
-plot(sort((pts_andata_proj$chla_rhos)))
-abline(h = 0)
-plot(sort((pts_andata_proj$error_chla)))
-abline(h = 0)
-abline(v = 114)
+## add state
+state <- over(pts_andata_proj, conus)
+andata$state <- state$STUSPS
+sum(is.na(andata$state))
+plot(conus, col = "grey95", border = "black") # 900 x 625
+plot(pts_andata_proj[is.na(andata$state), ], add = TRUE, pch = 19, col = alpha("black", 0.3))
 
-# base plot
+
+length(unique(state$STUSPS))
+length(unique(state$STUSPS[which(andata$set == "cal")]))
+length(unique(state$STUSPS[which(andata$set == "val")]))
+sort(table(state$STUSPS))
+sort(table(state$STUSPS[which(andata$set == "cal")]))
+sort(table(state$STUSPS[which(andata$set == "val")]))
+
+aggregate(andata$error_chla_abs, by = list(andata$state), FUN = mean, na.rm = TRUE)
+
+
+## add NHD data
+comid <- over(pts_andata_proj, nhd)
+andata <- cbind(andata, comid[, which(colnames(comid) %in% 
+                                        c("COMID", "GNIS_NAME",
+                                          "AREASQKM", "ELEVATION",
+                                          "shore_dist", "max_window"))])
+# great lakes and another (Champlain?) have NA state
+table(andata$GNIS_NAME[which(is.na(andata$state))])
+table(andata$COMID[which(is.na(andata$state))])
+sum(is.na(andata$GNIS_NAME))
+
+plot(nhd[which(nhd$COMID == 15447546), ])
+plot(pts_andata_proj[which(andata$COMID == 15447546), ], add = TRUE)
+plot(conus, add = TRUE)
+plot(nhd, add = TRUE)
+
+plot(conus[conus$STUSPS == "VT", ])
+plot(pts_andata_proj, col = "red", pch = 1, add = TRUE)
+plot(nhd, add = TRUE)
+
+# COMID
+length(unique(comid$COMID))
+length(unique(comid$COMID[which(andata$set == "cal")]))
+length(unique(comid$COMID[which(andata$set == "val")]))
+sort(table(comid$COMID))
+sort(table(comid$COMID[which(andata$set == "cal")]))
+sort(table(comid$COMID[which(andata$set == "val")]))
+
+# GNIS_NAME - some are NA
+length(unique(comid$GNIS_NAME))
+length(unique(comid$GNIS_NAME[which(andata$set == "cal")]))
+length(unique(comid$GNIS_NAME[which(andata$set == "val")]))
+sort(table(comid$GNIS_NAME))
+sort(table(comid$GNIS_NAME[which(andata$set == "cal")]))
+sort(table(comid$GNIS_NAME[which(andata$set == "val")]))
+
+# elev
+plot(andata$ELEVATION, andata$elev) # shows that ELEVATION is 0 for many pts
+plot(andata$elev, andata$error_chla_abs) # use this one (from Nima)
+#plot(andata$ELEVATION, andata$error_chla_abs)
+
+max_val_boxplot <- 2400
+slice_boxplot <- 200
+andata$elev_interval <- cut(andata$ELEVATION, seq(0, max_val_boxplot, slice_boxplot))
+boxplot(error_chla_abs ~ elev_interval, data = andata)
+
+# area
+plot(andata$AREASQKM, andata$shore_dist, xlim = c(0,200), ylim = c(0,3000))
+plot(andata$AREASQKM, andata$max_window, xlim = c(0,200), ylim = c(0,5000))
+plot(andata$AREASQKM, andata$error_chla_abs)
+boxplot(andata$error_chla_abs ~ andata$AREASQKM)
+
+max_val_boxplot <- 60000
+slice_boxplot <- 1000
+andata$Asqkm_interval <- cut(andata$AREASQKM, seq(0, max_val_boxplot, slice_boxplot))
+boxplot(error_chla_abs ~ Asqkm_interval, data = andata)
+
+
+### base plot
 plot(conus, col = "grey94", border = "white") # 900 x 625
 plot(pts_andata_proj, col = color.scale(pts_andata_proj$error_chla_abs, c(0, 1, 1), c(1, 1, 0), 0), pch = 20, add = TRUE)
 plot(pts_andata_proj, col = color.scale(log10(pts_andata_proj$pct_error_chla_abs), c(0, 1, 1), c(1, 1, 0), 0), pch = 20, add = TRUE)
 
-# ggplot 
+## ggplot 
 # testing
 ggplot(andata[!is.na(andata$error_chla), ], aes(lon, lat, error_chla)) +
   geom_point(aes(color = error_chla), size = 2) +
