@@ -14,8 +14,8 @@ opar <- par()
 
 setwd("C:/Users/WSALLS/OneDrive - Environmental Protection Agency (EPA)/Profile/Desktop/S2")
 
-l2gen <- read.csv("Nima/Pahlevan_l2gen.csv", stringsAsFactors = FALSE)
-acolite <- read.csv("Nima/Pahlevan_acolite.csv", stringsAsFactors = FALSE)
+l2gen <- read.csv("fromNima/Pahlevan_l2gen.csv", stringsAsFactors = FALSE)
+acolite <- read.csv("fromNima/Pahlevan_acolite.csv", stringsAsFactors = FALSE)
 
 l2gen$uniqueIDer <- paste(l2gen$Scene.ID, l2gen$In.Situ.datetime, l2gen$In.Situ.chl, sep = "; ")
 acolite$uniqueIDer <- paste(acolite$Scene.ID, acolite$In.Situ.datetime, acolite$In.Situ.chl, sep = "; ")
@@ -33,9 +33,9 @@ plot(merged_mus$Rrs.705..x, merged_mus$Rrs.705..y)
 abline(0, 1, col = "red")
 
 
-## pick data source
-chldata <- l2gen
-
+## pick data source (change both!)
+chldata <- l2gen # l2gen acolite
+chldata_source <- "l2gen"
 
 ## chlorophyll
 
@@ -67,15 +67,15 @@ sort(colnames(l2gen)[!(colnames(l2gen) %in% colnames(acolite))])[18:34]
 
 ##
 # add chl (manually) - rhos MCI, sed not removed
-chldata$chla_rhos <- (chldata$MCI_rhos + 0.00069) / 0.00017 # coefficients from rhos_noSed calibration
+#chldata$chla_rhos <- (chldata$MCI_rhos + 0.00069) / 0.00017 # coefficients from rhos_noSed calibration
 
 # error
-chldata$chla_err_add <- chldata$chla_rhos - chldata$In.Situ.chl
-chldata$chla_err_mult <- chldata$chla_rhos / chldata$In.Situ.chl
+#chldata$chla_err_add <- chldata$chla_rhos - chldata$In.Situ.chl
+#chldata$chla_err_mult <- chldata$chla_rhos / chldata$In.Situ.chl
 
 
-hist(chldata$chla_err_add)
-hist(chldata$chla_err_mult)
+#hist(chldata$chla_err_add)
+#hist(chldata$chla_err_mult)
 
 
 ## >>>>>>
@@ -103,7 +103,7 @@ chldata$In.Situ.datetime_nativeTZ[chldata$Database %in% PTsources] <- "PT"
 chldata$In.Situ.datetime_nativeTZ[!(chldata$Database %in% 
                                      c(ETsources, CTsources, PTsources))] <- "UTC"
 
-# new column for standardized UTC in situ times (doing it this way types column as POSIXct)
+# new column for standardized UTC in situ times (initiating this way types column as POSIXct)
 chldata$In.Situ.datetime_UTC <- as.POSIXct("2000-01-01 00:00:00", tz = "UTC")
 
 # specify posix times for data sources in each timezone
@@ -283,7 +283,7 @@ plot(-mu_conus_sed$baseline_slope, mu_conus_sed$MCI_rhos, col = mu_conus_sed$sed
      xlab = "~ sediment conc", ylab = "MCI")
 
 # write data
-write.csv(mu_conus, "C:/Users/WSALLS/OneDrive - Environmental Protection Agency (EPA)/Profile/Desktop/S2/calvalready.csv")
+write.csv(mu_conus, sprintf("C:/Users/WSALLS/OneDrive - Environmental Protection Agency (EPA)/Profile/Desktop/S2/calvalready_%s.csv", chldata_source))
 
 #mu_conus2 <- read.csv("C:/Users/WSALLS/OneDrive - Environmental Protection Agency (EPA)/Profile/Desktop/S2/calvalready.csv")
 

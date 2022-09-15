@@ -24,6 +24,8 @@ mu_conus_addAcolite$NDCI_rhos_aco <- calc_ndci(R1 = mu_conus_addAcolite$rhos.665
 mu_conus_addAcolite$MCI_Rrs_aco <- calc_mci(R1 = mu_conus_addAcolite$Rrs.665.aco, R2 = mu_conus_addAcolite$Rrs.705.aco, R3 = mu_conus_addAcolite$Rrs.740.aco)
 mu_conus_addAcolite$NDCI_Rrs_aco <- calc_ndci(R1 = mu_conus_addAcolite$Rrs.665.aco, R2 = mu_conus_addAcolite$Rrs.705.aco)
 
+#
+
 # compile all vars to iterate chl calibration
 chl_algos_vars <- c("MCI_rhot", "MCI_rhos", "MCI_Rrs",
                     "MCI_rhot_aco", "MCI_rhos_aco", "MCI_Rrs_aco",

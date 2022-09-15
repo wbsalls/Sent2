@@ -18,7 +18,9 @@ cal_val <- function(data, obs_name, p1_name,
                     #ylim_cal = range(p1_dat, na.rm = TRUE), 
                     neg.rm = TRUE, 
                     negs2zero = FALSE,
+                    conf_ints = TRUE,
                     log_axes_val = "xy",
+                    text_cal = TRUE,
                     xylim_val = range(data[, obs_name], na.rm = TRUE),
                     returnObjects = FALSE,
                     ...) {
@@ -67,7 +69,7 @@ cal_val <- function(data, obs_name, p1_name,
       }
       
       mboot <- boot(data = cal_set, statistic = bsm2,
-                      R = nboots, formula = obs ~ p1)
+                    R = nboots, formula = obs ~ p1)
       
       mcal_b1 <- mean(mboot$t[, 2])
       mcal_b0 <- mean(mboot$t[, 1])
@@ -102,7 +104,7 @@ cal_val <- function(data, obs_name, p1_name,
     abline(mcal_b0, mcal_b1)
     
     # confidence interval on regression line
-    if (isTRUE(bstrap)) {
+    if (isTRUE(bstrap & conf_ints)) {
       # create vector of x values from which to calculate confidence interval values
       xincrements <- seq(min(cal_set$p1), 
                          max(cal_set$p1) + 1.2 * max(cal_set$p1), 
@@ -146,18 +148,20 @@ cal_val <- function(data, obs_name, p1_name,
     points(cal_set$p1, cal_set$obs, col = alpha("black", 0.4), pch = 20)
     
     # text
-    calplot_range_x <- par('usr')[2] - par('usr')[1]
-    calpos_text_x <- par('usr')[1] + calplot_range_x * 0.05
-    
-    calplot_range_y <- par('usr')[4] - par('usr')[3]
-    calpos_text_y <- par('usr')[3] + calplot_range_y * 0.95
-    
-    text(x = calpos_text_x, y = calpos_text_y, 
-         paste0("y = ", round(mcal_b1, 0), 
-                "x + ", round(mcal_b0, 2), 
-                "\nR-sq = ", round(mcal_Rsq, 3),
-                "\nn = ", length(cal_set$obs)),
-         adj = c(0, 1), cex = 1.2)
+    if (isTRUE(text_cal)) {
+      calplot_range_x <- par('usr')[2] - par('usr')[1]
+      calpos_text_x <- par('usr')[1] + calplot_range_x * 0.05
+      
+      calplot_range_y <- par('usr')[4] - par('usr')[3]
+      calpos_text_y <- par('usr')[3] + calplot_range_y * 0.95
+      
+      text(x = calpos_text_x, y = calpos_text_y, 
+           paste0("y = ", round(mcal_b1, 0), 
+                  "x + ", round(mcal_b0, 2), 
+                  "\nR-sq = ", round(mcal_Rsq, 3),
+                  "\nn = ", length(cal_set$obs)),
+           adj = c(0, 1), cex = 1.2)
+    }
     
   } else if (isFALSE(switch_y_cal)) {
     if (isTRUE(bstrap)) {
@@ -171,7 +175,7 @@ cal_val <- function(data, obs_name, p1_name,
       }
       
       mboot <- boot(data = cal_set, statistic = bsm2,
-                      R = nboots, formula = obs ~ p1)
+                    R = nboots, formula = obs ~ p1)
       
       mcal_b1 <- mean(mboot$t[, 2])
       mcal_b0 <- mean(mboot$t[, 1])
@@ -256,7 +260,7 @@ cal_val <- function(data, obs_name, p1_name,
                                     ...)
   
   ## plot error bars on predictions, if bootstrapped
-  if(isTRUE(bstrap) & log_axes_val == "") {
+  if(isTRUE(bstrap) & log_axes_val == "" & isTRUE(conf_ints)) {
     
     # assign predicted chl based on bootstrapped coeffs, and 
     val_set$pred_lci <- b1_lci * val_set$p1 + b0_lci

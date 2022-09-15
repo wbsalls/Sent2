@@ -112,6 +112,7 @@ plot_error_metrics <- function(x, y,
                                pos_text_x = NULL,
                                pos_text_y = NULL,
                                print_metrics = TRUE,
+                               plot_val = TRUE,
                                #xaxt = xaxt,
                                #yaxt = yaxt,
                                ...) {
@@ -157,51 +158,53 @@ plot_error_metrics <- function(x, y,
     pyaxt <- "s"
   }
   
-  ## plot
-  plot(df$x, df$y, log = log_axes, xlab = xname, ylab = yname, 
-       xaxt = pxaxt, yaxt = pyaxt,
-       xlim = xlim, 
-       ylim = ylim,
-       ...) # col = alpha("black", 0.3), pch = 20
-  
-  abline(0, 1, lty = 3, untf = TRUE) # show y = x line
-  
-  if (plot_regrline == TRUE) {
-    abline(line.int, line.slope, untf = TRUE) # show model line, transformed to log space
-    legend("bottomright", y.intersp = 0.5, c("Fit model", "y = x"), lty = c(1, 3), bty = "n")
-  } else {
-    #legend("bottomright", y.intersp = 0.5, "y = x", lty = 3, bty = "n")
-  }
-  
-  # add axes if log transformed
-  if (grepl("x", log_axes)) {
-    axis(1, at = c(10 ^ (-1:3)), labels = c(10 ^ (-1:3)))
-  }
-  if (grepl("y", log_axes)) {
-    axis(2, at = c(10 ^ (-1:3)), labels = c(10 ^ (-1:3)))
-  }
-  
-  
-  ## add metrics text to plot
-  
-  if(is.null(pos_text_x)) {
-    plot_range_x <- par('usr')[2] - par('usr')[1]
-    pos_text_x <- par('usr')[1] + plot_range_x * 0.98
-  }
-  
-  if(is.null(pos_text_y)) {
-    plot_range_y <- par('usr')[4] - par('usr')[3]
-    pos_text_y <- par('usr')[3] + plot_range_y * 0.00
-  }
-  
-  
-  
-  if (show_metrics) {
-    text(x = pos_text_x, y = pos_text_y, 
-         adj = c(1, 0), cex = 1.7,
-         bquote(atop(atop(MAE[mult] * " = " * .(signif(err_metr$MAE_mult, digits = 3)),
-                     bias[mult] * " = " * .(signif(err_metr$bias_mult, digits = 3))),
-                     atop("n = " * .(err_metr$n)))))
+  if (isTRUE(plot_val)) {
+    ## plot
+    plot(df$x, df$y, log = log_axes, xlab = xname, ylab = yname, 
+         xaxt = pxaxt, yaxt = pyaxt,
+         xlim = xlim, 
+         ylim = ylim,
+         ...) # col = alpha("black", 0.3), pch = 20
+    
+    abline(0, 1, lty = 3, untf = TRUE) # show y = x line
+    
+    if (plot_regrline == TRUE) {
+      abline(line.int, line.slope, untf = TRUE) # show model line, transformed to log space
+      legend("bottomright", y.intersp = 0.5, c("Fit model", "y = x"), lty = c(1, 3), bty = "n")
+    } else {
+      #legend("bottomright", y.intersp = 0.5, "y = x", lty = 3, bty = "n")
+    }
+    
+    # add axes if log transformed
+    if (grepl("x", log_axes)) {
+      axis(1, at = c(10 ^ (-1:3)), labels = c(10 ^ (-1:3)))
+    }
+    if (grepl("y", log_axes)) {
+      axis(2, at = c(10 ^ (-1:3)), labels = c(10 ^ (-1:3)))
+    }
+    
+    
+    ## add metrics text to plot
+    
+    if(is.null(pos_text_x)) {
+      plot_range_x <- par('usr')[2] - par('usr')[1]
+      pos_text_x <- par('usr')[1] + plot_range_x * 0.98
+    }
+    
+    if(is.null(pos_text_y)) {
+      plot_range_y <- par('usr')[4] - par('usr')[3]
+      pos_text_y <- par('usr')[3] + plot_range_y * 0.00
+    }
+    
+    
+    
+    if (show_metrics) {
+      text(x = pos_text_x, y = pos_text_y, 
+           adj = c(1, 0), cex = 1.7,
+           bquote(atop(atop(MAE[mult] * " = " * .(signif(err_metr$MAE_mult, digits = 3)),
+                            bias[mult] * " = " * .(signif(err_metr$bias_mult, digits = 3))),
+                       atop("n = " * .(err_metr$n)))))
+    }
   }
   
   # print to console

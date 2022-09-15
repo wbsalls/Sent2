@@ -26,6 +26,7 @@ cvm2 <- cal_val(data = mu_conus_addAcolite,
 
 par(mfrow = c(1, 1))
 
+
 ### prepare data for factor analysis
 
 # pull each object from output
@@ -38,6 +39,7 @@ cal_boot <- cvm2$cal_boot
 mu_conus_addAcolite$set <- NA
 mu_conus_addAcolite$set[caldat$row_inputdata] <- "cal"
 mu_conus_addAcolite$set[valdat$row_inputdata] <- "val"
+mu_conus_addAcolite$set[is.na(mu_conus_addAcolite$set)] <- "val - neg.rm"
 table(mu_conus_addAcolite$set)
 
 # merge validation predictions to full table, creating index based on row numbers to match index in output
@@ -53,11 +55,17 @@ valdat_all <- mu_conus_addAcolite_pred[which(mu_conus_addAcolite_pred$set == "va
 mu_conus_addAcolite_pred$chla_rhos <- cvm2$metrics$b1_cal * mu_conus_addAcolite_pred$MCI_rhos + cvm2$metrics$b0_cal
 
 # investigate and remove negative pred chl values
-plot(sort(mu_conus_addAcolite_pred$In.Situ.chl[(mu_conus_addAcolite_pred$chla_rhos < 0)]))
-plot(mu_conus_addAcolite_pred$In.Situ.chl[(mu_conus_addAcolite_pred$chla_rhos < 0)], 
+neg_preds <- sort(mu_conus_addAcolite_pred$In.Situ.chl[(mu_conus_addAcolite_pred$chla_rhos < 0)])
+neg_preds_val <- sort(mu_conus_addAcolite_pred$In.Situ.chl[(mu_conus_addAcolite_pred$set == "val - neg.rm")])
+summary(neg_preds)
+summary(neg_preds_val)
+plot(sort(neg_preds_val))
+plot(neg_preds, 
      mu_conus_addAcolite_pred$chla_rhos[(mu_conus_addAcolite_pred$chla_rhos < 0)],
      xlab = "in situ chl", ylab = "pred chl")
 mu_conus_addAcolite_pred$chla_rhos[mu_conus_addAcolite_pred$chla_rhos < 0] <- NA
+
+-cvm2$metrics$b0_cal / cvm2$metrics$b1_cal # MCI cutoff
 
 
 # specify which dataframe to use for analysis
@@ -70,100 +78,44 @@ andata$error_chla_abs <- abs(andata$error_chla) # abs error
 andata$pct_error_chla <- ((andata$chla_rhos - andata$In.Situ.chl) / andata$In.Situ.chl) * 100 # % error
 andata$pct_error_chla_abs <- abs(andata$pct_error_chla) # abs error
 
+###
+
 # error distribution
-plot(sort((pts_andata_proj$In.Situ.chl)))
-plot(sort((pts_andata_proj$chla_rhos)))
+plot(sort((andata$In.Situ.chl)))
+plot(sort((andata$chla_rhos)))
 abline(h = 0)
-plot(sort((pts_andata_proj$error_chla)))
+plot(sort((andata$error_chla)))
 abline(h = 0)
-abline(v = 114)
+abline(v = sum(!is.na(andata$error_chla)) / 2)
+
+plot(andata$chla_rhos, andata$error_chla)
+plot(andata$chla_rhos, andata$error_chla_abs)
+
+# exploring data
+summary(andata$In.Situ.chl)
+summary(andata$chla_rhos, na.rm = TRUE)
+data.frame(andata$In.Situ.chl, andata$chla_rhos)
+summary(andata$In.Situ.depth)
 
 
+### sediment plot
 
-### analyze factors
+mu_conus_sed$chla_rhos <- cvm2$metrics$b1_cal * mu_conus_sed$MCI_rhos + cvm2$metrics$b0_cal
 
-# sediment
-plot(andata$baseline_slope, andata$error_chla)
+mu_conus_sed$error_chla <- (mu_conus_sed$chla_rhos - mu_conus_sed$In.Situ.chl) # error
+mu_conus_sed$error_chla_abs <- abs(mu_conus_sed$error_chla) # abs error
+mu_conus_sed$pct_error_chla <- ((mu_conus_sed$chla_rhos - mu_conus_sed$In.Situ.chl) / mu_conus_sed$In.Situ.chl) * 100 # % error
+mu_conus_sed$pct_error_chla_abs <- abs(mu_conus_sed$pct_error_chla) # abs error
 
-# shoredist
-plot(andata$dist_shore_m, andata$error_chla)
-
-# location
-plot(mu_conus_addAcolite_pred[mu_conus_addAcolite_pred$set=="cal", ]$lon, 
-     mu_conus_addAcolite_pred[mu_conus_addAcolite_pred$set=="cal", ]$lat)
-points(mu_conus_addAcolite_pred[mu_conus_addAcolite_pred$set=="val", ]$lon, 
-       mu_conus_addAcolite_pred[mu_conus_addAcolite_pred$set=="val", ]$lat,
-       pch = 20, col = "red")
-
-# lat/lon
-summary(andata$In.Situ.lat - andata$lat) # check if same
-plot(andata$lat, andata$error_chla)
-plot(andata$lon, andata$error_chla)
-
-# time diff
-plot(abs(andata$Overpass.time.difference..minutes.), andata$error_chla_abs)
-
-
-#
-plot(as.numeric(andata$In.Situ.tss), andata$error_chla)
-plot(andata$In.Situ.cdom, andata$error_chla)
-
-
-# satellite comparison
-andata$satellite <- substr(andata$Scene.ID, 1, 3)
-table(andata$satellite)
-boxplot(error_chla ~ satellite, data = andata)
-
-
-### analyze all factors
-
-colnames(andata)[1:140]
-factor_list <- c(9:13, 74:124, 137, 139, 140)
-factor_list <- c(9:13, 14:73, 74:124, 128:133, 137, 139, 140)
-length(factor_list)
-
-err_type <- "error_chla_abs" # error_chla error_chla_abs pct_error_chla pct_error_chla_abs
-
-ploti <- TRUE
-
-par(mfrow = c(3, 4))
-
-factor_df <- data.frame()
-
-for (i in factor_list) {
-  err <- andata[, err_type]
-  xi <- as.numeric(andata[, colnames(andata)[i]])
-  
-  if (length(unique(xi[!is.na(xi)])) < 2) {
-    next
-  }
-  
-  mi <- lm(err ~ xi)
-  slope_std <- round(coef(mi)[2] * (sd(xi, na.rm = TRUE) / sd(err, na.rm = TRUE)), 2)
-  
-  factor_df <- rbind(factor_df, data.frame(factor = colnames(andata)[i],
-                                           factor_index = i,
-                                           rsq = round(summary(mi)$r.squared, 2),
-                                           slope_std = slope_std,
-                                           n = sum(!is.na(xi))))
-  
-  if (ploti) {
-    plot(xi, err,
-         xlab = colnames(andata)[i], ylab = err_type,
-         pch = 20, main = i)
-    abline(h = 0, lty = 2)
-    abline(coef(mi)[1], coef(mi)[2])
-    text(par('usr')[1], par('usr')[4], adj = c(0, 1),
-         paste0("R-sq = ", round(summary(mi)$r.squared, 2),
-                "\nstd. slope = ", slope_std,
-                "\nn = ", sum(!is.na(xi))))
-  }
-}
-
-factor_df[order(factor_df$rsq, decreasing = TRUE), ] # TSS, NO2
-
-par(mfrow = c(1, 1))
-
+plot(mu_conus_sed$baseline_slope * 10000, mu_conus_sed$error_chla, 
+     pch = 20, 
+     xlab = expression("MCI baseline slope (10" ^ -4 * ~nm ^ -1 * ")"), 
+     ylab = expression("S2 chl " * italic(a) * " error"),
+     col = alpha(mu_conus_sed$sedcolor, 0.5))
+abline(v = -1.5, lty = 3)
+abline(h=0)
+legend(-13, -25, legend = c("retained", "removed"),
+       pch = 20, col = alpha(c("black", "red"), 0.5), bty = "o")
 
 
 ### map
@@ -232,6 +184,7 @@ table(andata$GNIS_NAME[which(is.na(andata$state))])
 table(andata$COMID[which(is.na(andata$state))])
 sum(is.na(andata$GNIS_NAME))
 
+'
 plot(nhd[which(nhd$COMID == 15447546), ])
 plot(pts_andata_proj[which(andata$COMID == 15447546), ], add = TRUE)
 plot(conus, add = TRUE)
@@ -240,11 +193,14 @@ plot(nhd, add = TRUE)
 plot(conus[conus$STUSPS == "VT", ])
 plot(pts_andata_proj, col = "red", pch = 1, add = TRUE)
 plot(nhd, add = TRUE)
+'
 
 # COMID
 length(unique(comid$COMID))
 length(unique(comid$COMID[which(andata$set == "cal")]))
 length(unique(comid$COMID[which(andata$set == "val")]))
+length(unique(comid$COMID[which(andata$set %in% c("cal", "val"))]))
+length(unique(comid$COMID[which(andata$set == "val - neg.rm")]))
 sort(table(comid$COMID))
 sort(table(comid$COMID[which(andata$set == "cal")]))
 sort(table(comid$COMID[which(andata$set == "val")]))
@@ -308,6 +264,109 @@ ggplot() +
 
 
 
+### analyze factors
+
+# sediment
+plot(andata$baseline_slope, andata$error_chla)
+
+# shoredist
+plot(andata$dist_shore_m, andata$error_chla)
+
+# location
+plot(mu_conus_addAcolite_pred[mu_conus_addAcolite_pred$set=="cal", ]$lon, 
+     mu_conus_addAcolite_pred[mu_conus_addAcolite_pred$set=="cal", ]$lat)
+points(mu_conus_addAcolite_pred[mu_conus_addAcolite_pred$set=="val", ]$lon, 
+       mu_conus_addAcolite_pred[mu_conus_addAcolite_pred$set=="val", ]$lat,
+       pch = 20, col = "red")
+
+# lat/lon
+summary(andata$In.Situ.lat - andata$lat) # check if same
+plot(andata$lat, andata$error_chla)
+plot(andata$lon, andata$error_chla)
+
+# time diff
+plot(abs(andata$Overpass.time.difference..minutes.), andata$error_chla_abs)
+
+
+#
+plot(as.numeric(andata$In.Situ.tss), andata$error_chla)
+plot(andata$In.Situ.cdom, andata$error_chla)
+
+
+# satellite comparison
+andata$satellite <- substr(andata$Scene.ID, 1, 3)
+table(andata$satellite)
+
+boxplot(error_chla ~ satellite, data = andata)
+
+
+### analyze all factors
+
+# add lakecat
+lakecat <- read.csv("C:/Users/WSALLS/OneDrive - Environmental Protection Agency (EPA)/Profile/Desktop/S2/Hannah/extra_lake_variables.csv", 
+                    stringsAsFactors = FALSE)
+colnames(lakecat)[1] <- "COMID"
+
+andata_lakecat <- merge(andata, lakecat, by = "COMID", all.x = TRUE, all.y = FALSE)
+andata_backup <- andata
+andata <- andata_lakecat
+
+# set columns
+colnames(andata)
+#factor_list <- c(9:13, 74:124, 137, 139, 140)
+#factor_list <- c(8:14, 15:74, 75:125, 128:133, 137, 139, 140)
+factor_list <- 8:140 # all database variables
+factor_list <- 211:347 # lakecat variables
+factor_list <- 8:347 # lakecat variables
+
+length(factor_list)
+
+# set and run analysis
+err_type <- "error_chla_abs" # error_chla error_chla_abs pct_error_chla pct_error_chla_abs
+
+ploti <- TRUE
+
+par(mfrow = c(3, 4))
+
+factor_df <- data.frame()
+
+for (i in factor_list) {
+  err <- andata[, err_type]
+  xi <- as.numeric(andata[, colnames(andata)[i]])
+  
+  if (length(unique(xi[!is.na(xi)])) < 2) {
+    next
+  }
+  
+  mi <- lm(err ~ xi)
+  slope_std <- round(coef(mi)[2] * (sd(xi, na.rm = TRUE) / sd(err, na.rm = TRUE)), 2)
+  
+  factor_df <- rbind(factor_df, data.frame(factor = colnames(andata)[i],
+                                           factor_index = i,
+                                           rsq = round(summary(mi)$r.squared, 2),
+                                           slope_std = slope_std,
+                                           n = sum(!is.na(xi))))
+  
+  if (ploti) {
+    plot(xi, err,
+         xlab = colnames(andata)[i], ylab = err_type,
+         pch = 20, main = i)
+    abline(h = 0, lty = 2)
+    abline(coef(mi)[1], coef(mi)[2])
+    text(par('usr')[1], par('usr')[4], adj = c(0, 1),
+         paste0("R-sq = ", round(summary(mi)$r.squared, 2),
+                "\nstd. slope = ", slope_std,
+                "\nn = ", sum(!is.na(xi))))
+  }
+}
+
+factor_df[order(factor_df$rsq, decreasing = TRUE), ] # TSS, NO2
+
+par(mfrow = c(1, 1))
+
+write.csv(factor_df[order(factor_df$rsq, decreasing = TRUE), ], 
+          sprintf("factor_df_ALL_%s.csv", err_type))
+
 
 
 ### confusion matrix
@@ -358,6 +417,24 @@ for (l in trophic_levels) {
                                                    bias_mult = round(bias_l, 2)))
 }
 class_metrics
+
+
+
+### compare other coefficients
+plot(caldat$p1, caldat$obs,
+     xlab = "MCI", 
+     ylab = expression(italic("in situ") * " chl " * italic(a) * " (" * mu * "g " * L^-1 * ")"),
+     pch = 20, col = alpha("black", 0.4))
+abline(cvm2$metrics$b0_cal, cvm2$metrics$b1_cal)
+abline((-0.0012 / 0.0002), (1 / 0.0002), lty = 2, col = "royalblue") # Binding Ontario
+abline((-0.0021 / 0.0004), (1 / 0.0004), lty = 4, col = "green3") # Binding Erie
+curve(exp((x + 0.017) / 0.0077), add = TRUE, lty = 3, col = "gold2")
+
+legend(-0.0053, 135, legend = c("CONUS", expression(italic("Lake Ontario")), 
+                                expression(italic("Lake Erie")), 
+                                expression(italic("Lake of the Woods"))),
+       lty = c(1, 2, 4, 3), cex=0.8,
+       col = c("black", "royalblue", "green3", "gold2"))
 
 
 ### iterative tests
