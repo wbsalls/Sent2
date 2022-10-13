@@ -156,11 +156,10 @@ cal_val <- function(data, obs_name, p1_name,
       calpos_text_y <- par('usr')[3] + calplot_range_y * 0.95
       
       text(x = calpos_text_x, y = calpos_text_y, 
-           paste0("y = ", round(mcal_b1, 0), 
-                  "x + ", round(mcal_b0, 2), 
-                  "\nr-sq = ", round(mcal_Rsq, 3),
-                  "\nn = ", length(cal_set$obs)),
-           adj = c(0, 1), cex = 1.2)
+           bquote(atop(atop(y * " = " * .(round(mcal_b1, 0)) * x * " + " * .(round(mcal_b0, 2)),
+                            r^2 * " = " * .(round(mcal_Rsq, 3))),
+                       atop(n * " = " * .(length(cal_set$obs))))),
+           adj = c(0, 1), cex = 1.7)
     }
     
   } else if (isFALSE(switch_y_cal)) {
@@ -210,10 +209,10 @@ cal_val <- function(data, obs_name, p1_name,
     calpos_text_y <- par('usr')[3] + calplot_range_y * 0.95
     
     text(x = calpos_text_x, y = calpos_text_y, 
-         paste0("r-sq = ", round(mcal_Rsq, 3),
-                "\nslope = ", round(mcal_b1, 5), 
-                "\nintercept = ", round(mcal_b0, 5), 
-                "\nn = ", length(cal_set$obs)),
+         bquote(atop(atop(r^2 * " = " * .(round(mcal_Rsq, 3)),
+                          slope * " = " * .(round(mcal_b1, 5))),
+                     atop(intercept * " = " * .(round(mcal_b0, 5)),
+                          n * " = " * .(length(cal_set$obs))))),
          adj = c(0, 1), cex = 1.2)
   }
   

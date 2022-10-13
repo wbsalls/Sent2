@@ -4,11 +4,13 @@ source("C:/Users/WSALLS/Git/Sent2/cal_val.R")
 
 ### main validation on l2gen rhot
 
+ac_level <- "Rrs"
+
 par(mfrow = c(1, 2))
 
 cvm2 <- cal_val(data = mu_conus_addAcolite,
                 obs_name = "In.Situ.chl", 
-                p1_name = "MCI_Rrs", 
+                p1_name = paste0("MCI_", ac_level), 
                 portion_cal = 0.8, 
                 set_seed = TRUE, 
                 neg.rm = TRUE, 
@@ -16,7 +18,7 @@ cvm2 <- cal_val(data = mu_conus_addAcolite,
                 nboots = 1000,
                 switch_y_cal = TRUE, 
                 regr_model_cal = 4, 
-                main = paste0(gsub("MCI_", "", p1_name), ", l2gen - "),
+                main = paste0(ac_level, ", l2gen - "),
                 alg_name = "MCI",
                 log_axes_val = "", # xy
                 returnObjects = TRUE
