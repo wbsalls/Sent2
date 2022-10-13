@@ -8,7 +8,7 @@ par(mfrow = c(1, 2))
 
 cvm2 <- cal_val(data = mu_conus_addAcolite,
                 obs_name = "In.Situ.chl", 
-                p1_name = "MCI_rhos", 
+                p1_name = "MCI_Rrs", 
                 portion_cal = 0.8, 
                 set_seed = TRUE, 
                 neg.rm = TRUE, 
@@ -16,7 +16,7 @@ cvm2 <- cal_val(data = mu_conus_addAcolite,
                 nboots = 1000,
                 switch_y_cal = TRUE, 
                 regr_model_cal = 4, 
-                main = paste0("rhos, l2gen - "),
+                main = paste0(gsub("MCI_", "", p1_name), ", l2gen - "),
                 alg_name = "MCI",
                 log_axes_val = "", # xy
                 returnObjects = TRUE
@@ -34,6 +34,13 @@ cvm2$metrics
 caldat <- cvm2$cal_data
 valdat <- cvm2$val_data
 cal_boot <- cvm2$cal_boot
+
+# compare Model II and Model I regressions
+# (switch regr_model_cal and object name above)
+m2v1 <- merge(cvm2$val_data, cvm1$val_data, by = "row_inputdata", all = TRUE)
+plot(m2v1$pred.x, m2v1$pred.y, xlab = "pred chl, Model II", ylab = "pred chl, Model I")
+abline(0, 1)
+sort(m2v1$pred.x - m2v1$pred.y)
 
 # specify cal or val for each row
 mu_conus_addAcolite$set <- NA
@@ -171,6 +178,7 @@ sort(table(state$STUSPS[which(andata$set == "cal")]))
 sort(table(state$STUSPS[which(andata$set == "val")]))
 
 aggregate(andata$error_chla_abs, by = list(andata$state), FUN = mean, na.rm = TRUE)
+aggregate(andata$error_chla, by = list(andata$state), FUN = mean, na.rm = TRUE)
 
 
 ## add NHD data
@@ -425,7 +433,9 @@ plot(caldat$p1, caldat$obs,
      xlab = "MCI", 
      ylab = expression(italic("in situ") * " chl " * italic(a) * " (" * mu * "g " * L^-1 * ")"),
      pch = 20, col = alpha("black", 0.4))
-abline(cvm2$metrics$b0_cal, cvm2$metrics$b1_cal)
+abline(9.33, 4551) # rhot
+abline(9.2, 4326) # rhos
+abline(8.88, 12749) # Rrs
 abline((-0.0012 / 0.0002), (1 / 0.0002), lty = 2, col = "royalblue") # Binding Ontario
 abline((-0.0021 / 0.0004), (1 / 0.0004), lty = 4, col = "green3") # Binding Erie
 curve(exp((x + 0.017) / 0.0077), add = TRUE, lty = 3, col = "gold2")

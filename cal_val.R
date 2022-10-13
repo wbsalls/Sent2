@@ -83,7 +83,7 @@ cal_val <- function(data, obs_name, p1_name,
       
       mcal_b1 <- mcal$regression.results$Slope[regr_model_cal] # slope
       mcal_b0 <- mcal$regression.results$Intercept[regr_model_cal] # intercept
-      mcal_Rsq <- mcal$rsquare # R-squared
+      mcal_Rsq <- mcal$rsquare # r-squared
       
       # set confidence intervals as NA since not bootstrapping
       b0_lci <- NA
@@ -158,7 +158,7 @@ cal_val <- function(data, obs_name, p1_name,
       text(x = calpos_text_x, y = calpos_text_y, 
            paste0("y = ", round(mcal_b1, 0), 
                   "x + ", round(mcal_b0, 2), 
-                  "\nR-sq = ", round(mcal_Rsq, 3),
+                  "\nr-sq = ", round(mcal_Rsq, 3),
                   "\nn = ", length(cal_set$obs)),
            adj = c(0, 1), cex = 1.2)
     }
@@ -189,7 +189,7 @@ cal_val <- function(data, obs_name, p1_name,
       
       mcal_b1 <- mcal$regression.results$Slope[regr_model_cal] # slope
       mcal_b0 <- mcal$regression.results$Intercept[regr_model_cal] # intercept
-      mcal_Rsq <- mcal$rsquare # R-squared
+      mcal_Rsq <- mcal$rsquare # r-squared
     }
     
     # plot
@@ -210,7 +210,7 @@ cal_val <- function(data, obs_name, p1_name,
     calpos_text_y <- par('usr')[3] + calplot_range_y * 0.95
     
     text(x = calpos_text_x, y = calpos_text_y, 
-         paste0("R-sq = ", round(mcal_Rsq, 3),
+         paste0("r-sq = ", round(mcal_Rsq, 3),
                 "\nslope = ", round(mcal_b1, 5), 
                 "\nintercept = ", round(mcal_b0, 5), 
                 "\nn = ", length(cal_set$obs)),
@@ -303,7 +303,7 @@ cal_val <- function(data, obs_name, p1_name,
                                                    cal_maxy = max(cal_set$p1),
                                                    cal_meany = mean(cal_set$p1),
                                                    cal_mediany = median(cal_set$p1),
-                                                   cal_n = nrow(cal_set)))
+                                                   cal_n = nrow(cal_set))) #!!!!!
   if (isFALSE(returnObjects)) {
     return(cal_val_metrics)
   } else {
